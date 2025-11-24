@@ -1,0 +1,4 @@
+# Raspberry Pi sensor loggers
+adafruit-circuitpython-ads1x15
+adafruit-blinka
+smbus2

@@ -1,0 +1,5 @@
+# Host GUI + plotting environment
+paramiko
+matplotlib
+pandas
+numpy
