@@ -1,0 +1,10 @@
+mpu6050:
+  output_dir: /home/pi/logs/mpu
+  sample_rate_hz: 200
+  sensors: [1, 2, 3]
+  include_temperature: false
+
+adxl203_ads1115:
+  output_dir: /home/pi/logs/adxl
+  sample_rate_hz: 100
+  channels: both
