@@ -1,82 +1,71 @@
-"""Utilities for interpreting ADXL203/ADS1115 samples."""
+"""Utilities for interpreting ADXL203/ADS1115 samples.
 
-from __future__ import annotations
+The logger streams JSON lines with (at least):
 
-import json
+  - timestamp_ns : int   monotonic time in nanoseconds
+  - x_lp, y_lp   : float low-pass filtered acceleration in m/s² for the X
+                   and Y axes respectively.
+
+`parse_line()` consumes those JSON lines and also supports the older
+CSV format "timestamp_ns,x,y" for simple replays.
+"""
+
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Sequence
+import json
 
 
 @dataclass
 class AdxlSample:
-    """
-    Parsed ADXL203 sample.
-
-    Supports both legacy CSV lines:
-
-        timestamp_ns, x, y
-
-    and the JSON streaming format produced by ``adxl203_ads1115_logger.py``:
-
-        {
-          "timestamp_ns": ...,
-          "x_lp": ...,
-          "y_lp": ...
-        }
-    """
-
     timestamp_ns: int
-    x: Optional[float] = None
-    y: Optional[float] = None
+    # Low-pass filtered acceleration components in m/s².
+    x: float
+    y: float
 
 
-def _parse_json_line(line: str) -> AdxlSample:
-    data = json.loads(line)
+def _parse_json_line(text: str) -> AdxlSample:
+    obj = json.loads(text)
 
-    ts_raw = data.get("timestamp_ns", 0)
-    ts = int(ts_raw)
+    ts_raw = obj.get("timestamp_ns")
+    if ts_raw is None:
+        raise ValueError("ADXL203 JSON line missing 'timestamp_ns' field")
+    timestamp_ns = int(ts_raw)
 
-    def _get_float(name: str) -> Optional[float]:
-        v = data.get(name)
-        if v is None:
-            return None
-        return float(v)
+    # Prefer filtered fields x_lp/y_lp; fall back to x/y if necessary.
+    x_val = obj.get("x_lp", obj.get("x"))
+    y_val = obj.get("y_lp", obj.get("y"))
 
-    # Map low-pass filtered fields x_lp/y_lp into x/y.
-    x_val = _get_float("x_lp")
-    if x_val is None:
-        x_val = _get_float("x")
+    if x_val is None or y_val is None:
+        raise ValueError(
+            "ADXL203 JSON line missing 'x_lp'/'y_lp' (or 'x'/'y') fields"
+        )
 
-    y_val = _get_float("y_lp")
-    if y_val is None:
-        y_val = _get_float("y")
+    return AdxlSample(timestamp_ns=timestamp_ns, x=float(x_val), y=float(y_val))
 
-    return AdxlSample(timestamp_ns=ts, x=x_val, y=y_val)
+
+def _parse_csv_line(text: str) -> AdxlSample:
+    parts: Sequence[str] = text.split(",")
+    if len(parts) < 3:
+        raise ValueError(
+            f"Expected at least 3 comma-separated values for ADXL203 CSV, "
+            f"got {len(parts)}: {text!r}"
+        )
+    ts, x, y = map(float, parts[:3])
+    return AdxlSample(int(ts), x, y)
 
 
 def parse_line(line: str) -> AdxlSample:
     """
-    Parse a single line into :class:`AdxlSample`.
+    Parse a single text line from the ADXL203 logger into an :class:`AdxlSample`.
 
-    - If the line looks like JSON (starts with ``'{'``), parse the JSON
-      streaming format produced by the Pi logger.
-    - Otherwise, assume a simple CSV format::
-
-        timestamp_ns, x, y
+    The function understands both the new JSONL streaming format and the
+    legacy CSV format.
     """
-    stripped = line.strip()
-    if not stripped:
-        raise ValueError("Empty ADXL203 line")
+    text = line.strip()
+    if not text:
+        raise ValueError("Empty line passed to parse_line()")
 
-    if stripped[0] == "{":
-        return _parse_json_line(stripped)
+    if text[0] == "{":
+        return _parse_json_line(text)
 
-    # CSV fallback
-    parts: Sequence[str] = stripped.split(",")
-    if len(parts) < 3:
-        raise ValueError(
-            f"Expected at least 3 CSV columns for ADXL203, got {len(parts)}: {line!r}"
-        )
-
-    ts, x, y = map(float, parts[:3])
-    return AdxlSample(timestamp_ns=int(ts), x=x, y=y)
+    return _parse_csv_line(text)

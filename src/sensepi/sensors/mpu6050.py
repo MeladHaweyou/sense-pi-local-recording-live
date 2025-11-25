@@ -1,99 +1,86 @@
-"""Utilities for interpreting MPU6050 samples."""
+"""Utilities for interpreting MPU6050 samples.
 
-from __future__ import annotations
+The Raspberry Pi logger streams JSON lines with (at least):
 
-import json
+  - timestamp_ns : int   monotonic time in nanoseconds
+  - t_s          : float seconds since the run started
+  - sensor_id    : int   logical sensor index (1, 2, or 3)
+  - ax, ay, az   : float linear acceleration in m/s²
+  - gx, gy, gz   : float angular rate in deg/s
+
+`parse_line()` accepts those JSON lines and also supports the legacy
+comma-separated format "timestamp_ns,ax,ay,az,gx,gy,gz" for older logs.
+"""
+
 from dataclasses import dataclass
 from typing import Optional, Sequence
+import json
+import math
 
 
 @dataclass
 class MpuSample:
-    """
-    Parsed MPU6050 sample.
-
-    Supports both legacy CSV lines (timestamp_ns, ax, ay, az, gx, gy, gz)
-    and the JSON streaming format produced by ``mpu6050_multi_logger.py``:
-
-        {
-          "timestamp_ns": ...,
-          "t_s": ...,
-          "sensor_id": ...,
-          "ax": ...,
-          "ay": ...,
-          "gz": ...,
-          ...
-        }
-    """
-
     timestamp_ns: int
-    ax: Optional[float] = None
-    ay: Optional[float] = None
-    az: Optional[float] = None
-    gx: Optional[float] = None
-    gy: Optional[float] = None
-    gz: Optional[float] = None
+    ax: float
+    ay: float
+    az: float
+    gx: float
+    gy: float
+    gz: float
     sensor_id: Optional[int] = None
     t_s: Optional[float] = None
-    temp_c: Optional[float] = None
 
 
-def _parse_json_line(line: str) -> MpuSample:
-    data = json.loads(line)
+def _parse_json_line(text: str) -> MpuSample:
+    obj = json.loads(text)
 
-    ts_raw = data.get("timestamp_ns", 0)
-    ts = int(ts_raw)
+    ts_raw = obj.get("timestamp_ns")
+    if ts_raw is None:
+        raise ValueError("MPU6050 JSON line missing 'timestamp_ns' field")
+    timestamp_ns = int(ts_raw)
 
-    t_s_raw = data.get("t_s")
-    t_s = float(t_s_raw) if t_s_raw is not None else None
+    sensor_id = obj.get("sensor_id")
+    if sensor_id is not None:
+        sensor_id = int(sensor_id)
 
-    sid_raw = data.get("sensor_id")
-    sensor_id = int(sid_raw) if sid_raw is not None else None
+    t_s = obj.get("t_s")
+    if t_s is not None:
+        t_s = float(t_s)
 
-    def _get_float(name: str) -> Optional[float]:
-        v = data.get(name)
-        if v is None:
-            return None
-        return float(v)
+    def _get_axis(name: str) -> float:
+        val = obj.get(name)
+        if val is None:
+            # Use NaN to indicate "not present" while keeping a float type.
+            return math.nan
+        return float(val)
+
+    ax = _get_axis("ax")
+    ay = _get_axis("ay")
+    az = _get_axis("az")
+    gx = _get_axis("gx")
+    gy = _get_axis("gy")
+    gz = _get_axis("gz")
 
     return MpuSample(
-        timestamp_ns=ts,
-        ax=_get_float("ax"),
-        ay=_get_float("ay"),
-        az=_get_float("az"),
-        gx=_get_float("gx"),
-        gy=_get_float("gy"),
-        gz=_get_float("gz"),
+        timestamp_ns=timestamp_ns,
+        ax=ax,
+        ay=ay,
+        az=az,
+        gx=gx,
+        gy=gy,
+        gz=gz,
         sensor_id=sensor_id,
         t_s=t_s,
-        temp_c=_get_float("temp_c"),
     )
 
 
-def parse_line(line: str) -> MpuSample:
-    """
-    Parse a single line into :class:`MpuSample`.
-
-    - If the line looks like JSON (starts with ``'{'``), parse the JSON
-      streaming format produced by the Pi logger.
-    - Otherwise, fall back to the legacy CSV format:
-
-        timestamp_ns, ax, ay, az, gx, gy, gz
-    """
-    stripped = line.strip()
-    if not stripped:
-        raise ValueError("Empty MPU6050 line")
-
-    if stripped[0] == "{":
-        return _parse_json_line(stripped)
-
-    # CSV fallback
-    parts: Sequence[str] = stripped.split(",")
+def _parse_csv_line(text: str) -> MpuSample:
+    parts: Sequence[str] = text.split(",")
     if len(parts) < 7:
         raise ValueError(
-            f"Expected at least 7 CSV columns for MPU6050, got {len(parts)}: {line!r}"
+            f"Expected at least 7 comma-separated values for MPU6050 CSV, "
+            f"got {len(parts)}: {text!r}"
         )
-
     ts, ax, ay, az, gx, gy, gz = map(float, parts[:7])
     return MpuSample(
         timestamp_ns=int(ts),
@@ -104,3 +91,20 @@ def parse_line(line: str) -> MpuSample:
         gy=gy,
         gz=gz,
     )
+
+
+def parse_line(line: str) -> MpuSample:
+    """
+    Parse a single text line from the MPU6050 logger into an :class:`MpuSample`.
+
+    The function understands both the new JSONL streaming format and the
+    legacy CSV format.
+    """
+    text = line.strip()
+    if not text:
+        raise ValueError("Empty line passed to parse_line()")
+
+    if text[0] == "{":
+        return _parse_json_line(text)
+
+    return _parse_csv_line(text)

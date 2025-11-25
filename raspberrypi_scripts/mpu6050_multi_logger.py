@@ -352,8 +352,17 @@ def main():
     ap.add_argument("--rate", type=float, help="Sampling rate in Hz (e.g., 10, 20, 50, 100, 200)", required=False)
     ap.add_argument("--sensors", type=str, default="1,2,3", help="Comma‑separated sensor ids to enable (subset of 1,2,3)")
     ap.add_argument("--map", type=str, default="", help="Override mapping like '1:1-0x68,2:1-0x69,3:0-0x68'")
-    ap.add_argument("--channels", type=str, choices=["acc", "gyro", "both", "default"], default="default",
-                    help="Which channels to record: 'acc', 'gyro', 'both', or 'default' (AX, AY, and GZ)")
+    ap.add_argument(
+        "--channels",
+        type=str,
+        choices=["acc", "gyro", "both", "default"],
+        default="both",
+        help=(
+            "Which channels to record: 'acc', 'gyro', 'both', or 'default' "
+            "(AX, AY, and GZ). Default is 'both' so that all six axes are "
+            "available for streaming."
+        ),
+    )
     ap.add_argument("--duration", type=float, default=None, help="Duration in seconds (optional)")
     ap.add_argument("--samples", type=int, default=None, help="Number of samples to capture (optional)")
     ap.add_argument("--out", type=str, default="./logs", help="Output folder")
@@ -393,12 +402,23 @@ def main():
         default=1,
         help="Only stream every N-th sample per sensor (default: 1 = every sample)."
     )
+    # Default streaming fields:
+    #   - timestamp_ns (int): monotonic time in nanoseconds
+    #   - t_s          (float): seconds since the run started
+    #   - sensor_id    (int): logical sensor index (1, 2, or 3)
+    #   - ax, ay, az   (float): linear acceleration in m/s^2
+    #   - gx, gy, gz   (float): angular rate in deg/s
+    # `--stream-fields` controls which of the measured channels (ax..gz, temp_c)
+    # are added on top of the always-present timestamp_ns, t_s and sensor_id.
     ap.add_argument(
         "--stream-fields",
         type=str,
-        default="ax,ay,gz",
-        help=("Comma-separated extra fields (e.g. 'ax,ay,gz,temp_c') to include in streamed JSON "
-              "in addition to timestamp_ns,t_s,sensor_id.")
+        default="ax,ay,az,gx,gy,gz",
+        help=(
+            "Comma-separated list of data fields (e.g. "
+            "'ax,ay,az,gx,gy,gz,temp_c') to include in streamed JSON, in "
+            "addition to the always-present timestamp_ns, t_s, and sensor_id."
+        ),
     )
 
     args = ap.parse_args()
@@ -568,7 +588,13 @@ def main():
     if args.temp:
         header += ["temp_c"]
 
-    # Compute stream_fields: fields added on top of timestamp_ns, t_s, sensor_id
+    # Compute stream_fields: fields added on top of timestamp_ns, t_s, sensor_id.
+    # The stream payload always includes:
+    #   timestamp_ns : int  (monotonic time in nanoseconds)
+    #   t_s          : float (seconds since the run started)
+    #   sensor_id    : int  (logical sensor index: 1, 2 or 3)
+    # `stream_fields` then selects which *measured* channels (ax..gz, temp_c,
+    # etc.) are added on top.
     user_fields = [
         s.strip()
         for s in (getattr(args, "stream_fields", "") or "").split(",")

@@ -349,11 +349,18 @@ def main():
         default=1,
         help="Only stream every Nth output sample (default: 1 = every sample).",
     )
+    # For streaming, `timestamp_ns` (int, monotonic nanoseconds) is always
+    # included. By default we also stream:
+    #   x_lp, y_lp : low-pass filtered acceleration components in m/s^2 for
+    #                the X and Y axes respectively.
     ap.add_argument(
         "--stream-fields",
         type=str,
         default="x_lp,y_lp",
-        help="Comma-separated list of field names (from the header) to include in the stdout JSON stream.",
+        help=(
+            "Comma-separated list of data fields (from the CSV header) to "
+            "include in the stdout JSON stream, in addition to timestamp_ns."
+        ),
     )
     ap.add_argument(
         "--config",
