@@ -85,10 +85,22 @@ class RecorderTab(QWidget):
             "mpu6050": threading.Event(),
             "adxl203_ads1115": threading.Event(),
         }
-        self._rate_controllers: Dict[str, RateController] = {
-            "mpu6050": RateController(window_size=500, default_hz=0.0),
-            "adxl203_ads1115": RateController(window_size=500, default_hz=0.0),
-        }
+
+        # --- Rate control state ------------------------------------------
+        # One RateController per MPU6050 sensor_id (for multi-sensor boards)
+        self._mpu_rate_controllers: Dict[int, RateController] = {}
+
+        # Single RateController for the ADXL203/ADS1115 stream
+        self._adxl_rate_controller = RateController(
+            window_size=500,
+            default_hz=0.0,
+        )
+
+        # Snapshot of the *active* configuration used to format rate labels
+        self._active_mpu_rate_hz: Optional[float] = None
+        self._active_mpu_stream_every: Optional[int] = None
+        self._active_adxl_rate_hz: Optional[float] = None
+        self._active_adxl_stream_every: Optional[int] = None
 
         self._build_ui()
         self._load_hosts()
@@ -205,12 +217,22 @@ class RecorderTab(QWidget):
 
         layout.addWidget(adxl_group)
 
-        # Overall status
+        # Overall status and rate labels --------------------------------------
         self.overall_status = QLabel("Idle.")
         layout.addWidget(self.overall_status)
 
-        self.mpu_rate_label = QLabel("MPU6050 rate: --")
-        self.adxl_rate_label = QLabel("ADXL203 rate: --")
+        # Make it explicit that the displayed rate is the *stream* rate
+        # (after decimation), and also show the requested on-Pi rate.
+        self.mpu_rate_label = QLabel(
+            "MPU6050 (per sensor): requested -- Hz; "
+            "stream -- Hz (after decimation)"
+        )
+        self.adxl_rate_label = QLabel(
+            "ADXL203 (per sensor): requested -- Hz; "
+            "stream -- Hz (after decimation)"
+        )
+        self.mpu_rate_label.setWordWrap(True)
+        self.adxl_rate_label.setWordWrap(True)
         layout.addWidget(self.mpu_rate_label)
         layout.addWidget(self.adxl_rate_label)
 
@@ -330,6 +352,12 @@ class RecorderTab(QWidget):
         if not (mpu_cfg.enabled or adxl_cfg.enabled):
             raise RuntimeError("Select at least one sensor to stream.")
 
+        # Reset active rate metadata for this run
+        self._active_mpu_rate_hz = None
+        self._active_mpu_stream_every = None
+        self._active_adxl_rate_hz = None
+        self._active_adxl_stream_every = None
+
         recorder = self._ensure_recorder()
         started_any = False
 
@@ -344,6 +372,10 @@ class RecorderTab(QWidget):
             if self._recording_mode:
                 stream_every = max(stream_every, 5)
             mpu_args.extend(["--stream-every", str(stream_every)])
+
+            # Remember effective config for active MPU stream
+            self._active_mpu_rate_hz = mpu_cfg.rate_hz
+            self._active_mpu_stream_every = stream_every
 
             self._start_stream(
                 recorder,
@@ -360,6 +392,10 @@ class RecorderTab(QWidget):
                 adxl_stream_every = max(adxl_stream_every, 5)
             adxl_args.extend(["--stream-every", str(adxl_stream_every)])
 
+            # Remember effective config for active ADXL stream
+            self._active_adxl_rate_hz = adxl_cfg.rate_hz
+            self._active_adxl_stream_every = adxl_stream_every
+
             self._start_stream(
                 recorder,
                 sensor_type="adxl203_ads1115",
@@ -372,7 +408,7 @@ class RecorderTab(QWidget):
 
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
-        self.overall_status.setText("Streaming...")
+        self.overall_status.setText("Streaming.")
         self.streaming_started.emit()
 
     def stop_live_stream(self) -> None:
@@ -387,11 +423,25 @@ class RecorderTab(QWidget):
 
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
-        self.overall_status.setText("Stopping streams...")
+        self.overall_status.setText("Stopping streams.")
         self.streaming_stopped.emit()
 
-        self.mpu_rate_label.setText("MPU6050 rate: --")
-        self.adxl_rate_label.setText("ADXL203 rate: --")
+        self.mpu_rate_label.setText(
+            "MPU6050 (per sensor): requested -- Hz; "
+            "stream -- Hz (after decimation)"
+        )
+        self.adxl_rate_label.setText(
+            "ADXL203 (per sensor): requested -- Hz; "
+            "stream -- Hz (after decimation)"
+        )
+
+        # Reset rate-controller state for next run
+        self._mpu_rate_controllers.clear()
+        self._adxl_rate_controller.reset()
+        self._active_mpu_rate_hz = None
+        self._active_mpu_stream_every = None
+        self._active_adxl_rate_hz = None
+        self._active_adxl_stream_every = None
 
         # Close SSH connection (remote processes will see broken pipes)
         if self._pi_recorder is not None:
@@ -429,19 +479,67 @@ class RecorderTab(QWidget):
                     on_stderr=_stderr_callback,
                 )
 
-        def _worker():
+        def _worker() -> None:
             try:
                 lines = _iter_lines()
-                rc = self._rate_controllers[sensor_type]
-                rc.reset()
+
+                # Prepare rate controllers at stream start
+                if sensor_type == "mpu6050":
+                    # Fresh run: discard any stale per-sensor history
+                    self._mpu_rate_controllers.clear()
+                else:
+                    # Single controller for ADXL203/ADS1115
+                    self._adxl_rate_controller.reset()
+                    if self._active_adxl_rate_hz is not None:
+                        # Seed with configured rate as a prior (5.4)
+                        self._adxl_rate_controller.update_from_status(
+                            self._active_adxl_rate_hz
+                        )
 
                 def _callback(sample: object) -> None:
                     if stop_event.is_set():
                         raise _StopStreaming()
+
                     t = self._sample_time_seconds(sample)
-                    if t is not None:
-                        rc.add_sample_time(t)
-                        self.rate_updated.emit(sensor_type, rc.estimated_hz)
+
+                    # --- Per-sensor MPU6050 rate tracking -------------------
+                    if isinstance(sample, MpuSample):
+                        # Default sensor_id to 1 if missing
+                        sensor_id = sample.sensor_id or 1
+
+                        rc = self._mpu_rate_controllers.get(sensor_id)
+                        if rc is None:
+                            rc = RateController(window_size=500, default_hz=0.0)
+                            # Seed each per-sensor controller with the configured rate
+                            if self._active_mpu_rate_hz is not None:
+                                rc.update_from_status(self._active_mpu_rate_hz)
+                            self._mpu_rate_controllers[sensor_id] = rc
+
+                        if t is not None:
+                            rc.add_sample_time(t)
+
+                        # For display, use per-sensor rate for sensor_id == 1
+                        display_rc = self._mpu_rate_controllers.get(1)
+                        if display_rc is not None:
+                            est = display_rc.estimate()
+                            hz_stream = est.hz_effective
+                        else:
+                            # No samples from sensor 1 yet – show N/A / 0.0
+                            hz_stream = 0.0
+
+                        # Still use a single "mpu6050" sensor key for the UI
+                        self.rate_updated.emit("mpu6050", hz_stream)
+
+                    # --- ADXL203/ADS1115 rate tracking ----------------------
+                    elif isinstance(sample, AdxlSample):
+                        if t is not None:
+                            rc = self._adxl_rate_controller
+                            rc.add_sample_time(t)
+                            est = rc.estimate()
+                            hz_stream = est.hz_effective
+                            self.rate_updated.emit("adxl203_ads1115", hz_stream)
+
+                    # Always forward samples to visualization tabs
                     self.sample_received.emit(sample)
 
                 # When stream_lines returns normally, stdout closed.
@@ -494,9 +592,56 @@ class RecorderTab(QWidget):
             QMessageBox.critical(self, "SensePi Error", message)
 
     @Slot(str, float)
-    def _on_rate_updated(self, sensor: str, hz: float) -> None:
-        text = f"{hz:.1f} Hz"
+    def _on_rate_updated(self, sensor: str, hz_stream: float) -> None:
+        """
+        Update the GUI labels when a new rate estimate is available.
+
+        `hz_stream` is the *streamed* (decimated) rate from RateController.
+        We also show the configured on-Pi rate and an approximate true rate
+        inferred from the decimation factor (stream_every).
+        """
+
+        label: Optional[QLabel] = None
+        requested_hz: Optional[float] = None
+        stream_every: int = 1
+        sensor_name = sensor
+
         if sensor == "mpu6050":
-            self.mpu_rate_label.setText(f"MPU6050 rate: {text}")
+            label = self.mpu_rate_label
+            requested_hz = self._active_mpu_rate_hz
+            stream_every = self._active_mpu_stream_every or 1
+            sensor_name = "MPU6050"
         elif sensor == "adxl203_ads1115":
-            self.adxl_rate_label.setText(f"ADXL203 rate: {text}")
+            label = self.adxl_rate_label
+            requested_hz = self._active_adxl_rate_hz
+            stream_every = self._active_adxl_stream_every or 1
+            sensor_name = "ADXL203"
+        else:
+            # Unknown sensor key – ignore
+            return
+
+        if label is None:
+            return
+
+        # Stream rate text
+        if hz_stream <= 0.0:
+            stream_txt = "N/A"
+            true_txt = "N/A"
+        else:
+            stream_txt = f"{hz_stream:.1f} Hz"
+            true_txt = f"{hz_stream * max(1, stream_every):.1f} Hz"
+
+        # Requested on-Pi rate (from GUI/config)
+        if not requested_hz or requested_hz <= 0.0:
+            requested_txt = "N/A"
+        else:
+            requested_txt = f"{requested_hz:.1f} Hz"
+
+        n_txt = f"N={max(1, stream_every)}"
+
+        label.setText(
+            f"{sensor_name} (per sensor): "
+            f"requested {requested_txt}; "
+            f"stream {stream_txt} "
+            f"(true ≈ {true_txt}, {n_txt}, after decimation)"
+        )
