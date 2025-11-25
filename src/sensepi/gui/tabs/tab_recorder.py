@@ -262,12 +262,16 @@ class RecorderTab(QWidget):
         stop_event = self._stop_flags[sensor_type]
         stop_event.clear()
 
+        def _stderr_callback(line: str) -> None:
+            # Forward stderr lines to the GUI
+            self.error_reported.emit(f"{sensor_type} stderr: {line}")
+
         if sensor_type == "mpu6050":
             def _iter_lines():
-                return recorder.stream_mpu6050(extra_args=extra_args)
+                return recorder.stream_mpu6050(extra_args=extra_args, on_stderr=_stderr_callback)
         else:
             def _iter_lines():
-                return recorder.stream_adxl203(extra_args=extra_args)
+                return recorder.stream_adxl203(extra_args=extra_args, on_stderr=_stderr_callback)
 
         def _worker():
             try:
@@ -284,7 +288,16 @@ class RecorderTab(QWidget):
                         self.rate_updated.emit(sensor_type, rc.estimated_hz)
                     self.sample_received.emit(sample)
 
+                # When stream_lines returns normally, stdout closed.
                 stream_lines(lines, parser, _callback)
+
+                # If we get here without a StopStreaming and we didn't request a stop,
+                # the remote process likely exited early (error or normal exit).
+                if not stop_event.is_set():
+                    self.error_reported.emit(
+                        f"Stream for {sensor_type} ended unexpectedly (remote process exited)."
+                    )
+
             except _StopStreaming:
                 # Graceful stop requested
                 pass
