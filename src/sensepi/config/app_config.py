@@ -149,7 +149,7 @@ class HostInventory:
           - name: lab-pi
             host: 192.168.0.6
             user: pi
-            ssh_key: ~/.ssh/id_rsa
+            ssh_key: ~/.ssh/id_rsa  # or password: "hunter2"
             base_path: /home/pi/raspberrypi_scripts
             port: 22
     """

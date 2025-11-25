@@ -23,7 +23,11 @@ class SSHConfig:
 
 @dataclass
 class Host:
-    """Connection details for a Raspberry Pi host."""
+    """Connection details for a Raspberry Pi host.
+
+    Either ``ssh_key`` or ``password`` may be provided. If both are set,
+    ``ssh_key`` is preferred over ``password``.
+    """
 
     name: str
     host: str
@@ -62,12 +66,19 @@ class SSHClient:
             else None
         )
 
+        # Authentication preference order:
+        # 1) Explicit ssh_key path (pkey)
+        # 2) Password when no key is provided
+        # 3) Paramiko's default key lookup (agent / ~/.ssh)
         client.connect(
             hostname=self.host.host,
             username=self.host.user,
             port=self.host.port,
             pkey=key,
-            password=self.host.password,
+            password=None if key is not None else self.host.password,
+            look_for_keys=(key is None and self.host.password is None),
+            allow_agent=True,
+            timeout=10.0,
         )
 
         self._client = client
