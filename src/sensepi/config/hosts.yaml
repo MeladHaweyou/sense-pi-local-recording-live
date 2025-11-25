@@ -10,4 +10,4 @@ pis:
     # ssh_key: ~/.ssh/id_rsa
     # Option 2: username + password auth (for development only)
     password: "!66442200"
-    base_path: /home/verwalter/sensor/raspberrypi_scripts
+    base_path: /home/verwalter/sensor
