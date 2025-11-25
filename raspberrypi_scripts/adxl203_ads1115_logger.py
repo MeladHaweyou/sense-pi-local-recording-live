@@ -581,11 +581,12 @@ def main():
                 file=sys.stderr,
             )
             return 1
-    else:
-        print(
-            "[INFO] no-record mode (CSV/meta output disabled); streaming only.",
-            file=sys.stderr,
-        )
+    # else:
+    #     # In GUI streaming mode this is just noise, so keep it silent by default.
+    #     # print(
+    #     #     "[INFO] no-record mode (CSV/meta output disabled); streaming only.",
+    #     #     file=sys.stderr,
+    #     # )
 
     # Filters
     lp_filters: Dict[str, Optional[FirstOrderIIR]] = {ax: FirstOrderIIR(args.rate, lp_cut) for ax in enabled_axes}
