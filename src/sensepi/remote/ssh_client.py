@@ -9,6 +9,7 @@ from typing import Iterable, Iterator, Optional
 import logging
 import paramiko
 import shlex
+import threading
 
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,6 @@ class SSHClient:
         self.host = host
         self._client: paramiko.SSHClient = paramiko.SSHClient()
         self._client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.sftp: Optional[paramiko.SFTPClient] = None
 
     # ------------------------------------------------------------------ internals
     def _ensure_client(self) -> paramiko.SSHClient:
@@ -71,17 +71,7 @@ class SSHClient:
             timeout=10.0,
         )
 
-        self.sftp = self._client.open_sftp()
-
     def close(self) -> None:
-        if self.sftp is not None:
-            try:
-                self.sftp.close()
-            except Exception:
-                pass
-            finally:
-                self.sftp = None
-
         try:
             self._client.close()
         except Exception:
@@ -128,10 +118,12 @@ class SSHClient:
         cwd: Optional[str] = None,
         encoding: str = "utf-8",
         errors: str = "ignore",
+        stderr_callback: Optional[callable] = None,
     ) -> Iterable[str]:
         """
         Run a long-lived command and yield stdout lines as they arrive.
 
+        If stderr_callback is provided, stderr lines are forwarded to it.
         The caller is responsible for breaking the loop when done.
         When the remote process exits (or the iterable is closed),
         the underlying SSH channel is cleaned up.
@@ -145,9 +137,28 @@ class SSHClient:
         stdin, stdout, stderr = client.exec_command(full_cmd)
 
         def _iter_lines() -> Iterator[str]:
+            # Optional stderr watcher in a background thread
+            if stderr_callback is not None:
+                def _watch_stderr():
+                    try:
+                        for raw_err in iter(lambda: stderr.readline(), ""):
+                            if not raw_err:
+                                break
+                            if isinstance(raw_err, bytes):
+                                text_err = raw_err.decode(encoding, errors=errors)
+                            else:
+                                text_err = raw_err
+                            text_err = text_err.rstrip("\r\n")
+                            if text_err:
+                                stderr_callback(text_err)
+                    except Exception:
+                        # Don't crash on stderr issues
+                        logger.exception("Error reading remote stderr")
+
+                threading.Thread(target=_watch_stderr, daemon=True).start()
+
             try:
-                while True:
-                    raw = stdout.readline()
+                for raw in iter(lambda: stdout.readline(), ""):
                     if not raw:
                         break
                     if isinstance(raw, bytes):

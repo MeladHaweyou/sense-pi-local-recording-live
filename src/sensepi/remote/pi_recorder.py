@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from .ssh_client import Host, SSHClient
 
@@ -44,7 +44,12 @@ class PiRecorder:
         return stdout, stderr
 
     # ------------------------------------------------------------------ streaming
-    def _stream_logger(self, script_name: str, extra_args: str = ""):
+    def _stream_logger(
+        self,
+        script_name: str,
+        extra_args: str = "",
+        on_stderr: Optional[Callable[[str], None]] = None,
+    ):
         """
         Internal helper: start a logger in ``--stream-stdout`` mode.
 
@@ -65,9 +70,17 @@ class PiRecorder:
             cmd = f"{cmd} {' '.join(parts)}"
 
         # Use cwd so the script can rely on relative paths.
-        return self.client.exec_stream(cmd, cwd=str(self.base_path))
+        return self.client.exec_stream(
+            cmd,
+            cwd=str(self.base_path),
+            stderr_callback=on_stderr,
+        )
 
-    def stream_mpu6050(self, extra_args: str = ""):
+    def stream_mpu6050(
+        self,
+        extra_args: str = "",
+        on_stderr: Optional[Callable[[str], None]] = None,
+    ):
         """
         Start the MPU6050 logger in streaming mode.
 
@@ -77,9 +90,17 @@ class PiRecorder:
 
         and returns an iterable of JSON lines.
         """
-        return self._stream_logger("mpu6050_multi_logger.py", extra_args)
+        return self._stream_logger(
+            "mpu6050_multi_logger.py",
+            extra_args,
+            on_stderr=on_stderr,
+        )
 
-    def stream_adxl203(self, extra_args: str = ""):
+    def stream_adxl203(
+        self,
+        extra_args: str = "",
+        on_stderr: Optional[Callable[[str], None]] = None,
+    ):
         """
         Start the ADXL203/ADS1115 logger in streaming mode.
 
@@ -89,7 +110,11 @@ class PiRecorder:
 
         and returns an iterable of JSON lines.
         """
-        return self._stream_logger("adxl203_ads1115_logger.py", extra_args)
+        return self._stream_logger(
+            "adxl203_ads1115_logger.py",
+            extra_args,
+            on_stderr=on_stderr,
+        )
 
     # ------------------------------------------------------------------ convenience
     def stop(self) -> None:
