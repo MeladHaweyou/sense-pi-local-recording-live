@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable, Iterable, Optional
 
 from .ssh_client import Host, SSHClient
@@ -13,7 +13,12 @@ class PiRecorder:
 
     def __init__(self, host: Host, base_path: Optional[Path] = None) -> None:
         self.host = host
-        self.base_path = base_path or Path("/home/pi/raspberrypi_scripts")
+        if base_path is None:
+            base_path = Path("/home/pi/raspberrypi_scripts")
+
+        # Ensure the remote path is always POSIX-style, even on Windows hosts.
+        base_path = Path(base_path)
+        self.base_path = PurePosixPath(base_path.as_posix())
         self.client = SSHClient(host)
 
     # ------------------------------------------------------------------ connection
@@ -70,11 +75,8 @@ class PiRecorder:
             cmd = f"{cmd} {' '.join(parts)}"
 
         # Use cwd so the script can rely on relative paths.
-        return self.client.exec_stream(
-            cmd,
-            cwd=str(self.base_path),
-            stderr_callback=on_stderr,
-        )
+        cwd = self.base_path.as_posix()
+        return self.client.exec_stream(cmd, cwd=cwd, stderr_callback=on_stderr)
 
     def stream_mpu6050(
         self,
