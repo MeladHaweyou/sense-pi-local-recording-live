@@ -226,7 +226,7 @@ class RecorderTab(QWidget):
             password = entry.get("password")
             port = int(entry.get("port", 22))
             base_path = Path(
-                entry.get("base_path", "/home/pi/raspberrypi_scripts")
+                entry.get("base_path", "/home/verwalter/sensor")
             )
 
             host = Host(

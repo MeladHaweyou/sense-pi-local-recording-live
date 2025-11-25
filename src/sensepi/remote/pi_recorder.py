@@ -55,13 +55,13 @@ class PiRecorder:
         extra_args: str = "",
         on_stderr: Optional[Callable[[str], None]] = None,
         *,
-        no_record: bool = True,
+        recording: bool = False,
     ) -> Iterable[str]:
         """
         Internal helper: start a logger in ``--stream-stdout`` mode.
 
         ``extra_args`` is a free-form CLI string; this helper will append
-        ``--stream-stdout`` and optionally ``--no-record`` if they are not already present.
+        ``--stream-stdout`` and optionally ``--no-record`` depending on ``recording``.
         """
         self.connect()
 
@@ -70,9 +70,12 @@ class PiRecorder:
         if "--stream-stdout" not in parts:
             parts.append("--stream-stdout")
 
+        wants_recording = recording or ("--record" in parts)
+
+        # Ensure we don't accidentally send both flags
         parts = [p for p in parts if p != "--no-record"]
 
-        if no_record:
+        if not wants_recording and "--no-record" not in parts:
             parts.append("--no-record")
 
         cmd = f"python3 {script_name}"
@@ -103,7 +106,7 @@ class PiRecorder:
             "mpu6050_multi_logger.py",
             extra_args,
             on_stderr=on_stderr,
-            no_record=not recording,
+            recording=recording,
         )
 
     def stream_adxl203(
@@ -126,7 +129,7 @@ class PiRecorder:
             "adxl203_ads1115_logger.py",
             extra_args,
             on_stderr=on_stderr,
-            no_record=not recording,
+            recording=recording,
         )
 
     # ------------------------------------------------------------------ convenience

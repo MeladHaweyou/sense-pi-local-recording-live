@@ -149,7 +149,7 @@ class HostInventory:
             host: 192.168.0.6
             user: pi
             password: "hunter2"
-            base_path: /home/pi/raspberrypi_scripts
+            base_path: /home/verwalter/sensor
             port: 22
     """
 
@@ -201,7 +201,7 @@ class HostInventory:
         raw = (
             host_cfg.get("base_path")
             or host_cfg.get("scripts_dir")
-            or "/home/pi/raspberrypi_scripts"
+            or "/home/verwalter/sensor"
         )
         return Path(str(raw)).expanduser()
 
@@ -214,8 +214,8 @@ class HostInventory:
         port = int(host_cfg.get("port", 22))
         password = host_cfg.get("password")
 
-        base_path = Path(str(host_cfg.get("base_path", "/home/pi/raspberrypi_scripts"))).expanduser()
-        data_dir = Path(str(host_cfg.get("data_dir", "/home/pi/logs"))).expanduser()
+        base_path = Path(str(host_cfg.get("base_path", "/home/verwalter/sensor"))).expanduser()
+        data_dir = Path(str(host_cfg.get("data_dir", "/home/verwalter/logs"))).expanduser()
         pi_cfg = Path(
             str(host_cfg.get("pi_config_path", base_path / "pi_config.yaml"))
         ).expanduser()

@@ -1,10 +1,10 @@
 mpu6050:
-  output_dir: /home/verwalter/sensor/logs/mpu
+  output_dir: /home/verwalter/logs/mpu
   sample_rate_hz: 100
   sensors: [1, 2, 3]
   include_temperature: false
 
 adxl203_ads1115:
-  output_dir: /home/verwalter/sensor/logs/adxl
+  output_dir: /home/verwalter/logs/adxl
   sample_rate_hz: 100
   channels: both
