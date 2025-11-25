@@ -22,114 +22,27 @@ import threading
 import time
 import tkinter as tk
 from collections import deque
-from dataclasses import dataclass
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
 import paramiko  # pip install paramiko
+from ssh_client import (
+    AdxlParams,
+    MpuParams,
+    RUN_MODE_LIVE_ONLY,
+    RUN_MODE_RECORD_AND_LIVE,
+    RUN_MODE_RECORD_ONLY,
+    RemoteRunContext,
+    SSHClientManager,
+    build_adxl_command,
+    build_mpu_command,
+)
 
 CONFIG_FILE = "config.json"
-
-
-@dataclass
-class RemoteRunContext:
-    """Holds info about the currently running remote process and its outputs."""
-
-    command: str
-    script_name: str
-    sensor_type: str  # "adxl" or "mpu"
-    remote_out_dir: str
-    local_out_dir: str
-    start_snapshot: Dict[str, float]
-
-
-class SSHClientManager:
-    """Encapsulates SSH and SFTP connections to the Raspberry Pi."""
-
-    def __init__(self) -> None:
-        self.client: Optional[paramiko.SSHClient] = None
-        self.sftp = None
-        self._lock = threading.Lock()
-
-    def connect(
-        self, host: str, port: int, username: str, password: str = "", pkey_path: Optional[str] = None
-    ) -> None:
-        """Establish SSH + SFTP connections."""
-        with self._lock:
-            if self.client:
-                self.disconnect()
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            kwargs = {"hostname": host, "port": int(port), "username": username}
-            if pkey_path:
-                kwargs["key_filename"] = pkey_path
-            else:
-                kwargs["password"] = password
-            ssh.connect(**kwargs, look_for_keys=not pkey_path, allow_agent=False, timeout=10)
-            self.client = ssh
-            self.sftp = ssh.open_sftp()
-
-    def disconnect(self) -> None:
-        with self._lock:
-            if self.sftp:
-                try:
-                    self.sftp.close()
-                except Exception:
-                    pass
-                self.sftp = None
-            if self.client:
-                try:
-                    self.client.close()
-                except Exception:
-                    pass
-                self.client = None
-
-    def is_connected(self) -> bool:
-        return self.client is not None
-
-    def exec_command_stream(self, command: str) -> Tuple[paramiko.Channel, any, any]:
-        """Execute a command and return (channel, stdout, stderr) for streaming."""
-        if not self.client:
-            raise RuntimeError("SSH not connected")
-        transport = self.client.get_transport()
-        if not transport:
-            raise RuntimeError("SSH transport not available")
-        channel = transport.open_session()
-        channel.exec_command(command)
-        stdout = channel.makefile("r")
-        stderr = channel.makefile_stderr("r")
-        return channel, stdout, stderr
-
-    def exec_quick(self, command: str) -> Tuple[str, str, int]:
-        """Run a short command and return stdout, stderr, and exit status."""
-        if not self.client:
-            raise RuntimeError("SSH not connected")
-        stdin, stdout, stderr = self.client.exec_command(command)
-        out = stdout.read().decode(errors="ignore")
-        err = stderr.read().decode(errors="ignore")
-        status = stdout.channel.recv_exit_status()
-        return out, err, status
-
-    def list_dir(self, remote_dir: str):
-        if not self.sftp:
-            raise RuntimeError("SFTP not connected")
-        return self.sftp.listdir_attr(remote_dir)
-
-    def listdir_with_mtime(self, remote_dir: str) -> Dict[str, float]:
-        """Return {filename: mtime} for a remote directory."""
-        entries = self.list_dir(remote_dir)
-        return {entry.filename: entry.st_mtime for entry in entries}
-
-    def download_file(self, remote_path: str, local_path: str) -> None:
-        """Download one file via SFTP."""
-        if not self.sftp:
-            raise RuntimeError("SFTP not connected")
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
-        self.sftp.get(remote_path, local_path)
 
 
 class App:
@@ -143,10 +56,17 @@ class App:
         self.current_channel: Optional[paramiko.Channel] = None
         self.current_run: Optional[RemoteRunContext] = None
         self.stop_event = threading.Event()
-        self.plot_time = deque(maxlen=2000)
-        self.plot_value = deque(maxlen=2000)
+
+        # Live-plot state
         self.first_ts_ns: Optional[int] = None
         self.current_sensor_type: Optional[str] = None
+
+        # Per-sensor buffers for live plotting (sensor_id -> {t: deque, y: deque})
+        self.plot_buffers = {
+            1: {"t": deque(maxlen=2000), "y": deque(maxlen=2000)},
+            2: {"t": deque(maxlen=2000), "y": deque(maxlen=2000)},
+            3: {"t": deque(maxlen=2000), "y": deque(maxlen=2000)},
+        }
 
         self._build_vars()
         self._build_ui()
@@ -158,40 +78,45 @@ class App:
 
     # ------------------------------------------------------------------ UI construction
     def _build_vars(self) -> None:
-        # Connection
-        self.host_var = tk.StringVar(value="raspberrypi.local")  # TODO: set your Pi host/IP
+        # Connection (defaults for my Raspberry Pi)
+        self.host_var = tk.StringVar(value="192.168.0.6")
         self.port_var = tk.StringVar(value="22")
-        self.user_var = tk.StringVar(value="pi")
-        self.pass_var = tk.StringVar(value="")
+        self.user_var = tk.StringVar(value="verwalter")
+        self.pass_var = tk.StringVar(value="!66442200")
         self.key_var = tk.StringVar(value="")
         self.conn_status = tk.StringVar(value="SSH: Disconnected")
         self.run_status = tk.StringVar(value="Run: Idle")
         self.download_status = tk.StringVar(value="Last download: n/a")
 
         # Sensor choice
-        self.sensor_var = tk.StringVar(value="adxl")
+        # Default to multi‑MPU6050 (1–3 sensors)
+        self.sensor_var = tk.StringVar(value="mpu")
         self.run_mode_var = tk.StringVar(value="Record only")
         self.stream_every_var = tk.IntVar(value=5)
 
+        # Live plot window (seconds). 0 = show full history.
+        self.live_window_seconds = tk.DoubleVar(value=5.0)
+
         # ADXL203 / ADS1115 defaults
-        self.adxl_script = tk.StringVar(value="/home/pi/adxl203_ads1115_logger.py")  # TODO: adjust path
+        # (Not my main use case, but keep it consistent with the same logs folder)
+        self.adxl_script = tk.StringVar(value="/home/verwalter/sensor/adxl203_ads1115_logger.py")
         self.adxl_rate = tk.StringVar(value="100.0")
         self.adxl_channels = tk.StringVar(value="both")
         self.adxl_duration = tk.StringVar(value="")
-        self.adxl_out = tk.StringVar(value="/home/pi/logs-adxl")  # TODO: adjust path
+        self.adxl_out = tk.StringVar(value="/home/verwalter/sensor/logs")
         self.adxl_addr = tk.StringVar(value="0x48")
         self.adxl_map = tk.StringVar(value="x:P0,y:P1")
         self.adxl_calibrate = tk.StringVar(value="300")
         self.adxl_lp_cut = tk.StringVar(value="15.0")
 
-        # MPU6050 defaults
-        self.mpu_script = tk.StringVar(value="/home/pi/mpu6050_multi_logger.py")  # TODO: adjust path
+        # MPU6050 defaults (primary sensor type)
+        self.mpu_script = tk.StringVar(value="/home/verwalter/sensor/mpu6050_multi_logger.py")
         self.mpu_rate = tk.StringVar(value="100.0")
         self.mpu_sensors = tk.StringVar(value="1,2,3")
         self.mpu_channels = tk.StringVar(value="default")
         self.mpu_duration = tk.StringVar(value="")
         self.mpu_samples = tk.StringVar(value="")
-        self.mpu_out = tk.StringVar(value="/home/pi/logs-mpu")  # TODO: adjust path
+        self.mpu_out = tk.StringVar(value="/home/verwalter/sensor/logs")
         self.mpu_format = tk.StringVar(value="csv")
         self.mpu_prefix = tk.StringVar(value="mpu")
         self.mpu_dlpf = tk.StringVar(value="3")
@@ -201,8 +126,11 @@ class App:
         self.mpu_fsync_each = tk.BooleanVar(value=False)
 
         # Download vars
-        default_local = os.path.expanduser(r"~/Downloads/sense-pi-logs")  # TODO: adjust Windows folder
-        self.remote_download_dir = tk.StringVar(value=self.adxl_out.get())
+        # Remote logs live under /home/verwalter/sensor/logs
+        self.remote_download_dir = tk.StringVar(value=self.mpu_out.get())
+
+        # Local default on my Windows machine
+        default_local = r"C:\Projects\sense-pi-local-recording-live\logs"
         self.local_download_dir = tk.StringVar(value=default_local)
 
         # Common presets for quick setup (in-memory for now; can be persisted later).
@@ -238,8 +166,18 @@ class App:
         self._build_presets_frame()
         self._build_controls_frame()
         self._build_download_frame()
-        self._build_plot_frame()
-        self._build_log_frame()
+
+        # Notebook for separating live plots and logs
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill="both", expand=True, padx=8, pady=6)
+
+        self.plot_tab = ttk.Frame(self.notebook)
+        self.log_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.plot_tab, text="Live plots")
+        self.notebook.add(self.log_tab, text="Logs")
+
+        self._build_plot_frame(self.plot_tab)
+        self._build_log_frame(self.log_tab)
         self._build_status_bar()
 
     def _build_connection_frame(self) -> None:
@@ -425,20 +363,48 @@ class App:
         ).grid(row=2, column=0, columnspan=4, sticky="w", padx=4, pady=2)
         frame.columnconfigure(1, weight=1)
 
-    def _build_plot_frame(self) -> None:
-        frame = ttk.LabelFrame(self.root, text="Live plot")
+    def _build_plot_frame(self, parent) -> None:
+        frame = ttk.LabelFrame(parent, text="Live plots")
         frame.pack(fill="both", expand=True, padx=8, pady=6)
-        self.fig = Figure(figsize=(6, 3), dpi=100)
-        self.ax = self.fig.add_subplot(111)
-        self.ax.set_xlabel("Time (s)")
-        self.ax.set_ylabel("Value")
-        self.line, = self.ax.plot([], [], lw=1)
+
+        # Controls for the live time window
+        controls = ttk.Frame(frame)
+        controls.pack(fill="x", padx=4, pady=2)
+
+        ttk.Label(controls, text="Live window (s):").pack(side="left")
+        ttk.Spinbox(
+            controls,
+            from_=0.0,
+            to=3600.0,
+            increment=0.5,
+            textvariable=self.live_window_seconds,
+            width=8,
+        ).pack(side="left", padx=4)
+        ttk.Label(controls, text="(0 = show full history)").pack(side="left")
+
+        # Figure with 3 stacked subplots (one per sensor ID)
+        self.fig = Figure(figsize=(6, 5), dpi=100)
+        self.axes = []
+        self.lines = {}
+
+        for idx, sid in enumerate((1, 2, 3)):
+            if idx == 0:
+                ax = self.fig.add_subplot(3, 1, idx + 1)
+            else:
+                ax = self.fig.add_subplot(3, 1, idx + 1, sharex=self.axes[0])
+            ax.set_ylabel(f"S{sid} ax")
+            self.axes.append(ax)
+            line, = ax.plot([], [], lw=1)
+            self.lines[sid] = line
+
+        self.axes[-1].set_xlabel("Time (s)")
+
         self.canvas = FigureCanvasTkAgg(self.fig, master=frame)
         self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=4, pady=4)
         self.canvas.draw_idle()
 
-    def _build_log_frame(self) -> None:
-        frame = ttk.LabelFrame(self.root, text="Remote log output")
+    def _build_log_frame(self, parent) -> None:
+        frame = ttk.LabelFrame(parent, text="Remote log output")
         frame.pack(fill="both", expand=True, padx=8, pady=6)
         self.log_text = scrolledtext.ScrolledText(frame, height=18, wrap="word")
         self.log_text.pack(fill="both", expand=True, padx=4, pady=4)
@@ -487,82 +453,46 @@ class App:
     # ------------------------------------------------------------------ Command building
     def build_command(self) -> Tuple[str, str]:
         """Construct the python3 command for the selected sensor. Optional args omitted if blank."""
-        run_mode = self.run_mode_var.get()
+        run_mode_label = self.run_mode_var.get()
+        run_mode = {
+            RUN_MODE_RECORD_ONLY: RUN_MODE_RECORD_ONLY,
+            RUN_MODE_RECORD_AND_LIVE: RUN_MODE_RECORD_AND_LIVE,
+            RUN_MODE_LIVE_ONLY: RUN_MODE_LIVE_ONLY,
+        }.get(run_mode_label, RUN_MODE_RECORD_ONLY)
+
         stream_every = self._get_stream_every()
+
         if self.sensor_var.get() == "adxl":
-            remote_adxl_path = self.adxl_script.get().strip()
-            cmd_parts = [
-                "python3",
-                remote_adxl_path,
-                "--rate",
-                self.adxl_rate.get().strip(),
-                "--channels",
-                self.adxl_channels.get(),
-                "--out",
-                self.adxl_out.get().strip(),
-            ]
-            if self.adxl_duration.get().strip():
-                cmd_parts += ["--duration", self.adxl_duration.get().strip()]
-            if self.adxl_addr.get().strip():
-                cmd_parts += ["--addr", self.adxl_addr.get().strip()]
-            if self.adxl_map.get().strip():
-                cmd_parts += ["--map", self.adxl_map.get().strip()]
-            if self.adxl_calibrate.get().strip():
-                cmd_parts += ["--calibrate", self.adxl_calibrate.get().strip()]
-            if self.adxl_lp_cut.get().strip():
-                cmd_parts += ["--lp-cut", self.adxl_lp_cut.get().strip()]
-            if run_mode in ("Record + live plot", "Live plot only (no-record)"):
-                if run_mode == "Live plot only (no-record)":
-                    cmd_parts.append("--no-record")
-                cmd_parts.append("--stream-stdout")
-                cmd_parts += ["--stream-every", str(stream_every)]
-                cmd_parts += ["--stream-fields", "x_lp,y_lp"]
-            script_name = os.path.basename(remote_adxl_path or "adxl203_ads1115_logger.py")
-        else:
-            remote_mpu_path = self.mpu_script.get().strip()
-            sensors_str = self.mpu_sensors.get().strip()
-            channels = self.mpu_channels.get()
-            fmt = self.mpu_format.get()
-            prefix = self.mpu_prefix.get().strip()
-            dlpf = self.mpu_dlpf.get().strip()
-            cmd_parts = [
-                "python3",
-                remote_mpu_path,
-                "--rate",
-                self.mpu_rate.get().strip(),
-                "--sensors",
-                sensors_str,
-                "--channels",
-                channels,
-                "--out",
-                self.mpu_out.get().strip(),
-                "--format",
-                fmt,
-            ]
-            if self.mpu_duration.get().strip():
-                cmd_parts += ["--duration", self.mpu_duration.get().strip()]
-            if self.mpu_samples.get().strip():
-                cmd_parts += ["--samples", self.mpu_samples.get().strip()]
-            if prefix:
-                cmd_parts += ["--prefix", prefix]
-            if dlpf:
-                cmd_parts += ["--dlpf", dlpf]
-            if self.mpu_temp.get():
-                cmd_parts.append("--temp")
-            if self.mpu_flush_every.get().strip():
-                cmd_parts += ["--flush-every", self.mpu_flush_every.get().strip()]
-            if self.mpu_flush_seconds.get().strip():
-                cmd_parts += ["--flush-seconds", self.mpu_flush_seconds.get().strip()]
-            if self.mpu_fsync_each.get():
-                cmd_parts.append("--fsync-each-flush")
-            if run_mode in ("Record + live plot", "Live plot only (no-record)"):
-                if run_mode == "Live plot only (no-record)":
-                    cmd_parts.append("--no-record")
-                cmd_parts.append("--stream-stdout")
-                cmd_parts += ["--stream-every", str(stream_every)]
-                cmd_parts += ["--stream-fields", "ax,ay,gz"]
-            script_name = os.path.basename(remote_mpu_path or "mpu6050_multi_logger.py")
-        return " ".join(cmd_parts), script_name
+            params = AdxlParams(
+                script_path=self.adxl_script.get().strip(),
+                rate=float(self.adxl_rate.get().strip()),
+                channels=self.adxl_channels.get(),
+                out_dir=self.adxl_out.get().strip(),
+                duration=self._parse_optional_float(self.adxl_duration.get()),
+                addr=self.adxl_addr.get().strip() or None,
+                channel_map=self.adxl_map.get().strip() or None,
+                calibrate=self._parse_optional_int(self.adxl_calibrate.get()),
+                lp_cut=self._parse_optional_float(self.adxl_lp_cut.get()),
+            )
+            return build_adxl_command(params, run_mode=run_mode, stream_every=stream_every)
+
+        params = MpuParams(
+            script_path=self.mpu_script.get().strip(),
+            rate=float(self.mpu_rate.get().strip()),
+            sensors=self.mpu_sensors.get().strip(),
+            channels=self.mpu_channels.get(),
+            out_dir=self.mpu_out.get().strip(),
+            duration=self._parse_optional_float(self.mpu_duration.get()),
+            samples=self._parse_optional_int(self.mpu_samples.get()),
+            fmt=self.mpu_format.get(),
+            prefix=self.mpu_prefix.get().strip(),
+            dlpf=self.mpu_dlpf.get().strip(),
+            temp=self.mpu_temp.get(),
+            flush_every=self._parse_optional_int(self.mpu_flush_every.get()),
+            flush_seconds=self._parse_optional_float(self.mpu_flush_seconds.get()),
+            fsync_each_flush=self.mpu_fsync_each.get(),
+        )
+        return build_mpu_command(params, run_mode=run_mode, stream_every=stream_every)
 
     # ------------------------------------------------------------------ Run handlers
     def start_recording(self) -> None:
@@ -876,6 +806,24 @@ class App:
             value = 1
         return max(1, value)
 
+    def _parse_optional_float(self, raw: str) -> Optional[float]:
+        value = raw.strip() if isinstance(raw, str) else ""
+        if not value:
+            return None
+        try:
+            return float(value)
+        except ValueError:
+            return None
+
+    def _parse_optional_int(self, raw: str) -> Optional[int]:
+        value = raw.strip() if isinstance(raw, str) else ""
+        if not value:
+            return None
+        try:
+            return int(value)
+        except ValueError:
+            return None
+
     def _current_out_dir(self) -> str:
         return self.adxl_out.get().strip() if self.sensor_var.get() == "adxl" else self.mpu_out.get().strip()
 
@@ -925,14 +873,22 @@ class App:
         self.log_text.see(tk.END)
 
     def _reset_plot_state(self) -> None:
-        self.plot_time.clear()
-        self.plot_value.clear()
         self.first_ts_ns = None
         self._drain_plot_queue()
-        if hasattr(self, "line"):
-            self.line.set_data([], [])
-            if hasattr(self, "canvas"):
-                self.canvas.draw_idle()
+
+        # Clear buffers
+        if hasattr(self, "plot_buffers"):
+            for buf in self.plot_buffers.values():
+                buf["t"].clear()
+                buf["y"].clear()
+
+        # Clear plotted lines
+        if hasattr(self, "lines"):
+            for line in self.lines.values():
+                line.set_data([], [])
+
+        if hasattr(self, "canvas"):
+            self.canvas.draw_idle()
 
     def _drain_plot_queue(self) -> None:
         try:
@@ -942,34 +898,104 @@ class App:
             pass
 
     def _update_plot(self) -> None:
+        # 1) Drain queued JSON objects from the logger
         try:
             while True:
                 obj = self.plot_queue.get_nowait()
+
                 ts_ns = obj.get("timestamp_ns")
                 if ts_ns is None:
                     continue
+
                 if self.first_ts_ns is None:
                     self.first_ts_ns = ts_ns
                 t_s = (ts_ns - self.first_ts_ns) / 1e9
+
                 sensor_type = self.current_sensor_type or self.sensor_var.get()
-                value = obj.get("x_lp") if sensor_type == "adxl" else obj.get("ax")
+
+                if sensor_type == "mpu":
+                    # Multi-MPU6050: use sensor_id and ax
+                    sid = int(obj.get("sensor_id", 1))
+                    value = obj.get("ax")
+                else:
+                    # ADXL: single sensor; use sensor 1 slot and x_lp
+                    sid = 1
+                    value = obj.get("x_lp")
+
                 try:
                     value_f = float(value) if value is not None else None
                 except (TypeError, ValueError):
                     value_f = None
+
                 if value_f is None:
                     continue
-                self.plot_time.append(t_s)
-                self.plot_value.append(value_f)
+
+                if sid not in self.plot_buffers:
+                    from collections import deque
+                    self.plot_buffers[sid] = {
+                        "t": deque(maxlen=2000),
+                        "y": deque(maxlen=2000),
+                    }
+
+                self.plot_buffers[sid]["t"].append(t_s)
+                self.plot_buffers[sid]["y"].append(value_f)
         except queue.Empty:
             pass
 
-        if self.plot_time:
-            self.line.set_data(list(self.plot_time), list(self.plot_value))
-            self.ax.relim()
-            self.ax.autoscale_view()
+        # 2) Determine time window (seconds)
+        try:
+            window = float(self.live_window_seconds.get())
+        except Exception:
+            window = 0.0
+
+        updated = False
+
+        # 3) Update each subplot (sensor 1..3)
+        if hasattr(self, "lines") and hasattr(self, "axes"):
+            for idx, sid in enumerate((1, 2, 3)):
+                line = self.lines.get(sid)
+                if not line:
+                    continue
+
+                buf = self.plot_buffers.get(sid)
+                t_vals = list(buf["t"]) if buf else []
+                y_vals = list(buf["y"]) if buf else []
+
+                if not t_vals:
+                    line.set_data([], [])
+                    continue
+
+                # Apply time window
+                if window > 0:
+                    t_max = t_vals[-1]
+                    t_min = t_max - window
+                    t_plot = []
+                    y_plot = []
+                    for t, y in zip(t_vals, y_vals):
+                        if t >= t_min:
+                            t_plot.append(t)
+                            y_plot.append(y)
+                else:
+                    t_plot = t_vals
+                    y_plot = y_vals
+
+                line.set_data(t_plot, y_plot)
+
+                ax = self.axes[idx]
+                if t_plot:
+                    if window > 0:
+                        ax.set_xlim(max(t_plot[0], t_plot[-1] - window), t_plot[-1])
+                    else:
+                        ax.set_xlim(min(t_plot), max(t_plot))
+                    ax.relim()
+                    ax.autoscale_view(scalex=False, scaley=True)
+
+                updated = True
+
+        if updated and hasattr(self, "canvas"):
             self.canvas.draw_idle()
 
+        # Schedule next update
         self.root.after(50, self._update_plot)
 
     def _poll_output_queue(self) -> None:

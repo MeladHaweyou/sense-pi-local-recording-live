@@ -1,0 +1,15 @@
+# Local Python virtual env
+.venv/
+venv/
+env/
+
+# AI / scratch
+.ai/
+
+# Python noise
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
