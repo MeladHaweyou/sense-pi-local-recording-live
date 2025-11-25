@@ -19,8 +19,8 @@ import json
 class AdxlSample:
     timestamp_ns: int
     # Low-pass filtered acceleration components in m/s².
-    x: float
-    y: float
+    x: float | None
+    y: float | None
 
 
 def _parse_json_line(text: str) -> AdxlSample:
@@ -35,12 +35,16 @@ def _parse_json_line(text: str) -> AdxlSample:
     x_val = obj.get("x_lp", obj.get("x"))
     y_val = obj.get("y_lp", obj.get("y"))
 
-    if x_val is None or y_val is None:
+    if x_val is None and y_val is None:
         raise ValueError(
             "ADXL203 JSON line missing 'x_lp'/'y_lp' (or 'x'/'y') fields"
         )
 
-    return AdxlSample(timestamp_ns=timestamp_ns, x=float(x_val), y=float(y_val))
+    return AdxlSample(
+        timestamp_ns=timestamp_ns,
+        x=float(x_val) if x_val is not None else None,
+        y=float(y_val) if y_val is not None else None,
+    )
 
 
 def _parse_csv_line(text: str) -> AdxlSample:
