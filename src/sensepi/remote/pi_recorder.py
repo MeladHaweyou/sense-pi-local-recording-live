@@ -14,7 +14,7 @@ class PiRecorder:
     def __init__(self, host: Host, base_path: Optional[Path] = None) -> None:
         self.host = host
         if base_path is None:
-            base_path = Path("/home/pi/raspberrypi_scripts")
+            base_path = Path("/home/verwalter/sensor")
 
         # Ensure the remote path is always POSIX-style, even on Windows hosts.
         base_path = Path(base_path)
