@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
 
+from ..config.app_config import AppPaths
 from .tabs.tab_fft import FftTab
+from .tabs.tab_offline import OfflineTab
 from .tabs.tab_recorder import RecorderTab
 from .tabs.tab_settings import SettingsTab
 from .tabs.tab_signals import SignalsTab
@@ -17,15 +19,19 @@ class MainWindow(QMainWindow):
 
         self._tabs = QTabWidget()
 
+        app_paths = AppPaths()
+
         self.recorder_tab = RecorderTab()
         self.signals_tab = SignalsTab()
         self.fft_tab = FftTab()
         self.settings_tab = SettingsTab()
+        self.offline_tab = OfflineTab(app_paths)
 
         self._tabs.addTab(self.recorder_tab, "Recorder")
         self._tabs.addTab(self.signals_tab, "Signals")
         self._tabs.addTab(self.fft_tab, "FFT")
         self._tabs.addTab(self.settings_tab, "Settings")
+        self._tabs.addTab(self.offline_tab, "Offline")
 
         container = QWidget()
         layout = QVBoxLayout(container)

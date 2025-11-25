@@ -16,6 +16,8 @@ def stream_lines(
         if not line:
             continue
         sample = parser(line)
+        if sample is None:
+            continue
         callback(sample)
 
 

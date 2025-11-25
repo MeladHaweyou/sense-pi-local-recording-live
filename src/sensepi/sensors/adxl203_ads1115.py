@@ -1,18 +1,21 @@
-"""Utilities for interpreting ADXL203/ADS1115 samples.
-
-The logger streams JSON lines with (at least):
+"""
+The ADXL203/ADS1115 logger streams JSON lines with fields such as::
 
   - timestamp_ns : int   monotonic time in nanoseconds
-  - x_lp, y_lp   : float low-pass filtered acceleration in m/s² for the X
-                   and Y axes respectively.
+  - x_lp, y_lp   : float low-pass filtered acceleration components
 
-`parse_line()` consumes those JSON lines and also supports the older
+``parse_line()`` consumes those JSON lines and also supports the older
 CSV format "timestamp_ns,x,y" for simple replays.
 """
 
+from __future__ import annotations
+
+import json
+import logging
 from dataclasses import dataclass
 from typing import Sequence
-import json
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -23,47 +26,61 @@ class AdxlSample:
     y: float
 
 
-def _parse_json_line(text: str) -> AdxlSample:
-    obj = json.loads(text)
+def _parse_json_line(text: str) -> AdxlSample | None:
+    try:
+        obj = json.loads(text)
+    except json.JSONDecodeError as exc:
+        logger.warning("Bad JSON from sensor stream: %r (%s)", text, exc)
+        return None
 
     ts_raw = obj.get("timestamp_ns")
     if ts_raw is None:
-        raise ValueError("ADXL203 JSON line missing 'timestamp_ns' field")
+        logger.warning("Missing field %s in sensor line: %r", "timestamp_ns", obj)
+        return None
     timestamp_ns = int(ts_raw)
 
-    # Prefer filtered fields x_lp/y_lp; fall back to x/y if necessary.
-    x_val = obj.get("x_lp", obj.get("x"))
-    y_val = obj.get("y_lp", obj.get("y"))
+    try:
+        x_val = obj.get("x_lp", obj.get("x"))
+        y_val = obj.get("y_lp", obj.get("y"))
+        if x_val is None or y_val is None:
+            raise KeyError("x_lp/y_lp")
+        x = float(x_val)
+        y = float(y_val)
+    except (KeyError, TypeError, ValueError) as exc:
+        logger.warning("Bad field value in sensor line %r (%s)", obj, exc)
+        return None
 
-    if x_val is None or y_val is None:
-        raise ValueError(
-            "ADXL203 JSON line missing 'x_lp'/'y_lp' (or 'x'/'y') fields"
-        )
-
-    return AdxlSample(timestamp_ns=timestamp_ns, x=float(x_val), y=float(y_val))
+    return AdxlSample(timestamp_ns=timestamp_ns, x=x, y=y)
 
 
-def _parse_csv_line(text: str) -> AdxlSample:
+def _parse_csv_line(text: str) -> AdxlSample | None:
     parts: Sequence[str] = text.split(",")
     if len(parts) < 3:
-        raise ValueError(
-            f"Expected at least 3 comma-separated values for ADXL203 CSV, "
-            f"got {len(parts)}: {text!r}"
+        logger.warning(
+            "Expected at least 3 comma-separated values for ADXL203 CSV, got %d: %r",
+            len(parts),
+            text,
         )
-    ts, x, y = map(float, parts[:3])
+        return None
+    try:
+        ts, x, y = map(float, parts[:3])
+    except ValueError as exc:
+        logger.warning("Bad CSV field in sensor line %r (%s)", text, exc)
+        return None
     return AdxlSample(int(ts), x, y)
 
 
-def parse_line(line: str) -> AdxlSample:
+def parse_line(line: str) -> AdxlSample | None:
     """
     Parse a single text line from the ADXL203 logger into an :class:`AdxlSample`.
 
     The function understands both the new JSONL streaming format and the
-    legacy CSV format.
+    legacy CSV format. Invalid lines return ``None`` so callers can skip them
+    without raising exceptions.
     """
     text = line.strip()
     if not text:
-        raise ValueError("Empty line passed to parse_line()")
+        return None
 
     if text[0] == "{":
         return _parse_json_line(text)

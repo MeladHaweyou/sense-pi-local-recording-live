@@ -1,22 +1,42 @@
 """Application bootstrap for the PySide6 GUI."""
 
+from __future__ import annotations
+
 import sys
 from typing import Tuple
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMainWindow
 
 from .main_window import MainWindow
 
 
-def create_app(argv: list[str] | None = None) -> Tuple[QApplication, MainWindow]:
-    """Create and show the main application window."""
+def create_app(argv: list[str] | None = None) -> Tuple[QApplication, QMainWindow]:
+    """
+    Create the QApplication and main SensePi window.
+
+    Parameters
+    ----------
+    argv:
+        Optional argument list to pass to :class:`QApplication`.
+
+    Returns
+    -------
+    app:
+        The QApplication instance (owned by caller).
+    window:
+        The main window instance with all tabs set up.
+    """
     qt_args = argv if argv is not None else sys.argv
-    app = QApplication(qt_args)
+    app = QApplication.instance() or QApplication(qt_args)
     window = MainWindow()
-    window.show()
     return app, window
 
 
+def main() -> None:
+    app, win = create_app()
+    win.show()
+    raise SystemExit(app.exec())
+
+
 if __name__ == "__main__":
-    app, _ = create_app()
-    sys.exit(app.exec())
+    main()

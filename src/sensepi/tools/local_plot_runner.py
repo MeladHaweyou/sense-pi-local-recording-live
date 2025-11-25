@@ -1,3 +1,5 @@
+"""Legacy helper for spawning the standalone plotter process."""
+
 from __future__ import annotations
 
 import sys
@@ -11,11 +13,11 @@ class LocalPlotRunner:
     Small helper that starts/stops your existing live plotting / FFT script
     (e.g. plotter.py) as a separate process.
 
-    By default it runs:  sys.executable plotter.py
+    By default it runs:  sys.executable src/sensepi/tools/plotter.py
     in the given project_root.
     """
 
-    def __init__(self, project_root: Path | str, script_name: str = "plotter.py") -> None:
+    def __init__(self, project_root: Path | str, script_name: str = "src/sensepi/tools/plotter.py") -> None:
         self.project_root = Path(project_root).resolve()
         self.script_name = script_name
         self._proc: Optional[subprocess.Popen] = None

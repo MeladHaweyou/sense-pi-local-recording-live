@@ -1,5 +1,4 @@
-"""Utilities for interpreting MPU6050 samples.
-
+"""
 The Raspberry Pi logger streams JSON lines with (at least):
 
   - timestamp_ns : int   monotonic time in nanoseconds
@@ -8,14 +7,19 @@ The Raspberry Pi logger streams JSON lines with (at least):
   - ax, ay, az   : float linear acceleration in m/s²
   - gx, gy, gz   : float angular rate in deg/s
 
-`parse_line()` accepts those JSON lines and also supports the legacy
+``parse_line()`` accepts those JSON lines and also supports the legacy
 comma-separated format "timestamp_ns,ax,ay,az,gx,gy,gz" for older logs.
 """
 
+from __future__ import annotations
+
+import json
+import logging
+import math
 from dataclasses import dataclass
 from typing import Optional, Sequence
-import json
-import math
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -31,12 +35,17 @@ class MpuSample:
     t_s: Optional[float] = None
 
 
-def _parse_json_line(text: str) -> MpuSample:
-    obj = json.loads(text)
+def _parse_json_line(text: str) -> MpuSample | None:
+    try:
+        obj = json.loads(text)
+    except json.JSONDecodeError as exc:
+        logger.warning("Bad JSON from sensor stream: %r (%s)", text, exc)
+        return None
 
     ts_raw = obj.get("timestamp_ns")
     if ts_raw is None:
-        raise ValueError("MPU6050 JSON line missing 'timestamp_ns' field")
+        logger.warning("Missing field %s in sensor line: %r", "timestamp_ns", obj)
+        return None
     timestamp_ns = int(ts_raw)
 
     sensor_id = obj.get("sensor_id")
@@ -54,12 +63,16 @@ def _parse_json_line(text: str) -> MpuSample:
             return math.nan
         return float(val)
 
-    ax = _get_axis("ax")
-    ay = _get_axis("ay")
-    az = _get_axis("az")
-    gx = _get_axis("gx")
-    gy = _get_axis("gy")
-    gz = _get_axis("gz")
+    try:
+        ax = _get_axis("ax")
+        ay = _get_axis("ay")
+        az = _get_axis("az")
+        gx = float(obj.get("gx", 0.0))
+        gy = float(obj.get("gy", 0.0))
+        gz = float(obj.get("gz", 0.0))
+    except (TypeError, ValueError) as exc:
+        logger.warning("Bad field value in sensor line %r (%s)", obj, exc)
+        return None
 
     return MpuSample(
         timestamp_ns=timestamp_ns,
@@ -74,14 +87,20 @@ def _parse_json_line(text: str) -> MpuSample:
     )
 
 
-def _parse_csv_line(text: str) -> MpuSample:
+def _parse_csv_line(text: str) -> MpuSample | None:
     parts: Sequence[str] = text.split(",")
     if len(parts) < 7:
-        raise ValueError(
-            f"Expected at least 7 comma-separated values for MPU6050 CSV, "
-            f"got {len(parts)}: {text!r}"
+        logger.warning(
+            "Expected at least 7 comma-separated values for MPU6050 CSV, got %d: %r",
+            len(parts),
+            text,
         )
-    ts, ax, ay, az, gx, gy, gz = map(float, parts[:7])
+        return None
+    try:
+        ts, ax, ay, az, gx, gy, gz = map(float, parts[:7])
+    except ValueError as exc:
+        logger.warning("Bad CSV field in sensor line %r (%s)", text, exc)
+        return None
     return MpuSample(
         timestamp_ns=int(ts),
         ax=ax,
@@ -93,16 +112,17 @@ def _parse_csv_line(text: str) -> MpuSample:
     )
 
 
-def parse_line(line: str) -> MpuSample:
+def parse_line(line: str) -> MpuSample | None:
     """
     Parse a single text line from the MPU6050 logger into an :class:`MpuSample`.
 
     The function understands both the new JSONL streaming format and the
-    legacy CSV format.
+    legacy CSV format. Invalid lines return ``None`` so callers can skip them
+    without raising exceptions.
     """
     text = line.strip()
     if not text:
-        raise ValueError("Empty line passed to parse_line()")
+        return None
 
     if text[0] == "{":
         return _parse_json_line(text)
