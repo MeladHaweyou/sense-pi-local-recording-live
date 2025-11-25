@@ -531,7 +531,14 @@ def main():
 
     # Output setup
     out_dir = Path(args.out).expanduser().resolve()
-    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        print(
+            f"[WARN] Unable to create output directory {out_dir}: {exc}",
+            file=sys.stderr,
+        )
+        return 1
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     fpath = out_dir / f"adxl203_{timestamp}.csv"
     header: List[str] = ["timestamp_ns"] + [f"{ax}_lp" for ax in enabled_axes]  # filtered only (LP_OUT)
@@ -564,12 +571,19 @@ def main():
 
     writer: Optional[AsyncWriter] = None
     if not args.no_record:
-        writer = AsyncWriter(fpath, "csv", header)
-        writer.start()
-        print(f"[INFO] Recording enabled → {fpath}")
+        try:
+            writer = AsyncWriter(fpath, "csv", header)
+            writer.start()
+            print(f"[INFO] Recording enabled → {fpath}")
+        except Exception as exc:
+            print(
+                f"[WARN] Failed to initialize output at {out_dir}: {exc}",
+                file=sys.stderr,
+            )
+            return 1
     else:
         print(
-            "[INFO] no-record mode: CSV/meta output disabled; only streaming/log messages will be produced.",
+            "[INFO] no-record mode (CSV/meta output disabled); streaming only.",
             file=sys.stderr,
         )
 

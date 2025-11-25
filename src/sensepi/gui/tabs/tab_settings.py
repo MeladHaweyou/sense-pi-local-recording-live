@@ -392,11 +392,11 @@ class SettingsTab(QWidget):
         new = {
             "name": f"pi-{len(self._hosts) + 1}",
             "host": "raspberrypi.local",
-            "user": "pi",
+            "user": "verwalter",
             "password": "",
-            "base_path": "/home/pi/raspberrypi_scripts",
-            "data_dir": "/home/pi/logs",
-            "pi_config_path": "/home/pi/raspberrypi_scripts/pi_config.yaml",
+            "base_path": "/home/verwalter/sensor",
+            "data_dir": "/home/verwalter/logs",
+            "pi_config_path": "/home/verwalter/sensor/pi_config.yaml",
             "port": 22,
         }
         self._hosts.append(new)

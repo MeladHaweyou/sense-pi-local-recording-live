@@ -570,6 +570,15 @@ def main():
 
     # File writers per sensor
     out_dir = Path(args.out).expanduser().resolve()
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        print(
+            f"[WARN] Unable to create output directory {out_dir}: {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
     writers: Dict[int, AsyncWriter] = {}
 
     # Header now includes time vector `t_s` (seconds since start)
@@ -647,47 +656,54 @@ def main():
 
             # Prepare writer only if recording is enabled
             if not args.no_record:
-                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                suffix = f"S{sid}"
-                ext = "csv" if args.format == "csv" else "jsonl"
-                fpath = out_dir / f"{args.prefix}_{suffix}_{timestamp}.{ext}"
-                writer = AsyncWriter(
-                    fpath, args.format, header,
-                    flush_every=args.flush_every,
-                    flush_seconds=args.flush_seconds,
-                    fsync_each_flush=args.fsync_each_flush
-                )
-                writer.start()
-                gyro_bw, acc_bw = DLPF_BW.get(args.dlpf, (None, None))
-                meta = {
-                    "start_utc": start_iso,
-                    "hostname": hostname,
-                    "sensor_id": sid,
-                    "bus": bus_id,
-                    "address_hex": f"0x{addr:02X}",
-                    "who_am_i_hex": f"0x{who:02X}",
-                    "requested_rate_hz": float(args.rate),
-                    "clamped_rate_hz": req_rate,
-                    "dlpf_cfg": args.dlpf,
-                    "dlpf_gyro_bw_hz": gyro_bw,
-                    "dlpf_accel_bw_hz": acc_bw,
-                    "fs_accel": "±2g",
-                    "fs_gyro": "±250dps",
-                    "smplrt_div": div,
-                    "device_rate_hz": round(actual, 6),
-                    "channels": ch_mode,
-                    "format": args.format,
-                    "header": header,
-                    "start_monotonic_ns": start_mono_ns,
-                    "version": 3
-                }
-                writer.write_metadata(meta)
-                writers[sid] = writer
-                bw_str = f"DLPF={args.dlpf} (gyro≈{gyro_bw}Hz, accel≈{acc_bw}Hz)" if gyro_bw else f"DLPF={args.dlpf}"
-                print(f"[INFO] Sensor {sid}: bus={bus_id} addr=0x{addr:02X} WHO=0x{who:02X} div={div} device_rate≈{actual:.3f} Hz {bw_str}")
+                try:
+                    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                    suffix = f"S{sid}"
+                    ext = "csv" if args.format == "csv" else "jsonl"
+                    fpath = out_dir / f"{args.prefix}_{suffix}_{timestamp}.{ext}"
+                    writer = AsyncWriter(
+                        fpath, args.format, header,
+                        flush_every=args.flush_every,
+                        flush_seconds=args.flush_seconds,
+                        fsync_each_flush=args.fsync_each_flush
+                    )
+                    writer.start()
+                    gyro_bw, acc_bw = DLPF_BW.get(args.dlpf, (None, None))
+                    meta = {
+                        "start_utc": start_iso,
+                        "hostname": hostname,
+                        "sensor_id": sid,
+                        "bus": bus_id,
+                        "address_hex": f"0x{addr:02X}",
+                        "who_am_i_hex": f"0x{who:02X}",
+                        "requested_rate_hz": float(args.rate),
+                        "clamped_rate_hz": req_rate,
+                        "dlpf_cfg": args.dlpf,
+                        "dlpf_gyro_bw_hz": gyro_bw,
+                        "dlpf_accel_bw_hz": acc_bw,
+                        "fs_accel": "±2g",
+                        "fs_gyro": "±250dps",
+                        "smplrt_div": div,
+                        "device_rate_hz": round(actual, 6),
+                        "channels": ch_mode,
+                        "format": args.format,
+                        "header": header,
+                        "start_monotonic_ns": start_mono_ns,
+                        "version": 3
+                    }
+                    writer.write_metadata(meta)
+                    writers[sid] = writer
+                    bw_str = f"DLPF={args.dlpf} (gyro≈{gyro_bw}Hz, accel≈{acc_bw}Hz)" if gyro_bw else f"DLPF={args.dlpf}"
+                    print(f"[INFO] Sensor {sid}: bus={bus_id} addr=0x{addr:02X} WHO=0x{who:02X} div={div} device_rate≈{actual:.3f} Hz {bw_str}")
+                except Exception as exc:
+                    print(
+                        f"[WARN] Failed to initialize output at {out_dir} for sensor {sid}: {exc}",
+                        file=sys.stderr,
+                    )
+                    return 1
             else:
                 print(
-                    f"[INFO] Sensor {sid}: no-record mode, file output disabled; using in-memory streaming only.",
+                    f"[INFO] Sensor {sid}: no-record mode (CSV files disabled); streaming only.",
                     file=sys.stderr,
                 )
         except FileNotFoundError:
