@@ -148,20 +148,17 @@ class RecorderTab(QWidget):
                 continue
             host_addr = entry.get("host", "raspberrypi.local")
             user = entry.get("user", "pi")
-            ssh_key = entry.get("ssh_key")
+            password = entry.get("password")
             port = int(entry.get("port", 22))
             base_path = Path(
                 entry.get("base_path", "/home/pi/raspberrypi_scripts")
             )
 
-            if ssh_key:
-                ssh_key = str(Path(ssh_key).expanduser())
-
             host = Host(
                 name=name,
                 host=host_addr,
                 user=user,
-                ssh_key=ssh_key,
+                password=password,
                 port=port,
             )
             self._hosts[name] = (host, base_path)

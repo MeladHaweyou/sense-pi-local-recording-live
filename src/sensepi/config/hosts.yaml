@@ -1,13 +1,8 @@
-# Each Pi may specify either:
-#   - ssh_key: path/to/private_key
-#   - password: plain-text password (less secure, dev only)
-# If both are set, ssh_key is used.
+# Each Pi uses username/password authentication.
+# SSH key authentication is not supported in this version.
 pis:
   - name: Pi-06
     host: 192.168.0.6
     user: verwalter
-    # Option 1: SSH key auth (preferred for long-term use)
-    # ssh_key: ~/.ssh/id_rsa
-    # Option 2: username + password auth (for development only)
     password: "!66442200"
     base_path: /home/verwalter/sensor

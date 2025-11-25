@@ -564,13 +564,11 @@ class SSHSource(SSHStreamSource):
         """Ensure the underlying SSH client is connected."""
         if self.ssh.is_connected():
             return
-        key = self.settings.key_path or None
         self.ssh.connect(
             host=self.settings.host,
             port=int(self.settings.port),
             username=self.settings.username,
             password=self.settings.password,
-            pkey_path=key,
         )
 
     def disconnect(self) -> None:

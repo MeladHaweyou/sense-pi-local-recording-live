@@ -147,21 +147,10 @@ class SSHTab(QWidget):
         self.edit_password = QLineEdit()
         self.edit_password.setEchoMode(QLineEdit.Password)
 
-        key_row = QHBoxLayout()
-        self.edit_key = QLineEdit()
-        btn_browse_key = QPushButton("Browse…")
-        btn_browse_key.clicked.connect(self._choose_key_file)
-        key_row.addWidget(self.edit_key)
-        key_row.addWidget(btn_browse_key)
-
         conn_form.addRow("Host", self.edit_host)
         conn_form.addRow("Port", self.spin_port)
         conn_form.addRow("Username", self.edit_user)
         conn_form.addRow("Password", self.edit_password)
-        # Use a container widget to hold the key_row layout
-        key_container = QWidget()
-        key_container.setLayout(key_row)
-        conn_form.addRow("Key file", key_container)
 
         root.addLayout(conn_form)
 
@@ -307,7 +296,6 @@ class SSHTab(QWidget):
         self.spin_port.setValue(int(s.port))
         self.edit_user.setText(s.username)
         self.edit_password.setText(s.password)
-        self.edit_key.setText(s.key_path)
         self.edit_mpu_script.setText(s.mpu_script)
         self.edit_adxl_script.setText(s.adxl_script)
         self.edit_out_dir.setText(s.remote_out_dir)
@@ -328,7 +316,6 @@ class SSHTab(QWidget):
         s.port = int(self.spin_port.value())
         s.username = self.edit_user.text().strip()
         s.password = self.edit_password.text()
-        s.key_path = self.edit_key.text().strip()
         s.mpu_script = self.edit_mpu_script.text().strip()
         s.adxl_script = self.edit_adxl_script.text().strip()
         remote_out = self.edit_out_dir.text().strip()
@@ -369,11 +356,6 @@ class SSHTab(QWidget):
         else:
             print(f"[SSH] {line}")
 
-    def _choose_key_file(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Select private key", "", "Key files (*)")
-        if path:
-            self.edit_key.setText(path)
-
     def _ensure_ssh_source(self) -> SSHStreamSource:
         # Persist UI values to state and force backend to ssh
         self._save_to_state()
@@ -413,7 +395,6 @@ class SSHTab(QWidget):
                 port=s.port,
                 username=s.username,
                 password=s.password,
-                pkey_path=s.key_path or None,
             )
             src.connect()
         except Exception as exc:

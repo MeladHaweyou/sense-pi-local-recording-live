@@ -6,33 +6,31 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Iterable, Iterator, Optional
 
+import logging
 import paramiko
 import shlex
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass
 class SSHConfig:
-    """Backwards-compatible configuration container for SSH connections."""
+    """Simple SSH connection settings for password-based auth only."""
 
     host: str
     username: str
     port: int = 22
     password: Optional[str] = None
-    ssh_key: Optional[str] = None
 
 
 @dataclass
 class Host:
-    """Connection details for a Raspberry Pi host.
-
-    Either ``ssh_key`` or ``password`` may be provided. If both are set,
-    ``ssh_key`` is preferred over ``password``.
-    """
+    """Connection details for a Raspberry Pi host (password-based auth only)."""
 
     name: str
     host: str
     user: str
-    ssh_key: Optional[str] = None
     password: Optional[str] = None
     port: int = 22
 
@@ -42,53 +40,52 @@ class SSHClient:
 
     def __init__(self, host: Host) -> None:
         self.host = host
-        self._client: Optional[paramiko.SSHClient] = None
+        self._client: paramiko.SSHClient = paramiko.SSHClient()
+        self._client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.sftp: Optional[paramiko.SFTPClient] = None
 
     # ------------------------------------------------------------------ internals
     def _ensure_client(self) -> paramiko.SSHClient:
-        if self._client is None:
+        transport = self._client.get_transport()
+        if not (transport and transport.is_active()):
             self.connect()
-        assert self._client is not None
         return self._client
 
     # ------------------------------------------------------------------ connection
     def connect(self) -> None:
-        if self._client is not None:
-            # Already connected
+        transport = self._client.get_transport()
+        if transport and transport.is_active():
             return
 
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-        key = (
-            paramiko.RSAKey.from_private_key_file(self.host.ssh_key)
-            if self.host.ssh_key
-            else None
+        logger.info(
+            "Connecting to %s@%s:%s", self.host.user, self.host.host, self.host.port
         )
 
-        # Authentication preference order:
-        # 1) Explicit ssh_key path (pkey)
-        # 2) Password when no key is provided
-        # 3) Paramiko's default key lookup (agent / ~/.ssh)
-        client.connect(
+        self._client.connect(
             hostname=self.host.host,
             username=self.host.user,
             port=self.host.port,
-            pkey=key,
-            password=None if key is not None else self.host.password,
-            look_for_keys=(key is None and self.host.password is None),
-            allow_agent=True,
+            password=self.host.password,
+            look_for_keys=False,
+            allow_agent=False,
             timeout=10.0,
         )
 
-        self._client = client
+        self.sftp = self._client.open_sftp()
 
     def close(self) -> None:
-        if self._client is not None:
+        if self.sftp is not None:
             try:
-                self._client.close()
+                self.sftp.close()
+            except Exception:
+                pass
             finally:
-                self._client = None
+                self.sftp = None
+
+        try:
+            self._client.close()
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------ commands
     def run(self, command: str):

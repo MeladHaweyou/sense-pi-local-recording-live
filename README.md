@@ -34,14 +34,12 @@ tabbed interface exposes Recorder, Signals, FFT, Offline, and Settings tabs.
 Configuration defaults live under `src/sensepi/config/` and can be customised
 per host and sensor.
 
-### SSH authentication options
+### SSH authentication
 
-Each Pi entry in `src/sensepi/config/hosts.yaml` can use either an SSH private
-key or a username/password. If both are provided, the private key is preferred;
-if neither is present, Paramiko falls back to your default SSH keys/agent. The
-Settings tab mirrors these fields with optional inputs for the key path and
-password (hidden). For long-term use, prefer SSH keys over storing passwords in
-plain text.
+The desktop app connects to each Raspberry Pi using a username and password.
+Populate `src/sensepi/config/hosts.yaml` (or the Settings tab) with the host,
+port, username, and password for each Pi. SSH key authentication and agent
+forwarding are not supported in this version.
 
 ## Sync config to Pi
 
