@@ -21,10 +21,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ...analysis.rate import RateController
 from ...config.app_config import HostInventory
 from ...core.live_stream import select_parser, stream_lines
 from ...remote.pi_recorder import PiRecorder
 from ...remote.ssh_client import Host
+from ...sensors.adxl203_ads1115 import AdxlSample
+from ...sensors.mpu6050 import MpuSample
 
 
 class _StopStreaming(Exception):
@@ -44,6 +47,10 @@ class RecorderTab(QWidget):
     streaming_started = Signal()
     streaming_stopped = Signal()
 
+    # Emitted on connection / streaming errors
+    error_reported = Signal(str)
+    rate_updated = Signal(str, float)
+
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
 
@@ -56,9 +63,16 @@ class RecorderTab(QWidget):
             "mpu6050": threading.Event(),
             "adxl203_ads1115": threading.Event(),
         }
+        self._rate_controllers: Dict[str, RateController] = {
+            "mpu6050": RateController(window_size=500, default_hz=0.0),
+            "adxl203_ads1115": RateController(window_size=500, default_hz=0.0),
+        }
 
         self._build_ui()
         self._load_hosts()
+
+        self.error_reported.connect(self._show_error)
+        self.rate_updated.connect(self._on_rate_updated)
 
     # --------------------------------------------------------------- UI setup
     def _build_ui(self) -> None:
@@ -110,6 +124,11 @@ class RecorderTab(QWidget):
         # Overall status
         self.overall_status = QLabel("Idle.")
         layout.addWidget(self.overall_status)
+
+        self.mpu_rate_label = QLabel("MPU6050 rate: --")
+        self.adxl_rate_label = QLabel("ADXL203 rate: --")
+        layout.addWidget(self.mpu_rate_label)
+        layout.addWidget(self.adxl_rate_label)
 
         # Wiring
         self.start_btn.clicked.connect(self._on_start_clicked)
@@ -226,6 +245,9 @@ class RecorderTab(QWidget):
         self.overall_status.setText("Stopping streams...")
         self.streaming_stopped.emit()
 
+        self.mpu_rate_label.setText("MPU6050 rate: --")
+        self.adxl_rate_label.setText("ADXL203 rate: --")
+
         # Close SSH connection (remote processes will see broken pipes)
         if self._pi_recorder is not None:
             try:
@@ -253,10 +275,16 @@ class RecorderTab(QWidget):
         def _worker():
             try:
                 lines = _iter_lines()
+                rc = self._rate_controllers[sensor_type]
+                rc.reset()
 
                 def _callback(sample: object) -> None:
                     if stop_event.is_set():
                         raise _StopStreaming()
+                    t = self._sample_time_seconds(sample)
+                    if t is not None:
+                        rc.add_sample_time(t)
+                        self.rate_updated.emit(sensor_type, rc.estimated_hz)
                     self.sample_received.emit(sample)
 
                 stream_lines(lines, parser, _callback)
@@ -264,7 +292,7 @@ class RecorderTab(QWidget):
                 # Graceful stop requested
                 pass
             except Exception as exc:
-                self.overall_status.setText(
+                self.error_reported.emit(
                     f"Stream error ({sensor_type}): {exc}"
                 )
             finally:
@@ -279,3 +307,25 @@ class RecorderTab(QWidget):
         else:
             self._adxl_thread = t
         t.start()
+
+    def _sample_time_seconds(self, sample: object) -> Optional[float]:
+        if isinstance(sample, MpuSample):
+            if sample.t_s is not None:
+                return float(sample.t_s)
+            return sample.timestamp_ns * 1e-9
+        if isinstance(sample, AdxlSample):
+            return sample.timestamp_ns * 1e-9
+        return None
+
+    @Slot(str)
+    def _show_error(self, message: str) -> None:
+        QMessageBox.critical(self, "SensePi Error", message)
+        self.overall_status.setText(f"Error: {message}")
+
+    @Slot(str, float)
+    def _on_rate_updated(self, sensor: str, hz: float) -> None:
+        text = f"{hz:.1f} Hz"
+        if sensor == "mpu6050":
+            self.mpu_rate_label.setText(f"MPU6050 rate: {text}")
+        elif sensor == "adxl203_ads1115":
+            self.adxl_rate_label.setText(f"ADXL203 rate: {text}")

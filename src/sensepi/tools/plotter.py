@@ -3,7 +3,7 @@
 Simple CLI plotter for SensePi CSV logs.
 
 This script is intended to be launched either directly from the command line
-or via ``LocalPlotRunner`` in ``local_plot_runner.py``. It uses Matplotlib's
+or via ``LocalPlotRunner`` in ``sensepi.tools.local_plot_runner``. It uses Matplotlib's
 standard interactive window (no PySide6 integration) to display either:
 
   * a static replay of a CSV log (``--mode replay``), or
@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 
-REPO_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 # --------------------------------------------------------------------------- # helpers
@@ -159,13 +159,20 @@ def setup_figure(
     return fig, axes, lines, t
 
 
-# --------------------------------------------------------------------------- # plotting modes
-def plot_replay(path: Path, sensor_type: str) -> None:
+def build_plot_for_file(path: Path, sensor_type: str = "auto"):
+    """Return a Matplotlib Figure configured for the given log file."""
+
     data, columns = load_csv(path)
     if sensor_type == "auto":
         sensor_type = infer_sensor_type(columns)
 
-    fig, _axes, _lines, _t = setup_figure(path, sensor_type, data, columns)
+    fig, axes, lines, _t = setup_figure(path, sensor_type, data, columns)
+    return fig, axes, lines
+
+
+# --------------------------------------------------------------------------- # plotting modes
+def plot_replay(path: Path, sensor_type: str) -> None:
+    fig, _axes, _lines = build_plot_for_file(path, sensor_type)
     fig.canvas.manager.set_window_title(f"SensePi replay — {path.name}")
     plt.show()
 

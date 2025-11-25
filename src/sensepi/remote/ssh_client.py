@@ -2,11 +2,23 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Iterable, Iterator, Optional
 
 import paramiko
 import shlex
+
+
+@dataclass
+class SSHConfig:
+    """Backwards-compatible configuration container for SSH connections."""
+
+    host: str
+    username: str
+    port: int = 22
+    password: Optional[str] = None
+    ssh_key: Optional[str] = None
 
 
 @dataclass
@@ -17,6 +29,7 @@ class Host:
     host: str
     user: str
     ssh_key: Optional[str] = None
+    password: Optional[str] = None
     port: int = 22
 
 
@@ -54,6 +67,7 @@ class SSHClient:
             username=self.host.user,
             port=self.host.port,
             pkey=key,
+            password=self.host.password,
         )
 
         self._client = client
@@ -74,6 +88,31 @@ class SSHClient:
         """
         client = self._ensure_client()
         return client.exec_command(command)
+
+    @contextmanager
+    def sftp(self) -> Iterator[paramiko.SFTPClient]:
+        """Context manager that yields an SFTP client."""
+
+        client = self._ensure_client()
+        sftp = client.open_sftp()
+        try:
+            yield sftp
+        finally:
+            try:
+                sftp.close()
+            except Exception:
+                pass
+
+    def path_exists(self, remote_path: str) -> bool:
+        """Return True if *remote_path* exists on the Pi."""
+
+        with self.sftp() as sftp:
+            try:
+                sftp.stat(remote_path)
+            except IOError:
+                return False
+            else:
+                return True
 
     def exec_stream(
         self,

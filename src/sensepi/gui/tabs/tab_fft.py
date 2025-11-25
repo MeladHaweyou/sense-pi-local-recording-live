@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections import deque
-from typing import Deque, Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 from PySide6.QtCore import QTimer, Slot
@@ -25,6 +24,7 @@ from matplotlib.figure import Figure
 from ...analysis.fft import compute_fft
 from ...analysis import filters
 from ...core.models import LiveSample
+from ...core.ringbuffer import RingBuffer
 from ...sensors.adxl203_ads1115 import AdxlSample
 from ...sensors.mpu6050 import MpuSample
 
@@ -38,8 +38,10 @@ class FftTab(QWidget):
     def __init__(self, parent: Optional[Widget] = None) -> None:  # type: ignore[name-defined]
         super().__init__(parent)
 
-        self._buffers: Dict[Tuple[str, str], Deque[Tuple[float, float]]] = {}
+        self._buffers: Dict[Tuple[str, str], RingBuffer[Tuple[float, float]]] = {}
         self._max_window_seconds = 10.0  # longest supported FFT window
+        self._max_rate_hz = 500.0
+        self._buffer_capacity = max(1, int(self._max_window_seconds * self._max_rate_hz * 2))
 
         # Figure / canvas -------------------------------------------------------
         self._figure = Figure(figsize=(5, 3), tight_layout=True)
@@ -156,13 +158,10 @@ class FftTab(QWidget):
         key = (sensor_key, channel)
         buf = self._buffers.get(key)
         if buf is None:
-            buf = deque()
+            buf = RingBuffer(self._buffer_capacity)
             self._buffers[key] = buf
 
         buf.append((t, value))
-        cutoff = t - self._max_window_seconds
-        while buf and buf[0][0] < cutoff:
-            buf.popleft()
 
     def _rebuild_channel_combo(self) -> None:
         self.channel_combo.clear()
@@ -187,11 +186,12 @@ class FftTab(QWidget):
             return
 
         window_s = float(self.window_spin.value())
-        t_latest = buf[-1][0]
+        points = list(buf)
+        t_latest = points[-1][0]
         t_min = t_latest - window_s
 
-        times = [t for (t, _) in buf if t >= t_min]
-        values = [v for (t, v) in buf if t >= t_min]
+        times = [t for (t, _) in points if t >= t_min]
+        values = [v for (t, v) in points if t >= t_min]
 
         if len(values) < 4 or times[-1] == times[0]:
             self._draw_waiting()

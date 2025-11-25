@@ -6,9 +6,8 @@ This repository hosts a desktop application for managing Raspberry Pi–based se
 
 ```
 sense-pi-local-recording-live/
-├── main.py              # PySide6 GUI entry point
-├── plotter.py           # CLI plotter for CSV logs (used by LocalPlotRunner)
-├── local_plot_runner.py # Small helper to spawn/stop plotter.py
+├── main.py              # Thin launcher that delegates to sensepi.gui.application
+├── src/sensepi/tools/   # Local plotting helpers and CLI plotter
 ├── pyproject.toml       # packaging metadata
 ├── requirements.txt     # desktop dependencies
 ├── requirements-pi.txt  # Pi dependencies
@@ -19,43 +18,41 @@ sense-pi-local-recording-live/
 └── archive/             # legacy and experimental files
 ```
 
-## Desktop application
+## Run the GUI
 
-Run the main PySide6 GUI from the repository root:
-
-```bash
-python main.py
-```
-
-This window lets you connect to a Raspberry Pi over SSH, start/stop the
-MPU6050 and ADXL203 loggers, and (optionally) launch a local plotting
-process via LocalPlotRunner, which in turn starts plotter.py.
-
-There is also an example, tabbed GUI under src/sensepi/gui/ that you can
-launch directly:
+From the project root you can launch the Qt application via the canonical
+entrypoint:
 
 ```bash
 python -m sensepi.gui.application
+# or, after installing the package:
+sensepi-gui
 ```
 
-It currently provides basic “Recorder”, “Signals”, “FFT”, and “Settings”
-tabs and is intended as a starting point for a more integrated UI.
+`main.py` simply delegates to the same launcher so either form works. The
+tabbed interface exposes Recorder, Signals, FFT, Offline, and Settings tabs.
+Configuration defaults live under `src/sensepi/config/` and can be customised
+per host and sensor.
 
-Configuration defaults live under src/sensepi/config/ and can be
-customised per host and sensor.
+## Sync config to Pi
+
+The Settings tab offers a **Sync config to Pi** action. It builds a
+`pi_config.yaml` from the desktop sensor defaults, validates that the remote
+scripts/data directories exist over SSH, and uploads the YAML to the path
+configured for the selected host. The desktop configuration is the source of
+truth; use this button to push updates to your Pis.
 
 ## Plotting from CSV logs
 
-`plotter.py` is a small Matplotlib-based CLI tool for visualising CSV logs
-produced by the Raspberry Pi loggers. You can run it directly:
+The Matplotlib-based CLI plotter lives at `src/sensepi/tools/plotter.py`. Run
+it directly or import its helpers for embedding in Qt tabs:
 
 ```bash
-python plotter.py --file data/raw/your_log.csv
+python -m sensepi.tools.plotter --file data/raw/your_log.csv
 ```
 
-or let the GUI start it automatically via LocalPlotRunner when you press
-“Start Recording + Plot”. In “follow” mode the plotter periodically reloads
-the CSV file to approximate a live view.
+An offline analysis tab in the GUI reuses the same plotting logic to view
+recent CSV/JSONL logs without starting a live stream.
 
 ## Raspberry Pi scripts
 
@@ -67,6 +64,9 @@ ssh pi@<host> "bash /home/pi/raspberrypi_scripts/install_pi_deps.sh"
 ```
 
 Use `run_all_sensors.sh` as a simple helper to start the provided logger scripts. Adjust `pi_config.yaml` to set sample rates, output paths, and channel selections.
+
+The streaming JSON wire protocol used by the loggers is documented in
+`docs/json_protocol.md`.
 
 ## Legacy content
 

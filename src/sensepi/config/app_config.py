@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import yaml
 
@@ -25,6 +25,28 @@ class AppPaths:
         """Create directories if they do not yet exist."""
         for path in (self.data_root, self.raw_data, self.processed_data, self.logs):
             path.mkdir(parents=True, exist_ok=True)
+
+
+@dataclass
+class HostConfig:
+    """Normalized host configuration derived from ``hosts.yaml`` entries."""
+
+    name: str
+    host: str
+    user: str
+    ssh_key: Optional[str]
+    port: int
+    base_path: Path
+    data_dir: Path
+    pi_config_path: Path
+    password: Optional[str] = None
+
+
+@dataclass
+class AppConfig:
+    """In-memory configuration snapshot used for Pi sync."""
+
+    sensor_defaults: Dict[str, Any]
 
 
 @dataclass
@@ -190,6 +212,34 @@ class HostInventory:
         )
         return Path(str(raw)).expanduser()
 
+    def to_host_config(self, host_cfg: Mapping[str, Any]) -> HostConfig:
+        """Convert a host mapping from YAML into a normalized :class:`HostConfig`."""
+
+        name = str(host_cfg.get("name", host_cfg.get("host", "pi")))
+        host = str(host_cfg.get("host", "raspberrypi.local"))
+        user = str(host_cfg.get("user", "pi"))
+        ssh_key = self.expand_ssh_key(host_cfg.get("ssh_key"))
+        port = int(host_cfg.get("port", 22))
+        password = host_cfg.get("password")
+
+        base_path = Path(str(host_cfg.get("base_path", "/home/pi/raspberrypi_scripts"))).expanduser()
+        data_dir = Path(str(host_cfg.get("data_dir", "/home/pi/logs"))).expanduser()
+        pi_cfg = Path(
+            str(host_cfg.get("pi_config_path", base_path / "pi_config.yaml"))
+        ).expanduser()
+
+        return HostConfig(
+            name=name,
+            host=host,
+            user=user,
+            ssh_key=ssh_key,
+            port=port,
+            base_path=base_path,
+            data_dir=data_dir,
+            pi_config_path=pi_cfg,
+            password=password,
+        )
+
     def to_remote_host(self, host_cfg: Mapping[str, Any]):
         """
         Convert a host dict into :class:`sensepi.remote.ssh_client.Host`.
@@ -200,12 +250,14 @@ class HostInventory:
         """
         from ..remote.ssh_client import Host as RemoteHost
 
+        cfg = self.to_host_config(host_cfg)
         return RemoteHost(
-            name=str(host_cfg.get("name", host_cfg.get("host", "pi"))),
-            host=str(host_cfg.get("host", "raspberrypi.local")),
-            user=str(host_cfg.get("user", "pi")),
-            ssh_key=self.expand_ssh_key(host_cfg.get("ssh_key")),
-            port=int(host_cfg.get("port", 22)),
+            name=cfg.name,
+            host=cfg.host,
+            user=cfg.user,
+            ssh_key=cfg.ssh_key,
+            password=cfg.password,
+            port=cfg.port,
         )
 
 
@@ -271,4 +323,33 @@ def build_adxl203_cli_args(config: Mapping[str, Any]) -> List[str]:
         args.extend(["--calibrate", str(cal)])
 
     return args
+
+
+def build_pi_config_for_host(host: HostConfig, app_config: AppConfig) -> Dict[str, Any]:
+    """
+    Build a configuration dictionary for Raspberry Pi loggers based on desktop config.
+
+    The resulting mapping mirrors ``raspberrypi_scripts/pi_config.yaml``.
+    """
+
+    sensors_cfg = app_config.sensor_defaults
+    mpu_defaults = sensors_cfg.get("mpu6050", {}) or {}
+    adxl_defaults = sensors_cfg.get("adxl203_ads1115", {}) or {}
+
+    return {
+        "mpu6050": {
+            "output_dir": str(host.data_dir / "mpu"),
+            "sample_rate_hz": mpu_defaults.get("sample_rate_hz", 200),
+            "channels": mpu_defaults.get("channels", "both"),
+            "include_temperature": bool(
+                mpu_defaults.get("include_temperature", False)
+            ),
+        },
+        "adxl203_ads1115": {
+            "output_dir": str(host.data_dir / "adxl"),
+            "sample_rate_hz": adxl_defaults.get("sample_rate_hz", 100),
+            "channels": adxl_defaults.get("channels", "both"),
+            "calibration_samples": adxl_defaults.get("calibration_samples", 0),
+        },
+    }
 

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections import deque
-from typing import Deque, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from PySide6.QtCore import QTimer, Slot
 from PySide6.QtWidgets import (
@@ -20,6 +19,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
 from ...core.models import LiveSample
+from ...core.ringbuffer import RingBuffer
 from ...sensors.adxl203_ads1115 import AdxlSample
 from ...sensors.mpu6050 import MpuSample
 
@@ -34,9 +34,12 @@ class SignalPlotWidget(QWidget):
         super().__init__(parent)
 
         self._max_seconds = float(max_seconds)
-        self._buffers: Dict[str, Deque[Tuple[float, float]]] = {}
+        self._max_rate_hz = 500.0
+        self._buffers: Dict[str, RingBuffer[Tuple[float, float]]] = {}
         self._visible_channels: Set[str] = set()
         self._lines: Dict[str, any] = {}
+
+        self._buffer_capacity = max(1, int(self._max_seconds * self._max_rate_hz))
 
         self._figure = Figure(figsize=(5, 3), tight_layout=True)
         self._axes = self._figure.add_subplot(111)
@@ -94,11 +97,10 @@ class SignalPlotWidget(QWidget):
 
     def redraw(self) -> None:
         """Refresh the Matplotlib plot (intended to be driven by a QTimer)."""
-        # Collect visible buffers
         active_channels = [
             ch
             for ch in self._visible_channels
-            if ch in self._buffers and self._buffers[ch]
+            if ch in self._buffers and len(self._buffers[ch])
         ]
         if not active_channels:
             # Nothing to show
@@ -110,13 +112,17 @@ class SignalPlotWidget(QWidget):
             return
 
         # Compute global time origin so plots share the same x-axis
-        min_t = min(self._buffers[ch][0][0] for ch in active_channels)
+        latest = max(max(t for (t, _) in self._buffers[ch]) for ch in active_channels)
+        cutoff = latest - self._max_seconds
 
         self._axes.clear()
         for ch in active_channels:
             buf = self._buffers[ch]
-            times = [t - min_t for (t, _) in buf]
-            values = [v for (_, v) in buf]
+            points = [(t, v) for (t, v) in buf if t >= cutoff]
+            if not points:
+                continue
+            times = [t - cutoff for (t, _) in points]
+            values = [v for (_, v) in points]
             (line,) = self._axes.plot(times, values, label=ch)
             self._lines[ch] = line
 
@@ -129,15 +135,10 @@ class SignalPlotWidget(QWidget):
     def _append_point(self, channel: str, t: float, value: float) -> None:
         buf = self._buffers.get(channel)
         if buf is None:
-            buf = deque()
+            buf = RingBuffer(self._buffer_capacity)
             self._buffers[channel] = buf
 
         buf.append((t, value))
-
-        # Drop old points beyond the configured time window
-        cutoff = t - self._max_seconds
-        while buf and buf[0][0] < cutoff:
-            buf.popleft()
 
 
 class SignalsTab(QWidget):

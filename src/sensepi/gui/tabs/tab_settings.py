@@ -32,8 +32,10 @@ Example usage in RecorderTab (pseudo-code)::
 
 from __future__ import annotations
 
+import io
 from typing import Any, Dict, List, Optional
 
+import yaml
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -52,7 +54,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ...config.app_config import HostInventory, SensorDefaults
+from ...config.app_config import (
+    AppConfig,
+    HostConfig,
+    HostInventory,
+    SensorDefaults,
+    build_pi_config_for_host,
+)
+from ...remote.ssh_client import SSHClient
 
 
 class SettingsTab(QWidget):
@@ -129,17 +138,28 @@ class SettingsTab(QWidget):
         base_row.addWidget(self.edit_base_path)
         base_row.addWidget(self.btn_browse_base)
 
+        self.edit_data_dir = QLineEdit(hosts_group)
+        self.edit_pi_config = QLineEdit(hosts_group)
+
         form.addRow("Name:", self.edit_host_name)
         form.addRow("Host / IP:", self.edit_host_address)
         form.addRow("User:", self.edit_host_user)
         form.addRow("SSH port:", self.edit_host_port)
         form.addRow("SSH key:", ssh_row)
         form.addRow("Scripts base path:", base_row)
+        form.addRow("Data directory:", self.edit_data_dir)
+        form.addRow("Pi config path:", self.edit_pi_config)
 
         host_form_col.addLayout(form)
 
         self.btn_save_hosts = QPushButton("Save hosts.yaml", hosts_group)
-        host_form_col.addWidget(self.btn_save_hosts, alignment=Qt.AlignRight)
+        self.btn_sync_pi = QPushButton("Sync config to Pi", hosts_group)
+
+        buttons_row = QHBoxLayout()
+        buttons_row.addStretch()
+        buttons_row.addWidget(self.btn_sync_pi)
+        buttons_row.addWidget(self.btn_save_hosts)
+        host_form_col.addLayout(buttons_row)
 
         hosts_layout.addLayout(host_form_col, 2)
         root.addWidget(hosts_group)
@@ -205,6 +225,7 @@ class SettingsTab(QWidget):
         self.btn_remove_host.clicked.connect(self._on_remove_host)
         self.btn_browse_key.clicked.connect(self._on_browse_key)
         self.btn_browse_base.clicked.connect(self._on_browse_base)
+        self.btn_sync_pi.clicked.connect(self._on_sync_to_pi)
         self.btn_save_hosts.clicked.connect(self._on_save_hosts_clicked)
         self.btn_save_sensors.clicked.connect(self._on_save_sensors_clicked)
 
@@ -224,6 +245,9 @@ class SettingsTab(QWidget):
             self.edit_base_path,
             self.btn_browse_base,
             self.btn_remove_host,
+            self.edit_data_dir,
+            self.edit_pi_config,
+            self.btn_sync_pi,
         ]
         for w in widgets:
             w.setEnabled(enabled)
@@ -234,6 +258,8 @@ class SettingsTab(QWidget):
         self.edit_host_user.clear()
         self.edit_ssh_key.clear()
         self.edit_base_path.clear()
+        self.edit_data_dir.clear()
+        self.edit_pi_config.clear()
         self.edit_host_port.setValue(22)
 
     def _load_from_disk(self) -> None:
@@ -292,6 +318,8 @@ class SettingsTab(QWidget):
         self.edit_host_user.setText(str(host.get("user", "")))
         self.edit_ssh_key.setText(str(host.get("ssh_key", "")))
         self.edit_base_path.setText(str(host.get("base_path", host.get("scripts_dir", ""))))
+        self.edit_data_dir.setText(str(host.get("data_dir", "")))
+        self.edit_pi_config.setText(str(host.get("pi_config_path", "")))
         self.edit_host_port.setValue(int(host.get("port", 22)))
 
     def _update_model_from_host_fields(self, index: int) -> None:
@@ -304,6 +332,8 @@ class SettingsTab(QWidget):
         user = self.edit_host_user.text().strip()
         ssh_key = self.edit_ssh_key.text().strip()
         base_path = self.edit_base_path.text().strip()
+        data_dir = self.edit_data_dir.text().strip()
+        pi_config = self.edit_pi_config.text().strip()
         port = int(self.edit_host_port.value())
 
         if name:
@@ -331,6 +361,16 @@ class SettingsTab(QWidget):
         else:
             original.pop("base_path", None)
 
+        if data_dir:
+            original["data_dir"] = data_dir
+        else:
+            original.pop("data_dir", None)
+
+        if pi_config:
+            original["pi_config_path"] = pi_config
+        else:
+            original.pop("pi_config_path", None)
+
         # store port even if default
         original["port"] = port
 
@@ -352,6 +392,8 @@ class SettingsTab(QWidget):
             "user": "pi",
             "ssh_key": "~/.ssh/id_rsa",
             "base_path": "/home/pi/raspberrypi_scripts",
+            "data_dir": "/home/pi/logs",
+            "pi_config_path": "/home/pi/raspberrypi_scripts/pi_config.yaml",
             "port": 22,
         }
         self._hosts.append(new)
@@ -410,6 +452,64 @@ class SettingsTab(QWidget):
 
         QMessageBox.information(self, "Saved", "Host configuration saved to hosts.yaml.")
         self.hostsUpdated.emit([dict(h) for h in self._hosts])
+
+    @Slot()
+    def _on_sync_to_pi(self) -> None:
+        host_dict = self.current_host_config()
+        if host_dict is None:
+            QMessageBox.information(self, "No host", "Select a host to sync.")
+            return
+
+        host_cfg = self._host_inventory.to_host_config(host_dict)
+        app_cfg = AppConfig(sensor_defaults=self.sensor_defaults())
+        pi_cfg = build_pi_config_for_host(host_cfg, app_cfg)
+
+        buf = io.StringIO()
+        yaml.safe_dump(pi_cfg, buf, sort_keys=False)
+        contents = buf.getvalue()
+
+        remote_host = self._host_inventory.to_remote_host(host_dict)
+        client = SSHClient(remote_host)
+        try:
+            client.connect()
+        except Exception as exc:
+            QMessageBox.critical(self, "SSH error", f"Could not connect: {exc}")
+            return
+
+        try:
+            if not client.path_exists(str(host_cfg.data_dir)):
+                QMessageBox.critical(
+                    self,
+                    "Validation failed",
+                    f"Remote data directory does not exist: {host_cfg.data_dir}",
+                )
+                return
+            if not client.path_exists(str(host_cfg.base_path)):
+                QMessageBox.critical(
+                    self,
+                    "Validation failed",
+                    f"Remote scripts directory does not exist: {host_cfg.base_path}",
+                )
+                return
+
+            with client.sftp() as sftp:
+                with sftp.open(str(host_cfg.pi_config_path), "w") as fh:
+                    fh.write(contents)
+        except Exception as exc:
+            QMessageBox.critical(
+                self,
+                "Sync error",
+                f"Failed to upload config to {host_cfg.pi_config_path}:\n{exc}",
+            )
+            return
+        finally:
+            client.close()
+
+        QMessageBox.information(
+            self,
+            "Config synced",
+            f"Uploaded configuration to {host_cfg.pi_config_path}.",
+        )
 
     # ------------------------------------------------------------------
     # Sensor defaults helpers
