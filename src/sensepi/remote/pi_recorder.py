@@ -1,132 +1,97 @@
+"""High-level helpers for starting and streaming logger scripts on the Pi."""
+
 from __future__ import annotations
 
-"""High-level helpers for starting and stopping logger scripts on the Pi."""
-
-from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable, Optional
 
-from .ssh_client import SSHClient, SSHConfig
-
-
-@dataclass
-class RecorderStatus:
-    """Simple container for the PIDs of running loggers."""
-
-    mpu6050_pid: Optional[int] = None
-    adxl203_pid: Optional[int] = None
+from .ssh_client import Host, SSHClient
 
 
 class PiRecorder:
-    """
-    High-level helper that knows how to start/stop the sensor logger scripts
-    on the Raspberry Pi over SSH.
+    """Launches Raspberry Pi logger scripts over SSH."""
 
-    It assumes that on the Pi you have the scripts in a single directory, e.g.:
+    def __init__(self, host: Host, base_path: Optional[Path] = None) -> None:
+        self.host = host
+        self.base_path = base_path or Path("/home/pi/raspberrypi_scripts")
+        self.client = SSHClient(host)
 
-        ~/sense-pi/raspberrypi_scripts/mpu6050_multi_logger.py
-        ~/sense-pi/raspberrypi_scripts/adxl203_ads1115_logger.py
-
-    You can point ``scripts_dir`` at whatever path you actually use.
-    """
-
-    def __init__(
-        self,
-        ssh_config: SSHConfig,
-        scripts_dir: str = "~/sense-pi/raspberrypi_scripts",
-        python_cmd: str = "python3",
-    ) -> None:
-        self.ssh = SSHClient(ssh_config)
-        self.scripts_dir = scripts_dir
-        self.python_cmd = python_cmd
-        self.status = RecorderStatus()
-
-    # ---------------------------- connection -----------------------------
+    # ------------------------------------------------------------------ connection
     def connect(self) -> None:
-        """Establish the SSH connection if not already connected."""
-        self.ssh.connect()
+        """Ensure an SSH connection is open."""
+        self.client.connect()
 
-    def disconnect(self) -> None:
-        """Close the SSH connection if open."""
-        self.ssh.close()
+    def close(self) -> None:
+        """Close the SSH connection (does not kill remote loggers)."""
+        self.client.close()
 
-    # ----------------------------- helpers ------------------------------
-    def _build_command(self, script_name: str, extra_args: str = "") -> str:
-        cmd = f"{self.python_cmd} {script_name}"
-        if extra_args:
-            cmd = f"{cmd} {extra_args}"
-        return cmd.strip()
-
-    # ------------------------- generic launcher -------------------------
-    def start_logger(self, script_name: str, args: Optional[Iterable[str]] = None) -> int:
+    # ------------------------------------------------------------------ simple runner
+    def start_logger(
+        self, script_name: str, args: Optional[Iterable[str]] = None
+    ):
         """
-        Start an arbitrary Python logger script in the background.
+        Run a logger script and return (stdout, stderr) file-like objects.
 
-        Returns the PID of the spawned process so callers may manage it.
+        This is mainly useful for short-lived commands or testing; for live
+        streaming use :meth:`stream_mpu6050` / :meth:`stream_adxl203`.
         """
-        extra_args = ""
+        command = f"python3 {self.base_path / script_name}"
         if args:
-            extra_args = " ".join(str(a) for a in args)
-        cmd = self._build_command(script_name, extra_args)
-        return self.ssh.exec_background(cmd, cwd=self.scripts_dir)
+            command = " ".join([command, *args])
 
-    # ---------------------------- MPU6050 -----------------------------
-    def start_mpu6050(self, extra_args: str = "") -> int:
+        self.connect()
+        _, stdout, stderr = self.client.run(command)
+        return stdout, stderr
+
+    # ------------------------------------------------------------------ streaming
+    def _stream_logger(self, script_name: str, extra_args: str = ""):
         """
-        Start the MPU6050 logger on the Pi.
+        Internal helper: start a logger in ``--stream-stdout`` mode.
 
-        `extra_args` lets you pass things like '--log-dir /home/pi/logs/mpu'
-        without hard-coding the exact CLI here.
+        ``extra_args`` is a free-form CLI string; this helper will append
+        ``--stream-stdout`` and ``--no-record`` if they are not already present.
         """
-        cmd = self._build_command("mpu6050_multi_logger.py", extra_args)
-        pid = self.ssh.exec_background(cmd, cwd=self.scripts_dir)
-        self.status.mpu6050_pid = pid
-        return pid
+        self.connect()
 
-    def stop_mpu6050(self) -> bool:
+        parts = extra_args.strip().split() if extra_args.strip() else []
+
+        if "--stream-stdout" not in parts:
+            parts.append("--stream-stdout")
+        if "--no-record" not in parts:
+            parts.append("--no-record")
+
+        cmd = f"python3 {script_name}"
+        if parts:
+            cmd = f"{cmd} {' '.join(parts)}"
+
+        # Use cwd so the script can rely on relative paths.
+        return self.client.exec_stream(cmd, cwd=str(self.base_path))
+
+    def stream_mpu6050(self, extra_args: str = ""):
         """
-        Stop the MPU6050 logger if it is running.
+        Start the MPU6050 logger in streaming mode.
 
-        Returns True if we *think* we stopped a process, False if there was
-        no known PID.
+        Internally builds a command like:
+
+            python3 mpu6050_multi_logger.py --rate ... --stream-stdout --no-record ...
+
+        and returns an iterable of JSON lines.
         """
-        pid = self.status.mpu6050_pid
-        if pid is None:
-            return False
+        return self._stream_logger("mpu6050_multi_logger.py", extra_args)
 
-        self.ssh.kill(pid)
-        self.status.mpu6050_pid = None
-        return True
-
-    def is_mpu6050_running(self) -> bool:
-        pid = self.status.mpu6050_pid
-        if pid is None:
-            return False
-        return self.ssh.is_running(pid)
-
-    # ---------------------------- ADXL203 -----------------------------
-    def start_adxl203(self, extra_args: str = "") -> int:
+    def stream_adxl203(self, extra_args: str = ""):
         """
-        Start the ADXL203/ADS1115 logger on the Pi.
+        Start the ADXL203/ADS1115 logger in streaming mode.
 
-        Again, `extra_args` is a free-form CLI string, so you can adjust the
-        recording settings without changing this module.
+        Internally builds a command like:
+
+            python3 adxl203_ads1115_logger.py --rate ... --stream-stdout --no-record ...
+
+        and returns an iterable of JSON lines.
         """
-        cmd = self._build_command("adxl203_ads1115_logger.py", extra_args)
-        pid = self.ssh.exec_background(cmd, cwd=self.scripts_dir)
-        self.status.adxl203_pid = pid
-        return pid
+        return self._stream_logger("adxl203_ads1115_logger.py", extra_args)
 
-    def stop_adxl203(self) -> bool:
-        pid = self.status.adxl203_pid
-        if pid is None:
-            return False
-
-        self.ssh.kill(pid)
-        self.status.adxl203_pid = None
-        return True
-
-    def is_adxl203_running(self) -> bool:
-        pid = self.status.adxl203_pid
-        if pid is None:
-            return False
-        return self.ssh.is_running(pid)
+    # ------------------------------------------------------------------ convenience
+    def stop(self) -> None:
+        """Alias for :meth:`close` to match older code."""
+        self.close()
