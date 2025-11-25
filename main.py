@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import sys
+from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt, Slot
@@ -17,8 +20,12 @@ from PySide6.QtWidgets import (
     QGroupBox,
 )
 
+from local_plot_runner import LocalPlotRunner
 from ssh_client import SSHConfig
 from pi_recorder import PiRecorder
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 
 class MainWindow(QMainWindow):
@@ -27,6 +34,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Sense-Pi Recorder")
         self.recorder: Optional[PiRecorder] = None
+        self.plot_runner = LocalPlotRunner(project_root=PROJECT_ROOT, script_name="plotter.py")
 
         self._build_ui()
 
@@ -75,11 +83,22 @@ class MainWindow(QMainWindow):
         self.status_label.setAlignment(Qt.AlignLeft)
         root_layout.addWidget(self.status_label)
 
+        # --- Combined start/stop for recording + plotting -------------------
+        action_row = QHBoxLayout()
+        self.start_all_btn = QPushButton("Start Recording + Plot", central)
+        self.stop_all_btn = QPushButton("Stop Recording + Plot", central)
+        self.stop_all_btn.setEnabled(False)
+        action_row.addWidget(self.start_all_btn)
+        action_row.addWidget(self.stop_all_btn)
+        root_layout.addLayout(action_row)
+
         self.setCentralWidget(central)
 
         # Signals
         self.connect_btn.clicked.connect(self.on_connect_clicked)
         self.disconnect_btn.clicked.connect(self.on_disconnect_clicked)
+        self.start_all_btn.clicked.connect(self.handle_start_clicked)
+        self.stop_all_btn.clicked.connect(self.handle_stop_clicked)
 
     def _build_mpu6050_tab(self):
         tab = QWidget()
@@ -138,15 +157,104 @@ class MainWindow(QMainWindow):
         self.adxl_stop_btn.clicked.connect(self.on_adxl_stop_clicked)
 
     # ------------------------------------------------------------------ helpers
-    def _ensure_recorder(self) -> bool:
+    def _ensure_recorder(self, *, show_dialog: bool = True) -> bool:
         if self.recorder is None:
-            QMessageBox.information(
-                self,
-                "Not connected",
-                "Please connect to the Raspberry Pi first.",
-            )
+            if show_dialog:
+                QMessageBox.information(
+                    self,
+                    "Not connected",
+                    "Please connect to the Raspberry Pi first.",
+                )
             return False
         return True
+
+    def _start_mpu6050(self, extra_args: str, *, show_dialog: bool = True) -> tuple[bool, Optional[str]]:
+        if not self._ensure_recorder(show_dialog=show_dialog):
+            return False, "Recorder not connected"
+
+        try:
+            pid = self.recorder.start_mpu6050(extra_args=extra_args)
+        except Exception as exc:
+            if show_dialog:
+                QMessageBox.critical(
+                    self,
+                    "Start error",
+                    f"Failed to start MPU6050 logger:\n{exc}",
+                )
+            return False, f"MPU6050 logger: {exc}"
+
+        self.mpu_status_label.setText(f"Running (PID {pid})")
+        self.mpu_start_btn.setEnabled(False)
+        self.mpu_stop_btn.setEnabled(True)
+        return True, None
+
+    def _stop_mpu6050(self, *, show_dialog: bool = True) -> tuple[bool, Optional[str]]:
+        if not self._ensure_recorder(show_dialog=show_dialog):
+            return False, "Recorder not connected"
+
+        try:
+            stopped = self.recorder.stop_mpu6050()
+        except Exception as exc:
+            if show_dialog:
+                QMessageBox.warning(
+                    self,
+                    "Stop error",
+                    f"Error stopping MPU6050 logger:\n{exc}",
+                )
+            return False, f"MPU6050 logger: {exc}"
+
+        if stopped:
+            self.mpu_status_label.setText("Stopped")
+        else:
+            self.mpu_status_label.setText("Was not running")
+
+        self.mpu_start_btn.setEnabled(True)
+        self.mpu_stop_btn.setEnabled(False)
+        return True, None
+
+    def _start_adxl203(self, extra_args: str, *, show_dialog: bool = True) -> tuple[bool, Optional[str]]:
+        if not self._ensure_recorder(show_dialog=show_dialog):
+            return False, "Recorder not connected"
+
+        try:
+            pid = self.recorder.start_adxl203(extra_args=extra_args)
+        except Exception as exc:
+            if show_dialog:
+                QMessageBox.critical(
+                    self,
+                    "Start error",
+                    f"Failed to start ADXL203 logger:\n{exc}",
+                )
+            return False, f"ADXL203 logger: {exc}"
+
+        self.adxl_status_label.setText(f"Running (PID {pid})")
+        self.adxl_start_btn.setEnabled(False)
+        self.adxl_stop_btn.setEnabled(True)
+        return True, None
+
+    def _stop_adxl203(self, *, show_dialog: bool = True) -> tuple[bool, Optional[str]]:
+        if not self._ensure_recorder(show_dialog=show_dialog):
+            return False, "Recorder not connected"
+
+        try:
+            stopped = self.recorder.stop_adxl203()
+        except Exception as exc:
+            if show_dialog:
+                QMessageBox.warning(
+                    self,
+                    "Stop error",
+                    f"Error stopping ADXL203 logger:\n{exc}",
+                )
+            return False, f"ADXL203 logger: {exc}"
+
+        if stopped:
+            self.adxl_status_label.setText("Stopped")
+        else:
+            self.adxl_status_label.setText("Was not running")
+
+        self.adxl_start_btn.setEnabled(True)
+        self.adxl_stop_btn.setEnabled(False)
+        return True, None
 
     # ----------------------------------------------------------------- callbacks
     @Slot()
@@ -214,91 +322,120 @@ class MainWindow(QMainWindow):
         self.adxl_stop_btn.setEnabled(False)
         self.adxl_status_label.setText("Stopped")
 
+        self.start_all_btn.setEnabled(True)
+        self.stop_all_btn.setEnabled(False)
+
+        try:
+            self.plot_runner.stop()
+        except Exception:
+            # If we cannot stop the plotter, ignore during disconnect
+            pass
+
     @Slot()
     def on_mpu_start_clicked(self):
-        if not self._ensure_recorder():
-            return
-
         extra_args = self.mpu_extra_args_edit.text().strip()
-        try:
-            pid = self.recorder.start_mpu6050(extra_args=extra_args)
-        except Exception as exc:
-            QMessageBox.critical(
-                self,
-                "Start error",
-                f"Failed to start MPU6050 logger:\n{exc}",
-            )
+        success, _ = self._start_mpu6050(extra_args)
+        if not success:
             return
-
-        self.mpu_status_label.setText(f"Running (PID {pid})")
-        self.mpu_start_btn.setEnabled(False)
-        self.mpu_stop_btn.setEnabled(True)
 
     @Slot()
     def on_mpu_stop_clicked(self):
-        if not self._ensure_recorder():
+        success, _ = self._stop_mpu6050()
+        if not success:
             return
-
-        try:
-            stopped = self.recorder.stop_mpu6050()
-        except Exception as exc:
-            QMessageBox.warning(
-                self,
-                "Stop error",
-                f"Error stopping MPU6050 logger:\n{exc}",
-            )
-            return
-
-        if stopped:
-            self.mpu_status_label.setText("Stopped")
-        else:
-            self.mpu_status_label.setText("Was not running")
-
-        self.mpu_start_btn.setEnabled(True)
-        self.mpu_stop_btn.setEnabled(False)
 
     @Slot()
     def on_adxl_start_clicked(self):
+        extra_args = self.adxl_extra_args_edit.text().strip()
+        success, _ = self._start_adxl203(extra_args)
+        if not success:
+            return
+
+    @Slot()
+    def on_adxl_stop_clicked(self):
+        success, _ = self._stop_adxl203()
+        if not success:
+            return
+
+    # ------------------------------------------------------------------
+    # Combined start/stop for both loggers + local plotter
+    # ------------------------------------------------------------------
+    def handle_start_clicked(self):
         if not self._ensure_recorder():
             return
 
-        extra_args = self.adxl_extra_args_edit.text().strip()
+        mpu_args = self.mpu_extra_args_edit.text().strip()
+        adxl_args = self.adxl_extra_args_edit.text().strip()
+
+        mpu_started, mpu_err = self._start_mpu6050(mpu_args, show_dialog=False)
+        if not mpu_started:
+            QMessageBox.critical(
+                self,
+                "Start error",
+                f"Failed to start MPU6050 logger:\n{mpu_err}",
+            )
+            return
+
+        adxl_started, adxl_err = self._start_adxl203(adxl_args, show_dialog=False)
+        if not adxl_started:
+            QMessageBox.critical(
+                self,
+                "Start error",
+                f"Failed to start ADXL203 logger:\n{adxl_err}",
+            )
+            self._stop_mpu6050(show_dialog=False)
+            return
+
         try:
-            pid = self.recorder.start_adxl203(extra_args=extra_args)
+            self.plot_runner.start()
         except Exception as exc:
             QMessageBox.critical(
                 self,
                 "Start error",
-                f"Failed to start ADXL203 logger:\n{exc}",
+                f"Failed to start local plotter:\n{exc}",
             )
+            self._stop_mpu6050(show_dialog=False)
+            self._stop_adxl203(show_dialog=False)
             return
 
-        self.adxl_status_label.setText(f"Running (PID {pid})")
-        self.adxl_start_btn.setEnabled(False)
-        self.adxl_stop_btn.setEnabled(True)
+        self.start_all_btn.setEnabled(False)
+        self.stop_all_btn.setEnabled(True)
+        self.status_label.setText("Recording and plotting in progress.")
 
-    @Slot()
-    def on_adxl_stop_clicked(self):
-        if not self._ensure_recorder():
-            return
+    def handle_stop_clicked(self):
+        errors = []
+
+        if self.recorder is not None:
+            _, err = self._stop_mpu6050(show_dialog=False)
+            if err:
+                errors.append(err)
+
+            _, err = self._stop_adxl203(show_dialog=False)
+            if err:
+                errors.append(err)
 
         try:
-            stopped = self.recorder.stop_adxl203()
+            self.plot_runner.stop()
         except Exception as exc:
-            QMessageBox.warning(
-                self,
-                "Stop error",
-                f"Error stopping ADXL203 logger:\n{exc}",
-            )
-            return
+            errors.append(f"Plotter: {exc}")
 
-        if stopped:
-            self.adxl_status_label.setText("Stopped")
+        if errors:
+            QMessageBox.warning(self, "Stop issues", "\n".join(errors))
+
+        self.start_all_btn.setEnabled(True)
+        self.stop_all_btn.setEnabled(False)
+        if self.recorder is None:
+            self.status_label.setText("Not connected.")
         else:
-            self.adxl_status_label.setText("Was not running")
+            self.status_label.setText("Recording stopped.")
 
-        self.adxl_start_btn.setEnabled(True)
-        self.adxl_stop_btn.setEnabled(False)
+    def closeEvent(self, event) -> None:
+        if self.stop_all_btn.isEnabled():
+            try:
+                self.handle_stop_clicked()
+            except Exception:
+                pass
+        super().closeEvent(event)
 
 
 def main():
