@@ -3,7 +3,7 @@
 #   - password: plain-text password (less secure, dev only)
 # If both are set, ssh_key is used.
 pis:
-  - name: lab-pi
+  - name: Pi-06
     host: 192.168.0.6
     user: verwalter
     # Option 1: SSH key auth (preferred for long-term use)
