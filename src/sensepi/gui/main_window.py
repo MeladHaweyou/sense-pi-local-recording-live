@@ -27,7 +27,7 @@ class MainWindow(QMainWindow):
         self.settings_tab = SettingsTab()
         self.offline_tab = OfflineTab(app_paths)
 
-        self._tabs.addTab(self.recorder_tab, "Recorder")
+        self._tabs.addTab(self.recorder_tab, "Connect")
         self._tabs.addTab(self.signals_tab, "Signals")
         self._tabs.addTab(self.fft_tab, "FFT")
         self._tabs.addTab(self.settings_tab, "Settings")
@@ -58,3 +58,27 @@ class MainWindow(QMainWindow):
         self.recorder_tab.streaming_stopped.connect(
             self.fft_tab.on_stream_stopped
         )
+
+        self.signals_tab.start_stream_requested.connect(
+            self._on_start_stream_requested
+        )
+        self.signals_tab.stop_stream_requested.connect(
+            self._on_stop_stream_requested
+        )
+
+    def _on_start_stream_requested(self, recording: bool) -> None:
+        """
+        Called when the user presses Start in the Signals tab.
+        Delegates to RecorderTab using the current Connect-tab settings.
+        """
+        try:
+            self.recorder_tab.start_live_stream(recording=recording)
+        except Exception as exc:
+            # TODO: replace with user-visible dialog if desired
+            print(f"Failed to start stream: {exc!r}")
+
+    def _on_stop_stream_requested(self) -> None:
+        try:
+            self.recorder_tab.stop_live_stream()
+        except Exception as exc:
+            print(f"Failed to stop stream: {exc!r}")
