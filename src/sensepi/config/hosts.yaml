@@ -1,0 +1,6 @@
+pis:
+  - name: lab-pi
+    host: 192.168.0.6
+    user: pi
+    ssh_key: ~/.ssh/id_rsa
+    base_path: /home/pi/raspberrypi_scripts

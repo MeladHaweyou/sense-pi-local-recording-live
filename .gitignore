@@ -1,15 +1,38 @@
-# Local Python virtual env
+# Virtualenv
 .venv/
 venv/
 env/
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs & data (keep folders, ignore contents)
+logs/*
+!logs/.gitkeep
+
+data/*
+!data/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
 # AI / scratch
 .ai/
 
-# Python noise
-__pycache__/
-*.pyc
-
-# IDE
-.vscode/
-.idea/
+# Build / packaging
+*.egg-info/
+.dist/
+.eggs/
+build/
+dist/

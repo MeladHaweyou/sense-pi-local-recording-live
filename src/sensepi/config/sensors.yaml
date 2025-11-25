@@ -1,0 +1,10 @@
+mpu6050:
+  sample_rate_hz: 200
+  channels: both
+  dlpf: 3
+  include_temperature: false
+
+adxl203_ads1115:
+  sample_rate_hz: 100
+  channels: both
+  calibration_samples: 300
