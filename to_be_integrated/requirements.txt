@@ -1,0 +1,24 @@
+# --- Qt GUI (QtCore/QtWidgets/QtMultimedia/WebEngine) ---
+PySide6>=6.5
+PySide6-Addons>=6.5
+
+# --- Plotting ---
+matplotlib>=3.5
+pyqtgraph>=0.13
+plotly
+
+# --- Numerics ---
+numpy>=1.22
+scipy>=1.8
+
+# --- MQTT client (CallbackAPIVersion.VERSION2) ---
+paho-mqtt>=2.0,<3
+
+# --- MIDI/SoundFont rendering via PrettyMIDI → (py)FluidSynth ---
+pretty_midi>=0.2.10
+mido>=1.2
+pyfluidsynth>=1.3
+
+# --- Misc/Tools ---
+opstool
+paramiko
