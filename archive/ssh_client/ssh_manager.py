@@ -77,7 +77,6 @@ class SSHClientManager:
         port: int,
         username: str,
         password: str = "",
-        pkey_path: Optional[str] = None,
         timeout: float = 10.0,
     ) -> None:
         """Establish SSH + SFTP connections."""
@@ -88,13 +87,15 @@ class SSHClientManager:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-            kwargs = {"hostname": host, "port": int(port), "username": username}
-            if pkey_path:
-                kwargs["key_filename"] = pkey_path
-            else:
-                kwargs["password"] = password
-
-            ssh.connect(**kwargs, look_for_keys=not pkey_path, allow_agent=False, timeout=timeout)
+            ssh.connect(
+                hostname=host,
+                port=int(port),
+                username=username,
+                password=password,
+                look_for_keys=False,
+                allow_agent=False,
+                timeout=timeout,
+            )
             self.client = ssh
             self.sftp = ssh.open_sftp()
 

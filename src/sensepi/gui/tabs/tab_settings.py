@@ -124,13 +124,6 @@ class SettingsTab(QWidget):
         self.edit_host_port.setRange(1, 65535)
         self.edit_host_port.setValue(22)
 
-        # SSH key row: line edit + "Browse..."
-        ssh_row = QHBoxLayout()
-        self.edit_ssh_key = QLineEdit(hosts_group)
-        self.btn_browse_key = QPushButton("Browse…", hosts_group)
-        ssh_row.addWidget(self.edit_ssh_key)
-        ssh_row.addWidget(self.btn_browse_key)
-
         self.edit_password = QLineEdit(hosts_group)
         self.edit_password.setEchoMode(QLineEdit.Password)
 
@@ -148,8 +141,7 @@ class SettingsTab(QWidget):
         form.addRow("Host / IP:", self.edit_host_address)
         form.addRow("User:", self.edit_host_user)
         form.addRow("SSH port:", self.edit_host_port)
-        form.addRow("SSH key:", ssh_row)
-        form.addRow("Password (optional):", self.edit_password)
+        form.addRow("Password:", self.edit_password)
         form.addRow("Scripts base path:", base_row)
         form.addRow("Data directory:", self.edit_data_dir)
         form.addRow("Pi config path:", self.edit_pi_config)
@@ -158,9 +150,8 @@ class SettingsTab(QWidget):
 
         hint = QLabel(
             "Authentication:\n"
-            "  - If SSH key path is set, it will be used.\n"
-            "  - Otherwise, if password is set, password authentication is used.\n"
-            "  - If both are empty, default SSH keys / agent are used."
+            "  - Connections use username/password only.\n"
+            "  - SSH key authentication is not supported in this version."
         )
         hint.setWordWrap(True)
         host_form_col.addWidget(hint)
@@ -236,7 +227,6 @@ class SettingsTab(QWidget):
         self.host_list.currentRowChanged.connect(self._on_host_row_changed)
         self.btn_add_host.clicked.connect(self._on_add_host)
         self.btn_remove_host.clicked.connect(self._on_remove_host)
-        self.btn_browse_key.clicked.connect(self._on_browse_key)
         self.btn_browse_base.clicked.connect(self._on_browse_base)
         self.btn_sync_pi.clicked.connect(self._on_sync_to_pi)
         self.btn_save_hosts.clicked.connect(self._on_save_hosts_clicked)
@@ -253,8 +243,6 @@ class SettingsTab(QWidget):
             self.edit_host_address,
             self.edit_host_user,
             self.edit_host_port,
-            self.edit_ssh_key,
-            self.btn_browse_key,
             self.edit_password,
             self.edit_base_path,
             self.btn_browse_base,
@@ -270,7 +258,6 @@ class SettingsTab(QWidget):
         self.edit_host_name.clear()
         self.edit_host_address.clear()
         self.edit_host_user.clear()
-        self.edit_ssh_key.clear()
         self.edit_password.clear()
         self.edit_base_path.clear()
         self.edit_data_dir.clear()
@@ -331,7 +318,6 @@ class SettingsTab(QWidget):
         self.edit_host_name.setText(str(host.get("name", "")))
         self.edit_host_address.setText(str(host.get("host", "")))
         self.edit_host_user.setText(str(host.get("user", "")))
-        self.edit_ssh_key.setText(str(host.get("ssh_key", "")))
         self.edit_password.setText(str(host.get("password", "")))
         self.edit_base_path.setText(str(host.get("base_path", host.get("scripts_dir", ""))))
         self.edit_data_dir.setText(str(host.get("data_dir", "")))
@@ -346,7 +332,6 @@ class SettingsTab(QWidget):
         name = self.edit_host_name.text().strip()
         host = self.edit_host_address.text().strip()
         user = self.edit_host_user.text().strip()
-        ssh_key = self.edit_ssh_key.text().strip()
         password = self.edit_password.text()
         base_path = self.edit_base_path.text().strip()
         data_dir = self.edit_data_dir.text().strip()
@@ -367,11 +352,6 @@ class SettingsTab(QWidget):
             original["user"] = user
         else:
             original.pop("user", None)
-
-        if ssh_key:
-            original["ssh_key"] = ssh_key
-        else:
-            original.pop("ssh_key", None)
 
         if password:
             # TODO: This stores the password in plain text. Consider a keyring.
@@ -413,7 +393,7 @@ class SettingsTab(QWidget):
             "name": f"pi-{len(self._hosts) + 1}",
             "host": "raspberrypi.local",
             "user": "pi",
-            "ssh_key": "~/.ssh/id_rsa",
+            "password": "",
             "base_path": "/home/pi/raspberrypi_scripts",
             "data_dir": "/home/pi/logs",
             "pi_config_path": "/home/pi/raspberrypi_scripts/pi_config.yaml",
@@ -430,17 +410,6 @@ class SettingsTab(QWidget):
             return
         del self._hosts[row]
         self._refresh_host_list()
-
-    @Slot()
-    def _on_browse_key(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select SSH private key",
-            self.edit_ssh_key.text() or "",
-            "SSH keys (*)",
-        )
-        if path:
-            self.edit_ssh_key.setText(path)
 
     @Slot()
     def _on_browse_base(self) -> None:
@@ -627,7 +596,7 @@ class SettingsTab(QWidget):
 """
 What this gives you:
 
-A full host editor (list/add/remove, edit name/host/user/ssh_key/base_path/port).
+A full host editor (list/add/remove, edit name/host/user/password/base_path/port).
 
 Per-sensor defaults UI that directly mirrors sensors.yaml.
 

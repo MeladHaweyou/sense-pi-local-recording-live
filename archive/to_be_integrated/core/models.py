@@ -1,6 +1,7 @@
 # core/models.py
 from __future__ import annotations
 from dataclasses import dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 
@@ -39,7 +40,6 @@ class SSHSettings:
     port: int = 22
     username: str = "verwalter"
     password: str = ""
-    key_path: str = ""
 
     # Remote scripts + output
     mpu_script: str = "/home/verwalter/sensor/mpu6050_multi_logger.py"

@@ -33,13 +33,11 @@ class SSHClientManager:
         port: int,
         username: str,
         password: str = "",
-        pkey_path: Optional[str] = None,
     ) -> None:
         """
         Establish SSH + SFTP connections.
 
-        Either password or pkey_path may be used. If pkey_path is given, it is
-        passed to paramiko as key_filename and password is ignored.
+        Connections use username/password authentication only.
         """
         with self._lock:
             if self.client:
@@ -48,15 +46,12 @@ class SSHClientManager:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-            kwargs = {"hostname": host, "port": int(port), "username": username}
-            if pkey_path:
-                kwargs["key_filename"] = pkey_path
-            else:
-                kwargs["password"] = password
-
             ssh.connect(
-                **kwargs,
-                look_for_keys=not bool(pkey_path),
+                hostname=host,
+                port=int(port),
+                username=username,
+                password=password,
+                look_for_keys=False,
                 allow_agent=False,
                 timeout=10,
             )

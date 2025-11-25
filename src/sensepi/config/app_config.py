@@ -34,7 +34,6 @@ class HostConfig:
     name: str
     host: str
     user: str
-    ssh_key: Optional[str]
     port: int
     base_path: Path
     data_dir: Path
@@ -149,7 +148,7 @@ class HostInventory:
           - name: lab-pi
             host: 192.168.0.6
             user: pi
-            ssh_key: ~/.ssh/id_rsa  # or password: "hunter2"
+            password: "hunter2"
             base_path: /home/pi/raspberrypi_scripts
             port: 22
     """
@@ -197,12 +196,6 @@ class HostInventory:
     # ------------------------------------------------------------------
     # Helpers for turning config dicts into runtime objects
     # ------------------------------------------------------------------
-    def expand_ssh_key(self, ssh_key: str | None) -> str | None:
-        """Expand ``~`` in an SSH key path without modifying the stored YAML."""
-        if not ssh_key:
-            return None
-        return str(Path(ssh_key).expanduser())
-
     def scripts_dir_for(self, host_cfg: Mapping[str, Any]) -> Path:
         """Return the scripts/base path for a host, with ``~`` expanded."""
         raw = (
@@ -218,7 +211,6 @@ class HostInventory:
         name = str(host_cfg.get("name", host_cfg.get("host", "pi")))
         host = str(host_cfg.get("host", "raspberrypi.local"))
         user = str(host_cfg.get("user", "pi"))
-        ssh_key = self.expand_ssh_key(host_cfg.get("ssh_key"))
         port = int(host_cfg.get("port", 22))
         password = host_cfg.get("password")
 
@@ -232,7 +224,6 @@ class HostInventory:
             name=name,
             host=host,
             user=user,
-            ssh_key=ssh_key,
             port=port,
             base_path=base_path,
             data_dir=data_dir,
@@ -255,7 +246,6 @@ class HostInventory:
             name=cfg.name,
             host=cfg.host,
             user=cfg.user,
-            ssh_key=cfg.ssh_key,
             password=cfg.password,
             port=cfg.port,
         )

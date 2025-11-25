@@ -83,7 +83,6 @@ class App:
         self.port_var = tk.StringVar(value="22")
         self.user_var = tk.StringVar(value="verwalter")
         self.pass_var = tk.StringVar(value="!66442200")
-        self.key_var = tk.StringVar(value="")
         self.conn_status = tk.StringVar(value="SSH: Disconnected")
         self.run_status = tk.StringVar(value="Run: Idle")
         self.download_status = tk.StringVar(value="Last download: n/a")
@@ -183,9 +182,9 @@ class App:
     def _build_connection_frame(self) -> None:
         frame = ttk.LabelFrame(self.root, text="SSH Connection")
         frame.pack(fill="x", padx=8, pady=6)
-        labels = ["Host/IP", "Port", "Username", "Password", "Private key path"]
-        vars_ = [self.host_var, self.port_var, self.user_var, self.pass_var, self.key_var]
-        show_opts = [None, None, None, "*", None]
+        labels = ["Host/IP", "Port", "Username", "Password"]
+        vars_ = [self.host_var, self.port_var, self.user_var, self.pass_var]
+        show_opts = [None, None, None, "*"]
         for i, (label, var, show) in enumerate(zip(labels, vars_, show_opts)):
             ttk.Label(frame, text=label).grid(row=i, column=0, sticky="e", padx=4, pady=2)
             ttk.Entry(frame, textvariable=var, show=show, width=32).grid(row=i, column=1, sticky="w", padx=4, pady=2)
@@ -426,10 +425,9 @@ class App:
         port = int(self.port_var.get().strip() or 22)
         username = self.user_var.get().strip()
         password = self.pass_var.get()
-        key_path = self.key_var.get().strip() or None
         self._set_status(self.conn_status, "SSH: Connecting...")
         try:
-            self.manager.connect(host, port, username, password=password, pkey_path=key_path)
+            self.manager.connect(host, port, username, password=password)
             connected_msg = f"SSH: Connected to {username}@{host}:{port}"
             self._set_status(self.conn_status, connected_msg)
             self._log(f"Connected to {username}@{host}:{port}")
@@ -709,7 +707,6 @@ class App:
             "port": self.port_var.get(),
             "username": self.user_var.get(),
             "password": self.pass_var.get(),  # TODO: storing password in plain text is insecure.
-            "key": self.key_var.get(),
             "adxl_script": self.adxl_script.get(),
             "adxl_out": self.adxl_out.get(),
             "mpu_script": self.mpu_script.get(),
@@ -732,7 +729,6 @@ class App:
             self.port_var.set(cfg.get("port", self.port_var.get()))
             self.user_var.set(cfg.get("username", self.user_var.get()))
             self.pass_var.set(cfg.get("password", ""))
-            self.key_var.set(cfg.get("key", ""))
             self.adxl_script.set(cfg.get("adxl_script", self.adxl_script.get()))
             self.adxl_out.set(cfg.get("adxl_out", self.adxl_out.get()))
             self.mpu_script.set(cfg.get("mpu_script", self.mpu_script.get()))
