@@ -402,6 +402,11 @@ def main():
         default=1,
         help="Only stream every N-th sample per sensor (default: 1 = every sample)."
     )
+    ap.add_argument(
+        "--timing-warnings",
+        action="store_true",
+        help="Print overrun warnings to stderr (debugging only).",
+    )
     # Default streaming fields:
     #   - timestamp_ns (int): monotonic time in nanoseconds
     #   - t_s          (float): seconds since the run started
@@ -701,11 +706,12 @@ def main():
                         file=sys.stderr,
                     )
                     return 1
-            else:
-                print(
-                    f"[INFO] Sensor {sid}: no-record mode (CSV files disabled); streaming only.",
-                    file=sys.stderr,
-                )
+            # else:
+            #     # In GUI streaming mode this is just noise, so keep it silent by default.
+            #     # print(
+            #     #     f"[INFO] Sensor {sid}: no-record mode (CSV files disabled); streaming only.",
+            #     #     file=sys.stderr,
+            #     # )
         except FileNotFoundError:
             print(f"[WARN] Bus {bus_id} not available; sensor {sid} skipped.", file=sys.stderr)
         except Exception as e:
@@ -743,8 +749,12 @@ def main():
                 time.sleep(sleep_ns / 1e9)
             else:
                 overruns += 1
-                if overruns % warn_every == 1:
-                    print(f"[WARN] Overrun: loop behind by {(-sleep_ns)/1e6:.3f} ms (count={overruns})", file=sys.stderr)
+                if args.timing_warnings and overruns % warn_every == 1:
+                    over_ms = -sleep_ns / 1e6
+                    print(
+                        f"[WARN] Overrun: loop behind by {over_ms:.3f} ms (count={overruns})",
+                        file=sys.stderr,
+                    )
 
             # timestamp each read individually
             for sid, dev in list(devices.items()):

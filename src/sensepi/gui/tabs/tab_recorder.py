@@ -121,7 +121,12 @@ class RecorderTab(QWidget):
         self.mpu_enable_chk.setChecked(True)
         mpu_layout.addWidget(self.mpu_enable_chk)
 
-        mpu_layout.addWidget(QLabel("Rate (Hz):"))
+        rate_lbl = QLabel("Sample rate on Pi (Hz):")
+        rate_lbl.setToolTip(
+            "How fast the MPU6050 is sampled on the Raspberry Pi.\n"
+            "Affects recorded CSV files and the maximum live stream rate."
+        )
+        mpu_layout.addWidget(rate_lbl)
         self.mpu_rate_spin = QSpinBox()
         self.mpu_rate_spin.setRange(4, 1000)
         self.mpu_rate_spin.setValue(100)
@@ -144,13 +149,17 @@ class RecorderTab(QWidget):
         self.mpu_temp_chk.setChecked(False)
         mpu_layout.addWidget(self.mpu_temp_chk)
 
-        mpu_layout.addWidget(QLabel("Stream every:"))
+        stream_lbl = QLabel("Send every Nth sample:")
+        stream_lbl.setToolTip(
+            "Decimation for the live stream only.\n"
+            "1 = send every sample; 2 = send every 2nd sample, etc.\n"
+            "Recording still writes every sample to disk."
+        )
+        mpu_layout.addWidget(stream_lbl)
         self.mpu_stream_every_spin = QSpinBox()
         self.mpu_stream_every_spin.setRange(1, 1000)
         self.mpu_stream_every_spin.setValue(1)
-        self.mpu_stream_every_spin.setToolTip(
-            "Send every N-th sample over SSH (recording mode can use a larger value)."
-        )
+        self.mpu_stream_every_spin.setToolTip(stream_lbl.toolTip())
         mpu_layout.addWidget(self.mpu_stream_every_spin)
 
         layout.addWidget(mpu_group)
@@ -163,7 +172,12 @@ class RecorderTab(QWidget):
         self.adxl_enable_chk.setChecked(False)
         adxl_layout.addWidget(self.adxl_enable_chk)
 
-        adxl_layout.addWidget(QLabel("Rate (Hz):"))
+        adxl_rate_lbl = QLabel("Sample rate on Pi (Hz):")
+        adxl_rate_lbl.setToolTip(
+            "How fast the ADXL203/ADS1115 is sampled on the Raspberry Pi.\n"
+            "Affects recorded CSV files and the maximum live stream rate."
+        )
+        adxl_layout.addWidget(adxl_rate_lbl)
         self.adxl_rate_spin = QSpinBox()
         self.adxl_rate_spin.setRange(4, 1000)
         self.adxl_rate_spin.setValue(100)
@@ -176,10 +190,17 @@ class RecorderTab(QWidget):
         self.adxl_channels_combo.addItem("Y only", userData="y")
         adxl_layout.addWidget(self.adxl_channels_combo)
 
-        adxl_layout.addWidget(QLabel("Stream every:"))
+        adxl_stream_lbl = QLabel("Send every Nth sample:")
+        adxl_stream_lbl.setToolTip(
+            "Decimation for the live stream only.\n"
+            "1 = send every sample; 2 = send every 2nd sample, etc.\n"
+            "Recording still writes every sample to disk."
+        )
+        adxl_layout.addWidget(adxl_stream_lbl)
         self.adxl_stream_every_spin = QSpinBox()
         self.adxl_stream_every_spin.setRange(1, 1000)
         self.adxl_stream_every_spin.setValue(1)
+        self.adxl_stream_every_spin.setToolTip(adxl_stream_lbl.toolTip())
         adxl_layout.addWidget(self.adxl_stream_every_spin)
 
         layout.addWidget(adxl_group)
@@ -464,8 +485,13 @@ class RecorderTab(QWidget):
 
     @Slot(str)
     def _show_error(self, message: str) -> None:
-        QMessageBox.critical(self, "SensePi Error", message)
-        self.overall_status.setText(f"Error: {message}")
+        # Always reflect the latest remote message in the status bar
+        self.overall_status.setText(message)
+
+        # Only escalate to a blocking popup for serious errors
+        msg_upper = message.upper()
+        if "ERROR" in msg_upper or "TRACEBACK" in msg_upper:
+            QMessageBox.critical(self, "SensePi Error", message)
 
     @Slot(str, float)
     def _on_rate_updated(self, sensor: str, hz: float) -> None:
