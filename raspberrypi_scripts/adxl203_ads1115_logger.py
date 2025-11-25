@@ -15,6 +15,18 @@ ADXL203 (via ADS1115) logger — lean build (sweet-spot defaults)
 
 Recommended: 100 Hz, both axes (X+Y)
   --rate 100 --channels both
+
+Configuration via YAML
+----------------------
+This logger understands a small YAML config file. Use
+``--config /path/to/pi_config.yaml`` explicitly, or omit ``--config``
+and a ``pi_config.yaml`` located next to this script will be used if it
+exists.
+
+We read defaults from the ``adxl203_ads1115`` section and then apply
+explicit command-line options on top. For boolean flags (``--no-record``,
+``--stream-stdout``) the config controls the default state while the CLI
+can only enable additional behaviour.
 """
 
 from __future__ import annotations
@@ -35,6 +47,8 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from pi_logger_common import load_config
 
 # ----------------------------
 # Constants & ADS parameters
@@ -306,7 +320,12 @@ class FirstOrderIIR:
 # ----------------------------
 def main():
     ap = argparse.ArgumentParser(description="ADXL203 via ADS1115 logger (lean, SINGLE-SHOT, OSR=2 median).")
-    ap.add_argument("--rate", type=float, required=True, help="Output sampling rate in Hz (per axis)")
+    ap.add_argument(
+        "--rate",
+        type=float,
+        required=False,
+        help="Output sampling rate in Hz (per axis)",
+    )
     ap.add_argument("--channels", type=str, choices=["x", "y", "both"], default="both", help="Axes to record")
     ap.add_argument("--duration", type=float, default=None, help="Duration in seconds; omit for indefinite")
     ap.add_argument("--out", type=str, default="./logs", help="Output directory")
@@ -317,28 +336,123 @@ def main():
     ap.add_argument(
         "--no-record",
         action="store_true",
-        help="Disable file output (no CSV/meta). Sampling still runs, and streaming can be used."
+        help="Disable file output (no CSV/meta). Sampling still runs, and streaming can be used.",
     )
     ap.add_argument(
         "--stream-stdout",
         action="store_true",
-        help="Stream samples to stdout as JSON lines for a remote GUI."
+        help="Stream samples to stdout as JSON lines for a remote GUI.",
     )
     ap.add_argument(
         "--stream-every",
         type=int,
         default=1,
-        help="Only stream every Nth output sample (default: 1 = every sample)."
+        help="Only stream every Nth output sample (default: 1 = every sample).",
     )
     ap.add_argument(
         "--stream-fields",
         type=str,
         default="x_lp,y_lp",
-        help="Comma-separated list of field names (from the header) to include in the stdout JSON stream."
+        help="Comma-separated list of field names (from the header) to include in the stdout JSON stream.",
+    )
+    ap.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help=(
+            "Path to YAML config file with defaults "
+            "(falls back to 'pi_config.yaml' next to this script if omitted)."
+        ),
     )
     args = ap.parse_args()
-    if args.rate <= 0:
-        print("ERROR: --rate must be > 0", file=sys.stderr); return 2
+
+    # ------------------------------------------------------------------
+    # YAML configuration merge
+    # ------------------------------------------------------------------
+    script_dir = Path(__file__).resolve().parent
+    default_cfg_path = script_dir / "pi_config.yaml"
+
+    if args.config:
+        cfg_path = Path(args.config)
+    elif default_cfg_path.exists():
+        cfg_path = default_cfg_path
+    else:
+        cfg_path = None
+
+    cfg = {}
+    section = {}
+    if cfg_path is not None:
+        try:
+            cfg = load_config(cfg_path)
+            section = cfg.get("adxl203_ads1115", {}) or {}
+        except Exception as exc:
+            print(f"[WARN] Failed to load config {cfg_path}: {exc}", file=sys.stderr)
+            section = {}
+
+    argv = sys.argv[1:]
+
+    def _flag_present(name: str) -> bool:
+        prefix = name + "="
+        return any(a == name or a.startswith(prefix) for a in argv)
+
+    # sample rate (Hz)
+    cfg_rate = section.get("sample_rate_hz")
+    if args.rate is None and cfg_rate is not None:
+        try:
+            args.rate = float(cfg_rate)
+        except Exception:
+            print(f"[WARN] Invalid adxl203_ads1115.sample_rate_hz in config: {cfg_rate!r}", file=sys.stderr)
+
+    # channels: x|y|both
+    cfg_channels = section.get("channels")
+    if not _flag_present("--channels") and cfg_channels is not None:
+        args.channels = str(cfg_channels)
+
+    # calibration_samples -> --calibrate
+    cfg_cal = section.get("calibration_samples")
+    if not _flag_present("--calibrate") and cfg_cal is not None:
+        try:
+            args.calibrate = int(cfg_cal)
+        except Exception:
+            print(f"[WARN] Invalid adxl203_ads1115.calibration_samples in config: {cfg_cal!r}", file=sys.stderr)
+
+    # output_dir -> --out
+    cfg_out = section.get("output_dir") or section.get("out")
+    if cfg_out is not None and not _flag_present("--out"):
+        args.out = str(cfg_out)
+
+    # Optional defaults for flags and streaming
+    if section.get("no_record") and not args.no_record:
+        args.no_record = True
+    if section.get("stream_stdout") and not args.stream_stdout:
+        args.stream_stdout = True
+
+    cfg_stream_every = section.get("stream_every")
+    if cfg_stream_every is not None and not _flag_present("--stream-every"):
+        try:
+            args.stream_every = int(cfg_stream_every)
+        except Exception:
+            print(f"[WARN] Invalid adxl203_ads1115.stream_every in config: {cfg_stream_every!r}", file=sys.stderr)
+
+    cfg_stream_fields = section.get("stream_fields")
+    if cfg_stream_fields and not _flag_present("--stream-fields"):
+        args.stream_fields = str(cfg_stream_fields)
+
+    cfg_duration = section.get("duration_s")
+    if cfg_duration is not None and args.duration is None and not _flag_present("--duration"):
+        try:
+            args.duration = float(cfg_duration)
+        except Exception:
+            print(f"[WARN] Invalid adxl203_ads1115.duration_s in config: {cfg_duration!r}", file=sys.stderr)
+
+    # After merging, ensure a valid rate
+    if args.rate is None or args.rate <= 0:
+        print(
+            "ERROR: --rate must be > 0 (set via CLI --rate or "
+            "adxl203_ads1115.sample_rate_hz in pi_config.yaml).",
+            file=sys.stderr,
+        )
+        return 2
 
     # Channels & mapping
     ch_map = parse_map(args.map)

@@ -58,6 +58,21 @@ python3 mpu6050_multi_logger.py --rate 200 --sensors 3 --channels gyro --out ./l
 
 # "default" selection — AX, AY and GZ
 python3 mpu6050_multi_logger.py --rate 100 --channels default
+
+Configuration via YAML
+----------------------
+This logger can read defaults from a small YAML file on the Pi. Use
+``--config /path/to/pi_config.yaml`` explicitly, or omit ``--config``
+and a ``pi_config.yaml`` that lives next to this script will be used if
+present.
+
+The merge strategy is:
+
+1. Read defaults from the ``mpu6050`` section.
+2. Apply explicit command-line options on top (CLI overrides config).
+3. For boolean flags such as ``--temp``, ``--no-record`` and
+   ``--stream-stdout``, the config controls the default state and the
+   CLI can only enable additional behaviour.
 """
 from __future__ import annotations
 
@@ -75,6 +90,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from pi_logger_common import load_config
 
 try:
     from smbus2 import SMBus
@@ -340,6 +357,15 @@ def main():
     ap.add_argument("--duration", type=float, default=None, help="Duration in seconds (optional)")
     ap.add_argument("--samples", type=int, default=None, help="Number of samples to capture (optional)")
     ap.add_argument("--out", type=str, default="./logs", help="Output folder")
+    ap.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help=(
+            "Path to YAML config file with defaults "
+            "(falls back to 'pi_config.yaml' next to this script if omitted)."
+        ),
+    )
     ap.add_argument("--format", type=str, choices=["csv", "jsonl"], default="csv", help="Output format")
     ap.add_argument("--prefix", type=str, default="mpu", help="Output filename prefix")
     ap.add_argument("--dlpf", type=int, default=DLPF_DEFAULT, help="DLPF cfg 0..6 (default 3≈44 Hz)")
@@ -381,8 +407,118 @@ def main():
         scan_buses()
         return 0
 
+    # ------------------------------------------------------------------
+    # YAML configuration merge
+    # ------------------------------------------------------------------
+    # Strategy:
+    #   1. Load optional ``mpu6050`` section from a config file
+    #      (explicit --config or pi_config.yaml next to this script).
+    #   2. Treat those values as defaults.
+    #   3. Any explicit CLI option overrides the corresponding config
+    #      value. For boolean flags like --temp, --no-record and
+    #      --stream-stdout, the config controls the default state and
+    #      CLI can only enable additional behaviour.
+    script_dir = Path(__file__).resolve().parent
+    default_cfg_path = script_dir / "pi_config.yaml"
+
+    if args.config:
+        cfg_path = Path(args.config)
+    elif default_cfg_path.exists():
+        cfg_path = default_cfg_path
+    else:
+        cfg_path = None
+
+    cfg = {}
+    section = {}
+    if cfg_path is not None:
+        try:
+            cfg = load_config(cfg_path)
+            section = cfg.get("mpu6050", {}) or {}
+        except Exception as exc:
+            print(f"[WARN] Failed to load config {cfg_path}: {exc}", file=sys.stderr)
+            section = {}
+
+    argv = sys.argv[1:]
+
+    def _flag_present(name: str) -> bool:
+        prefix = name + "="
+        return any(a == name or a.startswith(prefix) for a in argv)
+
+    # sample rate (Hz)
+    cfg_rate = section.get("sample_rate_hz")
+    if args.rate is None and cfg_rate is not None:
+        try:
+            args.rate = float(cfg_rate)
+        except Exception:
+            print(f"[WARN] Invalid mpu6050.sample_rate_hz in config: {cfg_rate!r}", file=sys.stderr)
+
+    # sensors list (e.g. [1, 2, 3])
+    cfg_sensors = section.get("sensors")
+    if not _flag_present("--sensors") and cfg_sensors is not None:
+        if isinstance(cfg_sensors, (list, tuple)):
+            args.sensors = ",".join(str(s) for s in cfg_sensors)
+        else:
+            args.sensors = str(cfg_sensors)
+
+    # channels: acc|gyro|both|default
+    cfg_channels = section.get("channels")
+    if not _flag_present("--channels") and cfg_channels is not None:
+        args.channels = str(cfg_channels)
+
+    # DLPF 0..6
+    cfg_dlpf = section.get("dlpf")
+    if not _flag_present("--dlpf") and cfg_dlpf is not None:
+        try:
+            args.dlpf = int(cfg_dlpf)
+        except Exception:
+            print(f"[WARN] Invalid mpu6050.dlpf in config: {cfg_dlpf!r}", file=sys.stderr)
+
+    # include_temperature -> --temp
+    if section.get("include_temperature") and not args.temp:
+        args.temp = True
+
+    # output_dir -> --out
+    cfg_out = section.get("output_dir") or section.get("out")
+    if cfg_out is not None and not _flag_present("--out"):
+        args.out = str(cfg_out)
+
+    # Optional behaviour flags
+    if section.get("no_record") and not args.no_record:
+        args.no_record = True
+    if section.get("stream_stdout") and not args.stream_stdout:
+        args.stream_stdout = True
+
+    cfg_stream_every = section.get("stream_every")
+    if cfg_stream_every is not None and not _flag_present("--stream-every"):
+        try:
+            args.stream_every = int(cfg_stream_every)
+        except Exception:
+            print(f"[WARN] Invalid mpu6050.stream_every in config: {cfg_stream_every!r}", file=sys.stderr)
+
+    cfg_stream_fields = section.get("stream_fields")
+    if cfg_stream_fields and not _flag_present("--stream-fields"):
+        args.stream_fields = str(cfg_stream_fields)
+
+    cfg_duration = section.get("duration_s")
+    if cfg_duration is not None and args.duration is None and not _flag_present("--duration"):
+        try:
+            args.duration = float(cfg_duration)
+        except Exception:
+            print(f"[WARN] Invalid mpu6050.duration_s in config: {cfg_duration!r}", file=sys.stderr)
+
+    cfg_samples = section.get("samples")
+    if cfg_samples is not None and args.samples is None and not _flag_present("--samples"):
+        try:
+            args.samples = int(cfg_samples)
+        except Exception:
+            print(f"[WARN] Invalid mpu6050.samples in config: {cfg_samples!r}", file=sys.stderr)
+
     if args.rate is None or args.rate <= 0:
-        print("ERROR: --rate is required and must be > 0", file=sys.stderr)
+        print(
+            "ERROR: --rate must be > 0 (set via CLI --rate or "
+            "mpu6050.sample_rate_hz in pi_config.yaml).",
+            file=sys.stderr,
+        )
         return 2
 
     # Clamp requested rate to practical 4..1000 Hz with DLPF enabled (datasheet)
