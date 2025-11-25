@@ -1,3 +1,6 @@
 numpy>=1.25
 RPi.GPIO
 smbus2
+PyYAML
+adafruit-circuitpython-ads1x15
+adafruit-blinka

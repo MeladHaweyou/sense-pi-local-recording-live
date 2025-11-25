@@ -6,3 +6,5 @@ pis:
     user: verwalter
     password: "!66442200"
     base_path: /home/verwalter/sensor
+    data_dir: /home/verwalter/sensor/logs
+    pi_config_path: /home/verwalter/sensor/pi_config.yaml
