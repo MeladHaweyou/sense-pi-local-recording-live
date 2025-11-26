@@ -20,7 +20,6 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
 from ..widgets import CollapsibleSection
-from ...core.models import LiveSample
 from ...core.ringbuffer import RingBuffer
 from ...sensors.mpu6050 import MpuSample
 
@@ -105,41 +104,26 @@ class SignalPlotWidget(QWidget):
         self._visible_channels = set(channels_list)
         self._channel_order = channels_list
 
-    def add_sample(self, sample: LiveSample | MpuSample) -> None:
-        """Append a sample from any supported sensor type."""
-        if isinstance(sample, MpuSample):
-            # Use sensor_id as row index; default to 1 if missing
-            sensor_id = int(sample.sensor_id) if sample.sensor_id is not None else 1
-            t = (
-                float(sample.t_s)
-                if sample.t_s is not None
-                else sample.timestamp_ns * 1e-9
-            )
-            for ch in ("ax", "ay", "az", "gx", "gy", "gz"):
-                val = getattr(sample, ch, None)
-                if val is None:
-                    continue
-                try:
-                    v = float(val)
-                except (TypeError, ValueError):
-                    continue
-                if math.isnan(v):
-                    continue
-                self._append_point(sensor_id, ch, t, v)
-
-        elif isinstance(sample, LiveSample):
-            # Generic samples are treated as a single "sensor" row (id 0)
-            sensor_id = 0
-            t = sample.timestamp_ns * 1e-9
-            for idx, val in enumerate(sample.values):
-                try:
-                    v = float(val)
-                except (TypeError, ValueError):
-                    continue
-                if math.isnan(v):
-                    continue
-                ch = f"ch{idx}"
-                self._append_point(sensor_id, ch, t, v)
+    def add_sample(self, sample: MpuSample) -> None:
+        """Append a sample from the MPU6050 sensor."""
+        # Use sensor_id as row index; default to 1 if missing
+        sensor_id = int(sample.sensor_id) if sample.sensor_id is not None else 1
+        t = (
+            float(sample.t_s)
+            if sample.t_s is not None
+            else sample.timestamp_ns * 1e-9
+        )
+        for ch in ("ax", "ay", "az", "gx", "gy", "gz"):
+            val = getattr(sample, ch, None)
+            if val is None:
+                continue
+            try:
+                v = float(val)
+            except (TypeError, ValueError):
+                continue
+            if math.isnan(v):
+                continue
+            self._append_point(sensor_id, ch, t, v)
 
     def redraw(self) -> None:
         """Refresh the Matplotlib plot (intended to be driven by a QTimer)."""
@@ -313,11 +297,13 @@ class SignalsTab(QWidget):
         # Top controls ---------------------------------------------------------
         top_row_group = QGroupBox(self)
         top_row = QHBoxLayout(top_row_group)
+        top_row.setSpacing(12)
 
-        self.sensor_combo = QComboBox(top_row_group)
-        self.sensor_combo.addItem("MPU6050", userData="mpu6050")
-        self.sensor_combo.addItem("Generic live", userData="generic")
-        top_row.addWidget(self.sensor_combo)
+        sensor_layout = QHBoxLayout()
+        sensor_layout.setSpacing(8)
+        self.sensor_label = QLabel("Sensor: MPU6050", top_row_group)
+        sensor_layout.addWidget(self.sensor_label)
+        sensor_layout.addStretch()
 
         # View preset selector (9 vs 18 charts)
         top_row.addWidget(QLabel("View:", top_row_group))
@@ -330,9 +316,6 @@ class SignalsTab(QWidget):
         )
         top_row.addWidget(self.view_mode_combo)
 
-        self.sensor_combo.currentIndexChanged.connect(
-            self._rebuild_channel_checkboxes
-        )
         self.view_mode_combo.currentIndexChanged.connect(
             self._on_view_mode_changed
         )
@@ -376,6 +359,8 @@ class SignalsTab(QWidget):
         top_row.addStretch()
 
         group_layout = QVBoxLayout(top_row_group)
+        group_layout.setSpacing(10)
+        group_layout.addLayout(sensor_layout)
         group_layout.addLayout(top_row)
 
         # Short explanatory text under the buttons
@@ -451,17 +436,10 @@ class SignalsTab(QWidget):
     @Slot(object)
     def handle_sample(self, sample: object) -> None:
         """Called by RecorderTab when a new sample arrives."""
-        sensor_key = self.sensor_combo.currentData()
-        if sensor_key == "mpu6050":
-            if not isinstance(sample, MpuSample):
-                return
-        elif sensor_key == "generic":
-            if not isinstance(sample, LiveSample):
-                return
-        else:
+        if not isinstance(sample, MpuSample):
             return
 
-        self._plot.add_sample(sample)  # type: ignore[arg-type]
+        self._plot.add_sample(sample)
 
     # --------------------------------------------------------------- helpers
     def _update_base_window_label(self) -> None:
@@ -488,23 +466,18 @@ class SignalsTab(QWidget):
 
         self._channel_checkboxes.clear()
 
-        sensor_key = self.sensor_combo.currentData()
-        if sensor_key == "mpu6050":
-            # Use view preset:
-            #   - "default3" => AX, AY, GZ (3 columns)
-            #   - "all6"     => AX, AY, AZ, GX, GY, GZ (6 columns)
-            view_mode = (
-                self.view_mode_combo.currentData()
-                if hasattr(self, "view_mode_combo")
-                else "all6"
-            )
-            if view_mode == "default3":
-                channels = ["ax", "ay", "gz"]
-            else:
-                channels = ["ax", "ay", "az", "gx", "gy", "gz"]
+        # Use view preset:
+        #   - "default3" => AX, AY, GZ (3 columns)
+        #   - "all6"     => AX, AY, AZ, GX, GY, GZ (6 columns)
+        view_mode = (
+            self.view_mode_combo.currentData()
+            if hasattr(self, "view_mode_combo")
+            else "all6"
+        )
+        if view_mode == "default3":
+            channels = ["ax", "ay", "gz"]
         else:
-            # Generic LiveSample channels (first few indices)
-            channels = [f"ch{i}" for i in range(8)]
+            channels = ["ax", "ay", "az", "gx", "gy", "gz"]
 
         for ch in channels:
             cb = QCheckBox(ch)
