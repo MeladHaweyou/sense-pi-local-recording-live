@@ -1,1 +1,0 @@
-"""Qt user interface components for Digital Twin Simple."""
