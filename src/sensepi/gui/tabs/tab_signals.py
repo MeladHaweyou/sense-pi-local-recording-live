@@ -304,12 +304,14 @@ class SignalsTab(QWidget):
 
         self._plot = SignalPlotWidget(max_seconds=10.0)
         self._channel_checkboxes: Dict[str, QCheckBox] = {}
-        self._controls_section: CollapsibleSection | None = None
+        self._recording_section: CollapsibleSection | None = None
+        self._host_section: CollapsibleSection | None = None
+        self._mpu_section: CollapsibleSection | None = None
 
         layout = QVBoxLayout(self)
 
         # Top controls ---------------------------------------------------------
-        top_row_group = QGroupBox("Streaming / recording controls", self)
+        top_row_group = QGroupBox(self)
         top_row = QHBoxLayout(top_row_group)
 
         self.sensor_combo = QComboBox(top_row_group)
@@ -393,20 +395,25 @@ class SignalsTab(QWidget):
         self._channel_layout = QHBoxLayout(channel_group)
         channel_group.setLayout(self._channel_layout)
 
+        recording_section = CollapsibleSection("Recording / stream controls", self)
+        recording_layout = QVBoxLayout()
+        recording_layout.setContentsMargins(0, 0, 0, 0)
+        recording_layout.addWidget(top_row_group)
+        recording_layout.addWidget(channel_group)
+        recording_section.setContentLayout(recording_layout)
+        layout.addWidget(recording_section)
+        self._recording_section = recording_section
+
         # Refresh settings -----------------------------------------------------
         refresh_group = self._build_refresh_controls()
-
-        controls_section = CollapsibleSection(
-            "Controls / channels / refresh", self
+        refresh_section = CollapsibleSection(
+            "Plot refresh rate / GUI refresh", self
         )
-        controls_layout = QVBoxLayout()
-        controls_layout.setContentsMargins(0, 0, 0, 0)
-        controls_layout.addWidget(top_row_group)
-        controls_layout.addWidget(channel_group)
-        controls_layout.addWidget(refresh_group)
-        controls_section.setContentLayout(controls_layout)
-        layout.addWidget(controls_section)
-        self._controls_section = controls_section
+        refresh_layout = QVBoxLayout()
+        refresh_layout.setContentsMargins(0, 0, 0, 0)
+        refresh_layout.addWidget(refresh_group)
+        refresh_section.setContentLayout(refresh_layout)
+        layout.addWidget(refresh_section)
 
         # Plot widget -----------------------------------------------------------
         layout.addWidget(self._plot, stretch=1)
@@ -429,8 +436,8 @@ class SignalsTab(QWidget):
         self.stop_button.setEnabled(True)
         self._status_label.setText("Streaming...")
         self.start_stream_requested.emit(self.recording_check.isChecked())
-        if self._controls_section is not None:
-            self._controls_section.setCollapsed(True)
+        if self._recording_section is not None:
+            self._recording_section.setCollapsed(True)
 
     @Slot()
     def _on_stop_clicked(self) -> None:
@@ -438,8 +445,8 @@ class SignalsTab(QWidget):
         self.stop_button.setEnabled(False)
         self._status_label.setText("Stopping...")
         self.stop_stream_requested.emit()
-        if self._controls_section is not None:
-            self._controls_section.setCollapsed(False)
+        if self._recording_section is not None:
+            self._recording_section.setCollapsed(False)
 
     @Slot(object)
     def handle_sample(self, sample: object) -> None:
@@ -523,7 +530,7 @@ class SignalsTab(QWidget):
         self._plot.set_visible_channels(visible)
 
     def _build_refresh_controls(self) -> QGroupBox:
-        group = QGroupBox("Plot refresh rate", self)
+        group = QGroupBox(self)
         form = QFormLayout(group)
 
         self.refresh_mode_combo = QComboBox(group)
@@ -697,6 +704,20 @@ class SignalsTab(QWidget):
 
         layout = self.layout()
         if layout is not None:
-            # Insert above the streaming controls group (which is currently at index 0)
-            layout.insertWidget(0, host_group)
-            layout.insertWidget(1, mpu_group)
+            host_group.setTitle("")
+            host_section = CollapsibleSection("Raspberry Pi host", self)
+            host_layout = QVBoxLayout()
+            host_layout.setContentsMargins(0, 0, 0, 0)
+            host_layout.addWidget(host_group)
+            host_section.setContentLayout(host_layout)
+            layout.insertWidget(0, host_section)
+            self._host_section = host_section
+
+            mpu_group.setTitle("")
+            mpu_section = CollapsibleSection("MPU6050 settings", self)
+            mpu_layout = QVBoxLayout()
+            mpu_layout.setContentsMargins(0, 0, 0, 0)
+            mpu_layout.addWidget(mpu_group)
+            mpu_section.setContentLayout(mpu_layout)
+            layout.insertWidget(1, mpu_section)
+            self._mpu_section = mpu_section
