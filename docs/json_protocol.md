@@ -1,6 +1,6 @@
 # SensePi JSON streaming protocol
 
-The Raspberry Pi loggers stream one JSON object per line. Each entry includes:
+This document describes the JSON protocol used by the MPU6050 logger when streaming samples over stdout. The Raspberry Pi MPU6050 logger streams one JSON object per line. Each entry includes:
 
 - `timestamp_ns` (int): monotonic timestamp in nanoseconds.
 - `t_s` (float): seconds since the run started.

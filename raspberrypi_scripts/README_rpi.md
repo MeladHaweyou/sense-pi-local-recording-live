@@ -24,5 +24,3 @@ Then edit pi_config.yaml on the Pi to match your logging directory and sensor la
 ```bash
 ssh pi@<host> "cd /home/pi/raspberrypi_scripts && ./run_all_sensors.sh"
 ```
-
-(Main point: no ADXL mention anywhere.)
