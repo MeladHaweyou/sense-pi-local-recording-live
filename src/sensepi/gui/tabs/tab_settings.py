@@ -41,6 +41,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
     QComboBox,
+    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -197,6 +198,51 @@ class SettingsTab(QWidget):
 
         sensors_layout.addWidget(mpu_group)
 
+        # ADXL203/ADS1115
+        adxl_group = QGroupBox("ADXL203 / ADS1115", sensors_group)
+        adxl_form = QFormLayout(adxl_group)
+
+        self.adxl_rate = QSpinBox(adxl_group)
+        self.adxl_rate.setRange(1, 5000)
+        self.adxl_rate.setSingleStep(10)
+        self.adxl_rate.setValue(100)
+        self.adxl_rate.setSuffix(" Hz")
+        self.adxl_rate.setToolTip("Sample rate for the ADXL203/ADS1115 logger.")
+
+        self.adxl_channels = QComboBox(adxl_group)
+        self.adxl_channels.addItems(["x", "y", "both"])
+
+        # NEW: calibration time (seconds)
+        self.adxl_cal_time = QDoubleSpinBox(adxl_group)
+        self.adxl_cal_time.setRange(0.1, 30.0)
+        self.adxl_cal_time.setSingleStep(0.1)
+        self.adxl_cal_time.setDecimals(1)
+        self.adxl_cal_time.setValue(3.0)
+        self.adxl_cal_time.setSuffix(" s")
+        self.adxl_cal_time.setToolTip(
+            "Time in seconds that the ADXL203 should remain still while the Pi "
+            "computes the zero-g offset. Converted to calibration samples based "
+            "on the sample rate."
+        )
+
+        # Keep samples, but derived/read-only
+        self.adxl_cal_samples = QSpinBox(adxl_group)
+        self.adxl_cal_samples.setRange(1, 100000)
+        self.adxl_cal_samples.setSingleStep(10)
+        self.adxl_cal_samples.setValue(300)
+        self.adxl_cal_samples.setReadOnly(True)
+        self.adxl_cal_samples.setToolTip(
+            "Derived number of calibration samples sent to the Pi (--calibrate). "
+            "Computed from sample rate and calibration time."
+        )
+
+        adxl_form.addRow("Sample rate (Hz):", self.adxl_rate)
+        adxl_form.addRow("Channels:", self.adxl_channels)
+        adxl_form.addRow("Calibration time (s):", self.adxl_cal_time)
+        adxl_form.addRow("Calibration samples (derived):", self.adxl_cal_samples)
+
+        sensors_layout.addWidget(adxl_group)
+
         self.btn_save_sensors = QPushButton("Save sensors.yaml", sensors_group)
         sensors_layout.addWidget(self.btn_save_sensors, alignment=Qt.AlignRight)
 
@@ -210,6 +256,8 @@ class SettingsTab(QWidget):
         self.btn_sync_pi.clicked.connect(self._on_sync_to_pi)
         self.btn_save_hosts.clicked.connect(self._on_save_hosts_clicked)
         self.btn_save_sensors.clicked.connect(self._on_save_sensors_clicked)
+        self.adxl_rate.valueChanged.connect(self._recompute_adxl_cal_samples)
+        self.adxl_cal_time.valueChanged.connect(self._recompute_adxl_cal_samples)
 
         self._set_host_fields_enabled(False)
 
@@ -499,6 +547,44 @@ class SettingsTab(QWidget):
         self.mpu_dlpf.setValue(int(mpu_cfg.get("dlpf", 3)))
         self.mpu_include_temp.setChecked(bool(mpu_cfg.get("include_temperature", False)))
 
+        # ADXL203/ADS1115
+        adxl_cfg = dict(self._sensors.get("adxl203_ads1115", {}) or {})
+
+        # Sample rate
+        rate_raw = adxl_cfg.get("sample_rate_hz", 100)
+        try:
+            rate_hz = float(rate_raw)
+            if rate_hz <= 0:
+                rate_hz = 100.0
+        except Exception:
+            rate_hz = 100.0
+        self.adxl_rate.setValue(int(rate_hz))
+
+        # Channels (unchanged)
+        adxl_ch = str(adxl_cfg.get("channels", "both"))
+        idx2 = self.adxl_channels.findText(adxl_ch)
+        if idx2 < 0:
+            idx2 = self.adxl_channels.findText("both")
+        self.adxl_channels.setCurrentIndex(idx2)
+
+        # Calibration samples from config
+        samples_raw = adxl_cfg.get("calibration_samples", 300)
+        try:
+            samples = int(samples_raw)
+            if samples < 1:
+                samples = 300
+        except Exception:
+            samples = 300
+
+        # Derive calibration time from samples and rate
+        if rate_hz > 0:
+            calibration_time_s = samples / rate_hz
+        else:
+            calibration_time_s = 3.0  # reasonable fallback
+
+        self.adxl_cal_time.setValue(calibration_time_s)
+        self.adxl_cal_samples.setValue(samples)
+
     @Slot()
     def _on_save_sensors_clicked(self) -> None:
         sensors = dict(self._sensors)  # preserve unknown keys / sensor types
@@ -513,6 +599,38 @@ class SettingsTab(QWidget):
             }
         )
         sensors["mpu6050"] = mpu_cfg
+
+        # ADXL203/ADS1115
+        adxl_cfg = dict(sensors.get("adxl203_ads1115", {}) or {})
+
+        # Read GUI values
+        try:
+            rate_hz = float(self.adxl_rate.value())
+        except Exception:
+            rate_hz = 100.0
+        if rate_hz <= 0:
+            rate_hz = 100.0
+
+        try:
+            cal_time_s = float(self.adxl_cal_time.value())
+        except Exception:
+            cal_time_s = 3.0
+        if cal_time_s <= 0:
+            cal_time_s = 0.1
+
+        cal_samples = max(1, int(round(rate_hz * cal_time_s)))
+
+        # Keep the derived spin box in sync (even though it's read-only)
+        self.adxl_cal_samples.setValue(cal_samples)
+
+        adxl_cfg.update(
+            {
+                "sample_rate_hz": int(rate_hz),
+                "channels": str(self.adxl_channels.currentText()),
+                "calibration_samples": cal_samples,
+            }
+        )
+        sensors["adxl203_ads1115"] = adxl_cfg
 
         try:
             self._sensor_defaults.save(sensors)
@@ -549,6 +667,27 @@ class SettingsTab(QWidget):
     def sensor_defaults(self) -> Dict[str, Any]:
         """Return the full sensor-defaults mapping."""
         return dict(self._sensors)
+
+    @Slot()
+    def _recompute_adxl_cal_samples(self) -> None:
+        """Keep ADXL calibration_samples derived from sample rate and time."""
+        try:
+            rate_hz = float(self.adxl_rate.value())
+        except Exception:
+            rate_hz = 100.0
+        if rate_hz <= 0:
+            rate_hz = 100.0
+
+        try:
+            cal_time_s = float(self.adxl_cal_time.value())
+        except Exception:
+            cal_time_s = 3.0
+        if cal_time_s <= 0:
+            cal_time_s = 0.1
+
+        cal_samples = max(1, int(round(rate_hz * cal_time_s)))
+        # This spinbox is read-only; updating it is safe and won't loop.
+        self.adxl_cal_samples.setValue(cal_samples)
 
 
 """
