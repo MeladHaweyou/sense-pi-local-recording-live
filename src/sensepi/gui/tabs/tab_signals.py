@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Dict, Iterable, Optional
+import math
+from typing import Dict, Iterable, Optional, Set, Tuple
 
 from PySide6.QtCore import Signal, Slot, QTimer
 from PySide6.QtWidgets import (
@@ -24,8 +25,13 @@ from ...sensors.mpu6050 import MpuSample
 
 class SignalPlotWidget(QWidget):
     """
-    Thin wrapper around a Matplotlib FigureCanvas that manages
-    fixed-length time-domain buffers for one or more channels.
+    Matplotlib widget that shows a grid of time‑domain plots:
+
+        - one row per sensor_id
+        - one column per channel
+
+    Example with 3 sensors and channels ax, ay, gz:
+        3 rows x 3 columns = 9 subplots
     """
 
     def __init__(self, parent: Optional[QWidget] = None, max_seconds: float = 10.0):
@@ -33,11 +39,15 @@ class SignalPlotWidget(QWidget):
 
         self._max_seconds = float(max_seconds)
         self._max_rate_hz = 500.0
-        self._buffers: Dict[str, RingBuffer[tuple[float, float]]] = {}
-        self._visible_channels: set[str] = set()
+        # key = (sensor_id, channel)  -> RingBuffer[(t, value)]
+        self._buffers: Dict[Tuple[int, str], RingBuffer[Tuple[float, float]]] = {}
         self._buffer_capacity = max(1, int(self._max_seconds * self._max_rate_hz))
 
-        self._figure = Figure(figsize=(5, 6), tight_layout=True)
+        # Channels currently visible & their preferred order (columns)
+        self._visible_channels: Set[str] = set()
+        self._channel_order: list[str] = []
+
+        self._figure = Figure(figsize=(6, 6), tight_layout=True)
         self._canvas = FigureCanvasQTAgg(self._figure)
 
         layout = QVBoxLayout(self)
@@ -51,12 +61,20 @@ class SignalPlotWidget(QWidget):
         self._canvas.draw_idle()
 
     def set_visible_channels(self, channels: Iterable[str]) -> None:
-        """Select which channels should be rendered."""
-        self._visible_channels = set(channels)
+        """
+        Select which channels should be rendered and in what column order.
+
+        The *order* of the iterable defines the column order in the grid.
+        """
+        channels_list = list(channels)
+        self._visible_channels = set(channels_list)
+        self._channel_order = channels_list
 
     def add_sample(self, sample: LiveSample | MpuSample) -> None:
         """Append a sample from any supported sensor type."""
         if isinstance(sample, MpuSample):
+            # Use sensor_id as row index; default to 1 if missing
+            sensor_id = int(sample.sensor_id) if sample.sensor_id is not None else 1
             t = (
                 float(sample.t_s)
                 if sample.t_s is not None
@@ -64,53 +82,120 @@ class SignalPlotWidget(QWidget):
             )
             for ch in ("ax", "ay", "az", "gx", "gy", "gz"):
                 val = getattr(sample, ch, None)
-                if val is not None:
-                    self._append_point(ch, t, float(val))
+                if val is None:
+                    continue
+                try:
+                    v = float(val)
+                except (TypeError, ValueError):
+                    continue
+                if math.isnan(v):
+                    continue
+                self._append_point(sensor_id, ch, t, v)
 
         elif isinstance(sample, LiveSample):
+            # Generic samples are treated as a single "sensor" row (id 0)
+            sensor_id = 0
             t = sample.timestamp_ns * 1e-9
             for idx, val in enumerate(sample.values):
-                self._append_point(f"ch{idx}", t, float(val))
+                try:
+                    v = float(val)
+                except (TypeError, ValueError):
+                    continue
+                if math.isnan(v):
+                    continue
+                ch = f"ch{idx}"
+                self._append_point(sensor_id, ch, t, v)
 
     def redraw(self) -> None:
         """Refresh the Matplotlib plot (intended to be driven by a QTimer)."""
-        visible = [
-            ch
-            for ch in self._visible_channels
-            if ch in self._buffers and self._buffers[ch]
+        # Determine which channels are visible (columns)
+        visible_channels = [
+            ch for ch in self._channel_order if ch in self._visible_channels
         ]
-        if not visible:
+        if not visible_channels:
             self._figure.clear()
             self._canvas.draw_idle()
             return
 
-        latest = max(self._buffers[ch][-1][0] for ch in visible)
+        # Active buffers that actually have data
+        active_buffers = [
+            buf
+            for (sid, ch), buf in self._buffers.items()
+            if ch in visible_channels and len(buf) > 0
+        ]
+        if not active_buffers:
+            self._figure.clear()
+            self._canvas.draw_idle()
+            return
+
+        # Time window: last max_seconds across all sensors/channels
+        latest = max(buf[-1][0] for buf in active_buffers)
         cutoff = latest - self._max_seconds
 
+        # Sensor rows
+        sensor_ids = sorted(
+            {
+                sid
+                for (sid, ch) in self._buffers.keys()
+                if ch in visible_channels
+            }
+        )
+        if not sensor_ids:
+            self._figure.clear()
+            self._canvas.draw_idle()
+            return
+
+        nrows = len(sensor_ids)
+        ncols = len(visible_channels)
+
         self._figure.clear()
-        ax = self._figure.add_subplot(1, 1, 1)
 
-        for ch in visible:
-            buf = self._buffers[ch]
-            points = [(t, v) for (t, v) in buf if t >= cutoff]
-            if not points:
-                continue
-            times = [t - cutoff for (t, _) in points]
-            values = [v for (_, v) in points]
-            ax.plot(times, values, label=ch.upper())
+        for row_idx, sid in enumerate(sensor_ids):
+            for col_idx, ch in enumerate(visible_channels):
+                subplot_index = row_idx * ncols + col_idx + 1
+                ax = self._figure.add_subplot(nrows, ncols, subplot_index)
 
-        ax.set_xlabel("Time (s)")
-        ax.set_ylabel("Value")
-        ax.legend(loc="upper right")
+                buf = self._buffers.get((sid, ch))
+                if buf is None or len(buf) == 0:
+                    ax.set_visible(False)
+                    continue
+
+                points = [(t, v) for (t, v) in buf if t >= cutoff]
+                if not points:
+                    ax.set_visible(False)
+                    continue
+
+                times = [t - cutoff for (t, _) in points]
+                values = [v for (_, v) in points]
+
+                ax.plot(times, values)
+
+                # X label only on the bottom row
+                if row_idx == nrows - 1:
+                    ax.set_xlabel("Time (s)")
+
+                # Leftmost column shows sensor row + channel
+                if col_idx == 0:
+                    if sid == 0:
+                        prefix = "Live"
+                    else:
+                        prefix = f"S{sid}"
+                    ax.set_ylabel(f"{prefix}\n{ch.upper()}")
+                else:
+                    ax.set_ylabel(ch.upper())
+
+                ax.grid(True)
+
+        self._figure.tight_layout()
         self._canvas.draw_idle()
 
     # --------------------------------------------------------------- internals
-    def _append_point(self, channel: str, t: float, value: float) -> None:
-        buf = self._buffers.get(channel)
+    def _append_point(self, sensor_id: int, channel: str, t: float, value: float) -> None:
+        key = (sensor_id, channel)
+        buf = self._buffers.get(key)
         if buf is None:
             buf = RingBuffer(self._buffer_capacity)
-            self._buffers[channel] = buf
-
+            self._buffers[key] = buf
         buf.append((t, value))
 
 
@@ -118,6 +203,8 @@ class SignalsTab(QWidget):
     """
     Tab that embeds a :class:`SignalPlotWidget` and exposes a small
     configuration UI for selecting sensor type and channels.
+
+    Layout: one row per sensor, one column per selected channel.
     """
 
     start_stream_requested = Signal(bool)  # bool = recording mode
@@ -227,6 +314,8 @@ class SignalsTab(QWidget):
 
         sensor_key = self.sensor_combo.currentData()
         if sensor_key == "mpu6050":
+            # You can reduce this to ["ax", "ay", "gz"] if you only want
+            # the default 3 channels initially.
             channels = ["ax", "ay", "az", "gx", "gy", "gz"]
         else:
             # Generic LiveSample channels (first few indices)
@@ -244,6 +333,7 @@ class SignalsTab(QWidget):
 
     @Slot()
     def _on_channel_toggles_changed(self) -> None:
+        # Preserve the checkbox order as the column order
         visible = [
             ch for ch, cb in self._channel_checkboxes.items() if cb.isChecked()
         ]
