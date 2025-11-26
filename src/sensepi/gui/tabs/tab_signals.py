@@ -60,6 +60,21 @@ class SignalPlotWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self._canvas)
 
+    @property
+    def window_seconds(self) -> float:
+        """Length of the sliding time window shown in the plots."""
+        return self._max_seconds
+
+    @staticmethod
+    def _channel_units(channel: str) -> str:
+        """Return a human-readable unit for a channel name."""
+        ch = channel.lower()
+        if ch in {"ax", "ay", "az"}:
+            return "m/s²"
+        if ch in {"gx", "gy", "gz"}:
+            return "deg/s"
+        return ""
+
     # --------------------------------------------------------------- public API
     def clear(self) -> None:
         """Clear all buffered data and reset the plot."""
@@ -136,9 +151,10 @@ class SignalPlotWidget(QWidget):
             self._canvas.draw_idle()
             return
 
-        # Time window: last max_seconds across all sensors/channels
+        # Time window: last max_seconds across all sensors/channels.
+        # Clamp to 0 so a fresh stream starts at t = 0 on the x-axis.
         latest = max(buf[-1][0] for buf in active_buffers)
-        cutoff = latest - self._max_seconds
+        cutoff = max(0.0, latest - self._max_seconds)
 
         # Sensor rows
         sensor_ids = sorted(
@@ -174,7 +190,7 @@ class SignalPlotWidget(QWidget):
                     continue
 
                 times = [t - cutoff for (t, v) in points]
-                raw_values = [v for (_, v) in points]
+                raw_values = [v for (_t, v) in points]
 
                 offset = 0.0
                 if self._base_correction_enabled:
@@ -187,15 +203,20 @@ class SignalPlotWidget(QWidget):
                 if row_idx == nrows - 1:
                     ax.set_xlabel("Time (s)")
 
+                unit = self._channel_units(ch)
+                base_label = ch.upper()
+                if unit:
+                    base_label = f"{base_label} [{unit}]"
+
                 # Leftmost column shows sensor row + channel
                 if col_idx == 0:
                     if sid == 0:
                         prefix = "Live"
                     else:
                         prefix = f"S{sid}"
-                    ax.set_ylabel(f"{prefix}\n{ch.upper()}")
+                    ax.set_ylabel(f"{prefix}\n{base_label}")
                 else:
-                    ax.set_ylabel(ch.upper())
+                    ax.set_ylabel(base_label)
 
                 ax.grid(True)
 
@@ -213,20 +234,26 @@ class SignalPlotWidget(QWidget):
 
     def calibrate_from_buffer(self) -> None:
         """
-        Compute per-channel baseline from the current buffers.
+        Compute per-channel baseline from the most recent time window.
 
-        For each (sensor_id, channel) we take the mean value of the current
-        window as the zero level. This baseline is then subtracted from all
-        future plots while base correction is enabled.
+        For each (sensor_id, channel) we take the mean over the same sliding
+        window that is used for plotting (self._max_seconds).
         """
         if not self._buffers:
             return
+
+        latest_times = [buf[-1][0] for buf in self._buffers.values() if len(buf) > 0]
+        if not latest_times:
+            return
+
+        latest = max(latest_times)
+        cutoff = max(0.0, latest - self._max_seconds)
 
         new_offsets: Dict[Tuple[int, str], float] = {}
         for key, buf in self._buffers.items():
             if not buf:
                 continue
-            values = [v for (_t, v) in buf]
+            values = [v for (t, v) in buf if t >= cutoff]
             if not values:
                 continue
             new_offsets[key] = sum(values) / float(len(values))
@@ -263,7 +290,7 @@ class SignalsTab(QWidget):
         layout = QVBoxLayout(self)
 
         # Top controls ---------------------------------------------------------
-        top_row_group = QGroupBox("Streaming controls", self)
+        top_row_group = QGroupBox("Streaming / recording controls", self)
         top_row = QHBoxLayout(top_row_group)
 
         self.sensor_combo = QComboBox(top_row_group)
@@ -271,7 +298,7 @@ class SignalsTab(QWidget):
         self.sensor_combo.addItem("Generic live", userData="generic")
         top_row.addWidget(self.sensor_combo)
 
-        # New: view preset selector (Option 1 / Option 2)
+        # View preset selector (9 vs 18 charts)
         top_row.addWidget(QLabel("View:", top_row_group))
         self.view_mode_combo = QComboBox(top_row_group)
         self.view_mode_combo.addItem(
@@ -291,17 +318,25 @@ class SignalsTab(QWidget):
 
         self.recording_check = QCheckBox("Recording", top_row_group)
         self.recording_check.setToolTip(
-            "Recording: logs every sample on the Pi at the selected rate, "
-            "but only streams a subset of points to the GUI."
+            "Default is live streaming only. Tick this to also record every "
+            "sample on the Pi at the configured rate."
         )
 
-        # New: base correction controls (hooked up in a later step)
+        # Base correction controls
         self.base_correction_check = QCheckBox("Base correction", top_row_group)
         self.calibrate_button = QPushButton("Calibrate", top_row_group)
 
-        self.start_button = QPushButton("Start streaming", top_row_group)
+        # Start/stop
+        self.start_button = QPushButton("Start", top_row_group)
         self.stop_button = QPushButton("Stop", top_row_group)
         self.stop_button.setEnabled(False)
+
+        # Small info labels: stream rate + calibration window length
+        self._stream_rate_label = QLabel("Stream rate: -- Hz", top_row_group)
+        self._stream_rate_label.setToolTip(
+            "Estimated rate at which samples arrive in this GUI tab."
+        )
+        self._base_window_label = QLabel("", top_row_group)
 
         self.start_button.clicked.connect(self._on_start_clicked)
         self.stop_button.clicked.connect(self._on_stop_clicked)
@@ -315,9 +350,25 @@ class SignalsTab(QWidget):
         top_row.addWidget(self.calibrate_button)
         top_row.addWidget(self.start_button)
         top_row.addWidget(self.stop_button)
+        top_row.addWidget(self._stream_rate_label)
+        top_row.addWidget(self._base_window_label)
         top_row.addStretch()
-        top_row_group.setLayout(top_row)
+
+        group_layout = QVBoxLayout(top_row_group)
+        group_layout.addLayout(top_row)
+
+        # Short explanatory text under the buttons
+        self._mode_hint_label = QLabel(
+            "Default: live streaming only. Tick 'Recording' to also save data on the Pi.",
+            top_row_group,
+        )
+        self._mode_hint_label.setWordWrap(True)
+        group_layout.addWidget(self._mode_hint_label)
+
+        top_row_group.setLayout(group_layout)
         layout.addWidget(top_row_group)
+
+        self._update_base_window_label()
 
         # Channel selection -----------------------------------------------------
         channel_group = QGroupBox("Channels", self)
@@ -371,6 +422,17 @@ class SignalsTab(QWidget):
         self._plot.add_sample(sample)  # type: ignore[arg-type]
 
     # --------------------------------------------------------------- helpers
+    def _update_base_window_label(self) -> None:
+        seconds = self._plot.window_seconds
+        self._base_window_label.setText(f"Base/cali window: last {seconds:.1f} s")
+
+    @Slot(str, float)
+    def update_stream_rate(self, sensor_type: str, hz: float) -> None:
+        """Update the small stream-rate label from RecorderTab."""
+        if sensor_type != "mpu6050":
+            return
+        self._stream_rate_label.setText(f"Stream rate: {hz:.1f} Hz")
+
     def _rebuild_channel_checkboxes(self) -> None:
         # Clear previous
         while self._channel_layout.count():
@@ -459,3 +521,35 @@ class SignalsTab(QWidget):
             self._status_label.setText(
                 "Calibration stored (enable 'Base correction' to apply)."
             )
+
+    def attach_recorder_controls(self, recorder_tab: "RecorderTab") -> None:
+        """
+        Embed the RecorderTab's connection/settings widgets at the top of this tab
+        so users can manage the Pi directly from here.
+
+        The RecorderTab itself can stay hidden; we just reuse its widgets.
+        """
+        # Local import to avoid circular dependency
+        from .tab_recorder import RecorderTab as _RecorderTab  # type: ignore
+
+        if not isinstance(recorder_tab, _RecorderTab):
+            return
+
+        host_group = getattr(recorder_tab, "host_group", None)
+        mpu_group = getattr(recorder_tab, "mpu_group", None)
+        if host_group is None or mpu_group is None:
+            return
+
+        parent_layout = recorder_tab.layout()
+        if parent_layout is not None:
+            parent_layout.removeWidget(host_group)
+            parent_layout.removeWidget(mpu_group)
+
+        host_group.setParent(self)
+        mpu_group.setParent(self)
+
+        layout = self.layout()
+        if layout is not None:
+            # Insert above the streaming controls group (which is currently at index 0)
+            layout.insertWidget(0, host_group)
+            layout.insertWidget(1, mpu_group)

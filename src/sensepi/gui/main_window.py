@@ -27,7 +27,11 @@ class MainWindow(QMainWindow):
         self.settings_tab = SettingsTab()
         self.offline_tab = OfflineTab(app_paths)
 
-        self._tabs.addTab(self.recorder_tab, "Connect")
+        # Move the Connect/Recorder controls into the Signals tab
+        self.signals_tab.attach_recorder_controls(self.recorder_tab)
+
+        # Only expose Signals/FFT/Settings/Offline as main tabs
+        # (RecorderTab is now used as a hidden backend controller)
         self._tabs.addTab(self.signals_tab, "Signals")
         self._tabs.addTab(self.fft_tab, "FFT")
         self._tabs.addTab(self.settings_tab, "Settings")
@@ -64,6 +68,17 @@ class MainWindow(QMainWindow):
         )
         self.signals_tab.stop_stream_requested.connect(
             self._on_stop_stream_requested
+        )
+
+        self.recorder_tab.error_reported.connect(
+            self.signals_tab.handle_error
+        )
+        self.recorder_tab.rate_updated.connect(
+            self.signals_tab.update_stream_rate
+        )
+
+        self.settings_tab.sensorsUpdated.connect(
+            self.recorder_tab.on_sensors_updated
         )
 
     def _on_start_stream_requested(self, recording: bool) -> None:
