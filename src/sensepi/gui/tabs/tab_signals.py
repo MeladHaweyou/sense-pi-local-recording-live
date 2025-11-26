@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Dict, Iterable, Optional, Set, Tuple
 
-from PySide6.QtCore import Signal, Slot, QTimer
+from PySide6.QtCore import Signal, Slot, QTimer, Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -47,6 +47,13 @@ class SignalPlotWidget(QWidget):
         self._visible_channels: Set[str] = set()
         self._channel_order: list[str] = []
 
+        # Appearance
+        self._line_width: float = 0.8  # thinner than Matplotlib default
+
+        # Optional base-correction (per sensor/channel)
+        self._base_correction_enabled: bool = False
+        self._baseline_offsets: Dict[Tuple[int, str], float] = {}
+
         self._figure = Figure(figsize=(6, 6), tight_layout=True)
         self._canvas = FigureCanvasQTAgg(self._figure)
 
@@ -57,6 +64,7 @@ class SignalPlotWidget(QWidget):
     def clear(self) -> None:
         """Clear all buffered data and reset the plot."""
         self._buffers.clear()
+        self._baseline_offsets.clear()
         self._figure.clear()
         self._canvas.draw_idle()
 
@@ -165,10 +173,15 @@ class SignalPlotWidget(QWidget):
                     ax.set_visible(False)
                     continue
 
-                times = [t - cutoff for (t, _) in points]
-                values = [v for (_, v) in points]
+                times = [t - cutoff for (t, v) in points]
+                raw_values = [v for (_, v) in points]
 
-                ax.plot(times, values)
+                offset = 0.0
+                if self._base_correction_enabled:
+                    offset = self._baseline_offsets.get((sid, ch), 0.0)
+                values = [v - offset for v in raw_values]
+
+                ax.plot(times, values, linewidth=self._line_width)
 
                 # X label only on the bottom row
                 if row_idx == nrows - 1:
@@ -188,6 +201,37 @@ class SignalPlotWidget(QWidget):
 
         self._figure.tight_layout()
         self._canvas.draw_idle()
+
+    # --------------------------------------------------------------- base correction API
+    def enable_base_correction(self, enabled: bool) -> None:
+        """Enable or disable baseline subtraction."""
+        self._base_correction_enabled = bool(enabled)
+
+    def reset_calibration(self) -> None:
+        """Clear all stored baseline offsets."""
+        self._baseline_offsets.clear()
+
+    def calibrate_from_buffer(self) -> None:
+        """
+        Compute per-channel baseline from the current buffers.
+
+        For each (sensor_id, channel) we take the mean value of the current
+        window as the zero level. This baseline is then subtracted from all
+        future plots while base correction is enabled.
+        """
+        if not self._buffers:
+            return
+
+        new_offsets: Dict[Tuple[int, str], float] = {}
+        for key, buf in self._buffers.items():
+            if not buf:
+                continue
+            values = [v for (_t, v) in buf]
+            if not values:
+                continue
+            new_offsets[key] = sum(values) / float(len(values))
+
+        self._baseline_offsets = new_offsets
 
     # --------------------------------------------------------------- internals
     def _append_point(self, sensor_id: int, channel: str, t: float, value: float) -> None:
@@ -227,8 +271,22 @@ class SignalsTab(QWidget):
         self.sensor_combo.addItem("Generic live", userData="generic")
         top_row.addWidget(self.sensor_combo)
 
+        # New: view preset selector (Option 1 / Option 2)
+        top_row.addWidget(QLabel("View:", top_row_group))
+        self.view_mode_combo = QComboBox(top_row_group)
+        self.view_mode_combo.addItem(
+            "AX / AY / GZ (9 charts)", userData="default3"
+        )
+        self.view_mode_combo.addItem(
+            "All axes (18 charts)", userData="all6"
+        )
+        top_row.addWidget(self.view_mode_combo)
+
         self.sensor_combo.currentIndexChanged.connect(
             self._rebuild_channel_checkboxes
+        )
+        self.view_mode_combo.currentIndexChanged.connect(
+            self._on_view_mode_changed
         )
 
         self.recording_check = QCheckBox("Recording", top_row_group)
@@ -236,14 +294,25 @@ class SignalsTab(QWidget):
             "Recording: logs every sample on the Pi at the selected rate, "
             "but only streams a subset of points to the GUI."
         )
+
+        # New: base correction controls (hooked up in a later step)
+        self.base_correction_check = QCheckBox("Base correction", top_row_group)
+        self.calibrate_button = QPushButton("Calibrate", top_row_group)
+
         self.start_button = QPushButton("Start streaming", top_row_group)
         self.stop_button = QPushButton("Stop", top_row_group)
         self.stop_button.setEnabled(False)
 
         self.start_button.clicked.connect(self._on_start_clicked)
         self.stop_button.clicked.connect(self._on_stop_clicked)
+        self.base_correction_check.stateChanged.connect(
+            self._on_base_correction_toggled
+        )
+        self.calibrate_button.clicked.connect(self._on_calibrate_clicked)
 
         top_row.addWidget(self.recording_check)
+        top_row.addWidget(self.base_correction_check)
+        top_row.addWidget(self.calibrate_button)
         top_row.addWidget(self.start_button)
         top_row.addWidget(self.stop_button)
         top_row.addStretch()
@@ -314,9 +383,18 @@ class SignalsTab(QWidget):
 
         sensor_key = self.sensor_combo.currentData()
         if sensor_key == "mpu6050":
-            # You can reduce this to ["ax", "ay", "gz"] if you only want
-            # the default 3 channels initially.
-            channels = ["ax", "ay", "az", "gx", "gy", "gz"]
+            # Use view preset:
+            #   - "default3" => AX, AY, GZ (3 columns)
+            #   - "all6"     => AX, AY, AZ, GX, GY, GZ (6 columns)
+            view_mode = (
+                self.view_mode_combo.currentData()
+                if hasattr(self, "view_mode_combo")
+                else "all6"
+            )
+            if view_mode == "default3":
+                channels = ["ax", "ay", "gz"]
+            else:
+                channels = ["ax", "ay", "az", "gx", "gy", "gz"]
         else:
             # Generic LiveSample channels (first few indices)
             channels = [f"ch{i}" for i in range(8)]
@@ -330,6 +408,11 @@ class SignalsTab(QWidget):
 
         self._channel_layout.addStretch(1)
         self._on_channel_toggles_changed()
+
+    @Slot()
+    def _on_view_mode_changed(self) -> None:
+        """Called when the view preset combo changes."""
+        self._rebuild_channel_checkboxes()
 
     @Slot()
     def _on_channel_toggles_changed(self) -> None:
@@ -355,3 +438,24 @@ class SignalsTab(QWidget):
     @Slot(str)
     def handle_error(self, message: str) -> None:
         self._status_label.setText(message)
+
+    @Slot(int)
+    def _on_base_correction_toggled(self, state: int) -> None:
+        enabled = state == Qt.Checked
+        self._plot.enable_base_correction(enabled)
+        if enabled:
+            self._status_label.setText("Base correction enabled.")
+        else:
+            self._status_label.setText("Base correction disabled.")
+
+    @Slot()
+    def _on_calibrate_clicked(self) -> None:
+        self._plot.calibrate_from_buffer()
+        if self.base_correction_check.isChecked():
+            self._status_label.setText(
+                "Calibration updated (base correction applied)."
+            )
+        else:
+            self._status_label.setText(
+                "Calibration stored (enable 'Base correction' to apply)."
+            )

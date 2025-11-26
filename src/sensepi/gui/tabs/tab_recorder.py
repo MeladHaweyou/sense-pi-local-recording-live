@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
 
-from PySide6.QtCore import Signal, Slot
+from PySide6.QtCore import Signal, Slot, Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -125,6 +125,12 @@ class RecorderTab(QWidget):
         self.mpu_channels_combo.addItem("Accel only (AX, AY, AZ)", userData="acc")
         self.mpu_channels_combo.addItem("Gyro only (GX, GY, GZ)", userData="gyro")
         self.mpu_channels_combo.addItem("Both (acc + gyro)", userData="both")
+        self.mpu_channels_combo.setToolTip(
+            "Select which axes are streamed from the MPU6050.\n"
+            "Default (AX, AY, GZ): streams only AX, AY and GZ (no AZ, GX, GY).\n"
+            "Both (acc + gyro): streams all six axes (AX, AY, AZ, GX, GY, GZ), "
+            "so the Signals page can show every axis."
+        )
         mpu_layout.addWidget(self.mpu_channels_combo)
 
         self.mpu_temp_chk = QCheckBox("Include temperature", mpu_group)

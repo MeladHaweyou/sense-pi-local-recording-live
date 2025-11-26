@@ -588,6 +588,11 @@ def main():
 
     # Header now includes time vector `t_s` (seconds since start)
     header = ["timestamp_ns", "t_s", "sensor_id"]
+    # Mapping of --channels to exported axes:
+    #   acc     -> ax, ay, az
+    #   gyro    -> gx, gy, gz
+    #   both    -> ax, ay, az, gx, gy, gz
+    #   default -> ax, ay, gz  (NO az; helps keep streaming light-weight)
     ch_mode = args.channels.lower()
     if ch_mode == "acc":
         header += ["ax", "ay", "az"]
