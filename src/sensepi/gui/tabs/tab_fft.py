@@ -1,4 +1,7 @@
-"""FFT/analysis tab."""
+"""Live FFT / spectrum tab.
+
+Supports MPU6050 samples and generic LiveSample data.
+"""
 
 from __future__ import annotations
 
@@ -25,7 +28,6 @@ from ...analysis.fft import compute_fft
 from ...analysis import filters
 from ...core.models import LiveSample
 from ...core.ringbuffer import RingBuffer
-from ...sensors.adxl203_ads1115 import AdxlSample
 from ...sensors.mpu6050 import MpuSample
 
 
@@ -35,7 +37,7 @@ class FftTab(QWidget):
     recent samples from the live stream.
     """
 
-    def __init__(self, parent: Optional[Widget] = None) -> None:  # type: ignore[name-defined]
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
 
         self._buffers: Dict[Tuple[str, str], RingBuffer[Tuple[float, float]]] = {}
@@ -56,7 +58,7 @@ class FftTab(QWidget):
         top_row = QHBoxLayout()
         self.sensor_combo = QComboBox()
         self.sensor_combo.addItem("MPU6050", userData="mpu6050")
-        self.sensor_combo.addItem("ADXL203/ADS1115", userData="adxl203_ads1115")
+        self.sensor_combo.addItem("Generic live", userData="generic")
 
         self.channel_combo = QComboBox()
 
@@ -127,16 +129,8 @@ class FftTab(QWidget):
                 if val is not None:
                     self._append_point(sensor_key, ch, t, float(val))
 
-        elif isinstance(sample, AdxlSample):
-            sensor_key = "adxl203_ads1115"
-            t = sample.timestamp_ns * 1e-9
-            if sample.x is not None:
-                self._append_point(sensor_key, "x", t, float(sample.x))
-            if sample.y is not None:
-                self._append_point(sensor_key, "y", t, float(sample.y))
-
         elif isinstance(sample, LiveSample):
-            sensor_key = sample.sensor or "generic"
+            sensor_key = "generic"
             t = sample.timestamp_ns * 1e-9
             for idx, val in enumerate(sample.values):
                 self._append_point(sensor_key, f"ch{idx}", t, float(val))
@@ -169,7 +163,8 @@ class FftTab(QWidget):
         if sensor_key == "mpu6050":
             channels = ["ax", "ay", "az", "gx", "gy", "gz"]
         else:
-            channels = ["x", "y"]
+            # Generic LiveSample channels
+            channels = [f"ch{i}" for i in range(8)]
         for ch in channels:
             self.channel_combo.addItem(ch, userData=ch)
 

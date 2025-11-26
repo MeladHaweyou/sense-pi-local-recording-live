@@ -2,7 +2,6 @@
 
 from typing import Any, Callable, Iterable
 
-from ..sensors.adxl203_ads1115 import parse_line as parse_adxl
 from ..sensors.mpu6050 import parse_line as parse_mpu
 
 
@@ -25,12 +24,9 @@ def select_parser(sensor_type: str) -> Callable[[str], Any]:
     """
     Select the appropriate line parser for a given sensor type name.
 
-    The ``sensor_type`` should match the identifiers used elsewhere in the
-    app (e.g. in ``sensors.yaml``).
+    Currently only the MPU6050 logger is supported.
     """
     st = sensor_type.strip().lower()
-    if st in {"adxl203_ads1115", "adxl203", "adxl203-ads1115"}:
-        return parse_adxl
     if st in {"mpu6050", "mpu-6050"}:
         return parse_mpu
     raise ValueError(f"Unknown sensor_type {sensor_type!r}")
