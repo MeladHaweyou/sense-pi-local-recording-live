@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from ...analysis.rate import RateController
-from ...config.app_config import HostInventory
+from ...config.app_config import HostInventory, SensorDefaults
 from ...core.live_stream import select_parser, stream_lines
 from ...remote.pi_recorder import PiRecorder
 from ...remote.ssh_client import Host
@@ -65,6 +65,7 @@ class RecorderTab(QWidget):
     ) -> None:
         super().__init__(parent)
         self._host_inventory = host_inventory or HostInventory()
+        self._sensor_defaults = SensorDefaults()
 
         self._hosts: Dict[str, Dict[str, object]] = {}
         self._pi_recorder: Optional[PiRecorder] = None
@@ -80,6 +81,7 @@ class RecorderTab(QWidget):
 
         self._build_ui()
         self._load_hosts()
+        self._update_recording_rate_from_defaults()
 
         self.error_reported.connect(self._show_error)
         self.rate_updated.connect(self._on_rate_updated)
@@ -89,38 +91,41 @@ class RecorderTab(QWidget):
         layout = QVBoxLayout(self)
 
         # Host selection
-        host_group = QGroupBox("Raspberry Pi host", self)
-        host_form = QFormLayout(host_group)
+        self.host_group = QGroupBox("Raspberry Pi host", self)
+        host_form = QFormLayout(self.host_group)
 
-        self.host_combo = QComboBox(host_group)
+        self.host_combo = QComboBox(self.host_group)
         host_form.addRow("Host:", self.host_combo)
 
-        self.host_status_label = QLabel("No hosts configured.", host_group)
+        self.host_status_label = QLabel("No hosts configured.", self.host_group)
         host_form.addRow("Status:", self.host_status_label)
 
-        layout.addWidget(host_group)
+        layout.addWidget(self.host_group)
 
         # MPU6050 settings
-        mpu_group = QGroupBox("MPU6050 settings", self)
-        mpu_layout = QHBoxLayout(mpu_group)
+        self.mpu_group = QGroupBox("MPU6050 settings", self)
+        mpu_layout = QHBoxLayout(self.mpu_group)
 
-        self.mpu_enable_chk = QCheckBox("Enable MPU6050", mpu_group)
+        self.mpu_enable_chk = QCheckBox("Enable MPU6050", self.mpu_group)
         self.mpu_enable_chk.setChecked(True)
         mpu_layout.addWidget(self.mpu_enable_chk)
 
-        mpu_layout.addWidget(QLabel("Rate (Hz):", mpu_group))
-        self.mpu_rate_spin = QSpinBox(mpu_group)
-        self.mpu_rate_spin.setRange(4, 1000)
-        self.mpu_rate_spin.setValue(100)
-        mpu_layout.addWidget(self.mpu_rate_spin)
+        # Recording/sample rate is read from sensors.yaml and shown read-only
+        mpu_layout.addWidget(QLabel("Recording rate [Hz]:", self.mpu_group))
+        self.mpu_recording_rate_label = QLabel("—", self.mpu_group)
+        self.mpu_recording_rate_label.setToolTip(
+            "Sample rate configured in Settings → Sensor defaults. "
+            "This is the rate used for recording on the Pi."
+        )
+        mpu_layout.addWidget(self.mpu_recording_rate_label)
 
-        mpu_layout.addWidget(QLabel("Sensors:", mpu_group))
-        self.mpu_sensors_edit = QLineEdit("1,2,3", mpu_group)
+        mpu_layout.addWidget(QLabel("Sensors:", self.mpu_group))
+        self.mpu_sensors_edit = QLineEdit("1,2,3", self.mpu_group)
         self.mpu_sensors_edit.setToolTip("Comma-separated sensor IDs (1..3)")
         mpu_layout.addWidget(self.mpu_sensors_edit)
 
-        mpu_layout.addWidget(QLabel("Channels:", mpu_group))
-        self.mpu_channels_combo = QComboBox(mpu_group)
+        mpu_layout.addWidget(QLabel("Channels:", self.mpu_group))
+        self.mpu_channels_combo = QComboBox(self.mpu_group)
         self.mpu_channels_combo.addItem("Default (AX, AY, GZ)", userData="default")
         self.mpu_channels_combo.addItem("Accel only (AX, AY, AZ)", userData="acc")
         self.mpu_channels_combo.addItem("Gyro only (GX, GY, GZ)", userData="gyro")
@@ -133,26 +138,30 @@ class RecorderTab(QWidget):
         )
         mpu_layout.addWidget(self.mpu_channels_combo)
 
-        self.mpu_temp_chk = QCheckBox("Include temperature", mpu_group)
+        self.mpu_temp_chk = QCheckBox("Include temperature", self.mpu_group)
         self.mpu_temp_chk.setChecked(False)
         mpu_layout.addWidget(self.mpu_temp_chk)
 
-        mpu_layout.addWidget(QLabel("Stream every:", mpu_group))
-        self.mpu_stream_every_spin = QSpinBox(mpu_group)
+        mpu_layout.addWidget(QLabel("Stream every:", self.mpu_group))
+        self.mpu_stream_every_spin = QSpinBox(self.mpu_group)
         self.mpu_stream_every_spin.setRange(1, 1000)
         self.mpu_stream_every_spin.setValue(1)
         self.mpu_stream_every_spin.setToolTip(
-            "Send every N-th sample over SSH (recording mode can use a larger value)."
+            "Send every N-th sample over SSH to the GUI. "
+            "Recording on the Pi still uses the full recording rate."
         )
         mpu_layout.addWidget(self.mpu_stream_every_spin)
 
-        layout.addWidget(mpu_group)
+        layout.addWidget(self.mpu_group)
 
         # Status + rate
         self.overall_status = QLabel("Idle.", self)
         layout.addWidget(self.overall_status)
 
-        self.mpu_rate_label = QLabel("MPU6050 rate: --", self)
+        self.mpu_rate_label = QLabel("GUI stream rate: --", self)
+        self.mpu_rate_label.setToolTip(
+            "Estimated sample rate of data arriving in this GUI tab."
+        )
         layout.addWidget(self.mpu_rate_label)
 
         # Hidden start/stop buttons (driven programmatically by MainWindow)
@@ -225,10 +234,28 @@ class RecorderTab(QWidget):
         self.host_status_label.setText(f"Connected to {name}")
         return recorder
 
+    def _get_default_mpu_sample_rate(self) -> float:
+        """Return the MPU6050 sample rate from sensors.yaml (Hz)."""
+        try:
+            config = self._sensor_defaults.load()
+        except Exception:
+            return 200.0
+        mpu_cfg = dict(config.get("mpu6050", {}) or {})
+        rate = mpu_cfg.get("sample_rate_hz", 200)
+        try:
+            return float(rate)
+        except (TypeError, ValueError):
+            return 200.0
+
+    def _update_recording_rate_from_defaults(self) -> None:
+        rate = self._get_default_mpu_sample_rate()
+        if hasattr(self, "mpu_recording_rate_label"):
+            self.mpu_recording_rate_label.setText(f"{rate:.0f} Hz")
+
     def current_mpu_gui_config(self) -> MpuGuiConfig:
         return MpuGuiConfig(
             enabled=self.mpu_enable_chk.isChecked(),
-            rate_hz=float(self.mpu_rate_spin.value()),
+            rate_hz=self._get_default_mpu_sample_rate(),
             sensors=self.mpu_sensors_edit.text().strip() or "1,2,3",
             channels=self.mpu_channels_combo.currentData(),
             include_temp=self.mpu_temp_chk.isChecked(),
@@ -387,4 +414,22 @@ class RecorderTab(QWidget):
     @Slot(str, float)
     def _on_rate_updated(self, sensor_type: str, hz: float) -> None:
         if sensor_type == "mpu6050":
-            self.mpu_rate_label.setText(f"MPU6050 rate: {hz:.1f} Hz")
+            self.mpu_rate_label.setText(f"GUI stream rate: {hz:.1f} Hz")
+
+    @Slot(dict)
+    def on_sensors_updated(self, sensors: dict) -> None:
+        """
+        Slot connected from SettingsTab.sensorsUpdated to keep the
+        'Recording rate' label in sync with sensors.yaml.
+        """
+        mpu_cfg = dict(sensors.get("mpu6050", {}) or {})
+        rate = mpu_cfg.get("sample_rate_hz")
+        if rate is None:
+            self._update_recording_rate_from_defaults()
+            return
+        try:
+            rate_f = float(rate)
+        except (TypeError, ValueError):
+            self._update_recording_rate_from_defaults()
+            return
+        self.mpu_recording_rate_label.setText(f"{rate_f:.0f} Hz")
