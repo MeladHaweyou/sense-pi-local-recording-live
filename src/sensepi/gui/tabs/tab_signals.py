@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -369,7 +370,16 @@ class SignalsTab(QWidget):
             top_row_group,
         )
         self._mode_hint_label.setWordWrap(True)
-        group_layout.addWidget(self._mode_hint_label)
+        self._mode_hint_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self._mode_hint_label.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
+        )
+
+        hint_row = QHBoxLayout()
+        hint_row.setContentsMargins(0, 0, 0, 0)
+        hint_row.addWidget(self._mode_hint_label)
+        hint_row.addStretch()
+        group_layout.addLayout(hint_row)
 
         top_row_group.setLayout(group_layout)
 
