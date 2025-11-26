@@ -65,11 +65,17 @@ def load_csv(path: Path) -> tuple[np.ndarray, list[str]]:
 
 
 def infer_sensor_type(columns: Sequence[str]) -> str:
+    """
+    Heuristically infer sensor type from CSV header.
+
+    Returns "mpu6050" if it finds typical MPU6050 columns, otherwise "generic".
+    """
     lower = {c.lower() for c in columns}
-    if {"ax", "ay", "az"} & lower or {"gx", "gy", "gz"} & lower:
+
+    if {"sensor_id", "ax", "ay", "az", "gx", "gy", "gz"} <= lower:
         return "mpu6050"
-    if {"x_lp", "y_lp"} <= lower or {"x", "y"} <= lower:
-        return "adxl203_ads1115"
+
+    # Anything else is treated as generic.
     return "generic"
 
 
@@ -90,22 +96,24 @@ def build_time_axis(data: np.ndarray, columns: Sequence[str]) -> tuple[np.ndarra
 
 def pick_data_columns(sensor_type: str, columns: Sequence[str]) -> tuple[list[str], list[str]]:
     """Return (acc_columns, gyro_columns) based on the header."""
-    cols_set = set(columns)
+    cols = [c.strip() for c in columns]
+    lower = [c.lower() for c in cols]
+
     if sensor_type == "mpu6050":
-        acc_cols = [c for c in ("ax", "ay", "az") if c in cols_set]
-        gyro_cols = [c for c in ("gx", "gy", "gz") if c in cols_set]
-        return acc_cols, gyro_cols
+        wanted = ["ax", "ay", "az", "gx", "gy", "gz"]
+        acc_cols: list[str] = []
+        gyro_cols: list[str] = []
+        for desired in wanted:
+            if desired in lower:
+                idx = lower.index(desired)
+                if desired.startswith("g"):
+                    gyro_cols.append(cols[idx])
+                else:
+                    acc_cols.append(cols[idx])
+        return acc_cols or cols, gyro_cols
 
-    if sensor_type == "adxl203_ads1115":
-        # Prefer filtered values if present.
-        if "x_lp" in cols_set or "y_lp" in cols_set:
-            acc_cols = [c for c in ("x_lp", "y_lp") if c in cols_set]
-        else:
-            acc_cols = [c for c in ("x", "y") if c in cols_set]
-        return acc_cols, []
-
-    ignore = {"timestamp_ns", "t_s", "sensor_id"}
-    acc_cols = [c for c in columns if c not in ignore]
+    ignore = {"timestamp_ns", "t_s", "sensor_id", "timestamp"}
+    acc_cols = [c for c in cols if c.lower() not in ignore]
     return acc_cols, []
 
 
@@ -136,7 +144,7 @@ def setup_figure(
             y = data[col]
             (line,) = ax0.plot(t, y, label=col)
             lines[col] = line
-        if sensor_type in ("mpu6050", "adxl203_ads1115"):
+        if sensor_type == "mpu6050":
             ax0.set_ylabel("Acceleration [m/s²]")
         else:
             ax0.set_ylabel("Value")
@@ -229,7 +237,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "-s",
         "--sensor",
         type=str,
-        choices=["auto", "mpu6050", "adxl203_ads1115", "generic"],
+        choices=["auto", "mpu6050", "generic"],
         default="auto",
         help="Sensor type for plotting (default: auto-detect from columns).",
     )

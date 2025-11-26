@@ -51,22 +51,16 @@ class AppConfig:
 @dataclass
 class SensorDefaults:
     """
-    Container for sensor configuration defaults, backed by ``sensors.yaml``.
+    Helper for loading/saving sensor defaults (sensors.yaml).
 
-    Typical structure (may contain extra keys):
+    The structure mirrors the YAML file:
 
-    .. code-block:: yaml
-
-        mpu6050:
-          sample_rate_hz: 200
-          channels: both
-          dlpf: 3
-          include_temperature: false
-
-        adxl203_ads1115:
-          sample_rate_hz: 100
-          channels: both
-          calibration_samples: 300
+    sensors:
+      mpu6050:
+        sample_rate_hz: 200
+        channels: "default"
+        dlpf: 3
+        include_temperature: false
     """
 
     sensors_file: Path = AppPaths().config_dir / "sensors.yaml"
@@ -118,21 +112,6 @@ class SensorDefaults:
                 if value is not None:
                     base[key] = value
         return build_mpu6050_cli_args(base)
-
-    def build_adxl203_cli_args(
-        self,
-        overrides: Mapping[str, Any] | None = None,
-    ) -> List[str]:
-        """
-        Build CLI arguments for ``adxl203_ads1115_logger.py`` from defaults.
-        """
-        config = self.load()
-        base = dict(config.get("adxl203_ads1115", {}) or {})
-        if overrides:
-            for key, value in overrides.items():
-                if value is not None:
-                    base[key] = value
-        return build_adxl203_cli_args(base)
 
 
 @dataclass
@@ -286,60 +265,23 @@ def build_mpu6050_cli_args(config: Mapping[str, Any]) -> List[str]:
 
     return args
 
-
-def build_adxl203_cli_args(config: Mapping[str, Any]) -> List[str]:
+def build_pi_config_for_host(host_cfg: HostConfig, app_cfg: AppConfig) -> Dict[str, Any]:
     """
-    Construct CLI args for ``adxl203_ads1115_logger.py`` from a mapping.
+    Build the YAML structure that will be written to pi_config.yaml for a host.
 
-    Expected keys in *config* (all optional except ``sample_rate_hz``):
-
-    - ``sample_rate_hz`` (float / int)
-    - ``channels`` (``x``, ``y``, or ``both``)
-    - ``calibration_samples`` (int, mapped to ``--calibrate``)
+    Currently this mirrors only the MPU6050 logger configuration.
     """
-    args: List[str] = []
+    sensors = app_cfg.sensor_defaults or {}
 
-    rate = config.get("sample_rate_hz")
-    if rate is None:
-        raise ValueError("adxl203_ads1115 defaults must include 'sample_rate_hz'")
-    args.extend(["--rate", str(rate)])
-
-    channels = config.get("channels")
-    if channels:
-        args.extend(["--channels", str(channels)])
-
-    cal = config.get("calibration_samples")
-    if cal is not None:
-        args.extend(["--calibrate", str(cal)])
-
-    return args
-
-
-def build_pi_config_for_host(host: HostConfig, app_config: AppConfig) -> Dict[str, Any]:
-    """
-    Build a configuration dictionary for Raspberry Pi loggers based on desktop config.
-
-    The resulting mapping mirrors ``raspberrypi_scripts/pi_config.yaml``.
-    """
-
-    sensors_cfg = app_config.sensor_defaults
-    mpu_defaults = sensors_cfg.get("mpu6050", {}) or {}
-    adxl_defaults = sensors_cfg.get("adxl203_ads1115", {}) or {}
-
-    return {
-        "mpu6050": {
-            "output_dir": str(host.data_dir / "mpu"),
-            "sample_rate_hz": mpu_defaults.get("sample_rate_hz", 200),
-            "channels": mpu_defaults.get("channels", "both"),
-            "include_temperature": bool(
-                mpu_defaults.get("include_temperature", False)
-            ),
-        },
-        "adxl203_ads1115": {
-            "output_dir": str(host.data_dir / "adxl"),
-            "sample_rate_hz": adxl_defaults.get("sample_rate_hz", 100),
-            "channels": adxl_defaults.get("channels", "both"),
-            "calibration_samples": adxl_defaults.get("calibration_samples", 0),
-        },
+    mpu_defaults = dict(sensors.get("mpu6050", {}) or {})
+    mpu_cfg = {
+        "output_dir": str(host_cfg.data_dir / "mpu"),
+        "sample_rate_hz": int(mpu_defaults.get("sample_rate_hz", 200)),
+        "channels": str(mpu_defaults.get("channels", "default")),
+        "dlpf": int(mpu_defaults.get("dlpf", 3)),
+        "include_temperature": bool(mpu_defaults.get("include_temperature", False)),
+        "sensors": [1, 2, 3],
     }
+
+    return {"mpu6050": mpu_cfg}
 
