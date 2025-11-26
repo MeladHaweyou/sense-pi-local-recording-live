@@ -3,10 +3,11 @@ from __future__ import annotations
 import math
 from typing import Dict, Iterable, Optional, Set, Tuple
 
-from PySide6.QtCore import Signal, Slot, QTimer, Qt
+from PySide6.QtCore import QSettings, Signal, Slot, QTimer, Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -21,6 +22,16 @@ from matplotlib.figure import Figure
 from ...core.models import LiveSample
 from ...core.ringbuffer import RingBuffer
 from ...sensors.mpu6050 import MpuSample
+
+DEFAULT_REFRESH_MODE = "fixed"
+DEFAULT_REFRESH_INTERVAL_MS = 250  # 4 Hz
+MIN_REFRESH_INTERVAL_MS = 20  # Max 50 Hz
+
+REFRESH_PRESETS: list[tuple[str, int]] = [
+    ("4 Hz (250 ms) – Low CPU", 250),
+    ("20 Hz (50 ms) – Medium", 50),
+    ("50 Hz (20 ms) – High (CPU heavy)", 20),
+]
 
 
 class SignalPlotWidget(QWidget):
@@ -284,6 +295,12 @@ class SignalsTab(QWidget):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
 
+        # Refresh configuration
+        self.refresh_mode: str = DEFAULT_REFRESH_MODE
+        self.refresh_interval_ms: int = DEFAULT_REFRESH_INTERVAL_MS
+        self._sampling_rate_hz: Optional[float] = None
+        self._load_refresh_settings()
+
         self._plot = SignalPlotWidget(max_seconds=10.0)
         self._channel_checkboxes: Dict[str, QCheckBox] = {}
 
@@ -376,6 +393,10 @@ class SignalsTab(QWidget):
         channel_group.setLayout(self._channel_layout)
         layout.addWidget(channel_group)
 
+        # Refresh settings -----------------------------------------------------
+        refresh_group = self._build_refresh_controls()
+        layout.addWidget(refresh_group)
+
         # Plot widget -----------------------------------------------------------
         layout.addWidget(self._plot)
 
@@ -387,9 +408,8 @@ class SignalsTab(QWidget):
 
         # periodic redraw of the plot
         self._timer = QTimer(self)
-        self._timer.setInterval(100)
         self._timer.timeout.connect(self._plot.redraw)
-        self._timer.start()
+        self._apply_refresh_settings()
 
     # --------------------------------------------------------------- slots
     @Slot()
@@ -432,6 +452,9 @@ class SignalsTab(QWidget):
         if sensor_type != "mpu6050":
             return
         self._stream_rate_label.setText(f"Stream rate: {hz:.1f} Hz")
+        self._sampling_rate_hz = hz
+        if self.refresh_mode == "follow_sampling_rate":
+            self._apply_refresh_settings()
 
     def _rebuild_channel_checkboxes(self) -> None:
         # Clear previous
@@ -483,6 +506,115 @@ class SignalsTab(QWidget):
             ch for ch, cb in self._channel_checkboxes.items() if cb.isChecked()
         ]
         self._plot.set_visible_channels(visible)
+
+    def _build_refresh_controls(self) -> QGroupBox:
+        group = QGroupBox("Plot refresh rate", self)
+        form = QFormLayout(group)
+
+        self.refresh_mode_combo = QComboBox(group)
+        self.refresh_mode_combo.addItem("Fixed refresh rate", "fixed")
+        self.refresh_mode_combo.addItem(
+            "Follow sampling rate (advanced / may be heavy)",
+            "follow_sampling_rate",
+        )
+        idx = self.refresh_mode_combo.findData(self.refresh_mode)
+        if idx >= 0:
+            self.refresh_mode_combo.setCurrentIndex(idx)
+        self.refresh_mode_combo.currentIndexChanged.connect(
+            self._on_refresh_mode_changed
+        )
+
+        self.fixed_interval_combo = QComboBox(group)
+        for label, interval in REFRESH_PRESETS:
+            self.fixed_interval_combo.addItem(label, interval)
+        self._select_fixed_interval(self.refresh_interval_ms)
+        self.fixed_interval_combo.currentIndexChanged.connect(
+            self._on_fixed_interval_changed
+        )
+
+        help_label = QLabel(
+            "High refresh rates and 'Follow sampling rate' may be heavy on CPU, "
+            "especially with many channels.",
+            group,
+        )
+        help_label.setWordWrap(True)
+        help_label.setToolTip(
+            "Use 'Low CPU' unless you specifically need fast visual updates."
+        )
+
+        form.addRow("Mode:", self.refresh_mode_combo)
+        form.addRow("Fixed rate:", self.fixed_interval_combo)
+        form.addRow(help_label)
+
+        self.fixed_interval_combo.setEnabled(self.refresh_mode == "fixed")
+
+        group.setLayout(form)
+        return group
+
+    def _select_fixed_interval(self, interval_ms: int) -> None:
+        for i in range(self.fixed_interval_combo.count()):
+            if self.fixed_interval_combo.itemData(i) == interval_ms:
+                self.fixed_interval_combo.setCurrentIndex(i)
+                return
+
+    def _on_refresh_mode_changed(self, index: int) -> None:
+        self.refresh_mode = self.refresh_mode_combo.currentData()
+        self.fixed_interval_combo.setEnabled(self.refresh_mode == "fixed")
+        self._apply_refresh_settings()
+        self._save_refresh_settings()
+
+    def _on_fixed_interval_changed(self, index: int) -> None:
+        value = self.fixed_interval_combo.itemData(index)
+        if value is None:
+            return
+        self.refresh_interval_ms = int(value)
+        if self.refresh_mode == "fixed":
+            self._apply_refresh_settings()
+        self._save_refresh_settings()
+
+    def _get_sampling_rate_hz(self) -> Optional[float]:
+        if self._sampling_rate_hz is not None:
+            return self._sampling_rate_hz
+        return None
+
+    def _compute_refresh_interval(self) -> int:
+        if self.refresh_mode == "follow_sampling_rate":
+            rate_hz = self._get_sampling_rate_hz()
+            if not rate_hz or rate_hz <= 0:
+                return DEFAULT_REFRESH_INTERVAL_MS
+
+            interval_ms = int(1000.0 / rate_hz)
+            if interval_ms < MIN_REFRESH_INTERVAL_MS:
+                interval_ms = MIN_REFRESH_INTERVAL_MS
+            return interval_ms
+
+        return int(self.refresh_interval_ms)
+
+    def _apply_refresh_settings(self) -> None:
+        interval_ms = self._compute_refresh_interval()
+        if hasattr(self, "_timer"):
+            self._timer.start(interval_ms)
+
+    def _load_refresh_settings(self) -> None:
+        settings = QSettings("SensePi", "SensePiLocal")
+        mode = str(settings.value("signals/refresh_mode", DEFAULT_REFRESH_MODE))
+        if mode not in {"fixed", "follow_sampling_rate"}:
+            mode = DEFAULT_REFRESH_MODE
+        self.refresh_mode = mode
+
+        interval_value = settings.value(
+            "signals/refresh_interval_ms", DEFAULT_REFRESH_INTERVAL_MS
+        )
+        try:
+            interval_ms = int(interval_value)
+        except (TypeError, ValueError):
+            interval_ms = DEFAULT_REFRESH_INTERVAL_MS
+        self.refresh_interval_ms = interval_ms
+
+    def _save_refresh_settings(self) -> None:
+        settings = QSettings("SensePi", "SensePiLocal")
+        settings.setValue("signals/refresh_mode", self.refresh_mode)
+        settings.setValue("signals/refresh_interval_ms", self.refresh_interval_ms)
 
     @Slot()
     def on_stream_started(self) -> None:
