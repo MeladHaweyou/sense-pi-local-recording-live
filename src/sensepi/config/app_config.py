@@ -61,6 +61,10 @@ class SensorDefaults:
         channels: "default"
         dlpf: 3
         include_temperature: false
+      adxl203_ads1115:
+        sample_rate_hz: 100
+        channels: "both"
+        calibration_samples: 300
     """
 
     sensors_file: Path = AppPaths().config_dir / "sensors.yaml"
@@ -269,7 +273,7 @@ def build_pi_config_for_host(host_cfg: HostConfig, app_cfg: AppConfig) -> Dict[s
     """
     Build the YAML structure that will be written to pi_config.yaml for a host.
 
-    Currently this mirrors only the MPU6050 logger configuration.
+    Currently this mirrors only the MPU6050 and ADXL203/ADS1115 logger configuration.
     """
     sensors = app_cfg.sensor_defaults or {}
 
@@ -283,5 +287,13 @@ def build_pi_config_for_host(host_cfg: HostConfig, app_cfg: AppConfig) -> Dict[s
         "sensors": [1, 2, 3],
     }
 
-    return {"mpu6050": mpu_cfg}
+    adxl_defaults = dict(sensors.get("adxl203_ads1115", {}) or {})
+    adxl_cfg = {
+        "output_dir": str(host_cfg.data_dir / "adxl"),
+        "sample_rate_hz": adxl_defaults.get("sample_rate_hz", 100),
+        "channels": adxl_defaults.get("channels", "both"),
+        "calibration_samples": adxl_defaults.get("calibration_samples", 0),
+    }
+
+    return {"mpu6050": mpu_cfg, "adxl203_ads1115": adxl_cfg}
 
