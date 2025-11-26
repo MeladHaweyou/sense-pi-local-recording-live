@@ -38,7 +38,7 @@ class PiRecorder:
         Run a logger script and return (stdout, stderr) file-like objects.
 
         This is mainly useful for short-lived commands or testing; for live
-        streaming use :meth:`stream_mpu6050` / :meth:`stream_adxl203`.
+        streaming use :meth:`stream_mpu6050`.
         """
         command = f"python3 {self.base_path / script_name}"
         if args:
@@ -104,29 +104,6 @@ class PiRecorder:
         """
         return self._stream_logger(
             "mpu6050_multi_logger.py",
-            extra_args,
-            on_stderr=on_stderr,
-            recording=recording,
-        )
-
-    def stream_adxl203(
-        self,
-        extra_args: str = "",
-        *,
-        recording: bool = False,
-        on_stderr: Optional[Callable[[str], None]] = None,
-    ) -> Iterable[str]:
-        """
-        Start the ADXL203/ADS1115 logger in streaming mode.
-
-        Internally builds a command like:
-
-            python3 adxl203_ads1115_logger.py --rate ... --stream-stdout --no-record ...
-
-        and returns an iterable of JSON lines.
-        """
-        return self._stream_logger(
-            "adxl203_ads1115_logger.py",
             extra_args,
             on_stderr=on_stderr,
             recording=recording,
