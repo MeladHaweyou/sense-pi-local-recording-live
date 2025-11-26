@@ -197,27 +197,6 @@ class SettingsTab(QWidget):
 
         sensors_layout.addWidget(mpu_group)
 
-        # ADXL203/ADS1115 defaults
-        adxl_group = QGroupBox("ADXL203 / ADS1115", sensors_group)
-        adxl_form = QFormLayout(adxl_group)
-
-        self.adxl_rate = QSpinBox(adxl_group)
-        self.adxl_rate.setRange(1, 2000)
-        self.adxl_rate.setValue(100)
-
-        self.adxl_channels = QComboBox(adxl_group)
-        self.adxl_channels.addItems(["x", "y", "both"])
-
-        self.adxl_cal_samples = QSpinBox(adxl_group)
-        self.adxl_cal_samples.setRange(0, 100000)
-        self.adxl_cal_samples.setValue(300)
-
-        adxl_form.addRow("Sample rate [Hz]:", self.adxl_rate)
-        adxl_form.addRow("Channels:", self.adxl_channels)
-        adxl_form.addRow("Calibration samples:", self.adxl_cal_samples)
-
-        sensors_layout.addWidget(adxl_group)
-
         self.btn_save_sensors = QPushButton("Save sensors.yaml", sensors_group)
         sensors_layout.addWidget(self.btn_save_sensors, alignment=Qt.AlignRight)
 
@@ -508,7 +487,6 @@ class SettingsTab(QWidget):
     # ------------------------------------------------------------------
     def _load_sensor_widgets_from_model(self) -> None:
         mpu_cfg = dict(self._sensors.get("mpu6050", {}) or {})
-        adxl_cfg = dict(self._sensors.get("adxl203_ads1115", {}) or {})
 
         # MPU6050
         self.mpu_rate.setValue(int(mpu_cfg.get("sample_rate_hz", 200)))
@@ -520,16 +498,6 @@ class SettingsTab(QWidget):
 
         self.mpu_dlpf.setValue(int(mpu_cfg.get("dlpf", 3)))
         self.mpu_include_temp.setChecked(bool(mpu_cfg.get("include_temperature", False)))
-
-        # ADXL203/ADS1115
-        self.adxl_rate.setValue(int(adxl_cfg.get("sample_rate_hz", 100)))
-        adxl_ch = str(adxl_cfg.get("channels", "both"))
-        idx2 = self.adxl_channels.findText(adxl_ch)
-        if idx2 < 0:
-            idx2 = self.adxl_channels.findText("both")
-        self.adxl_channels.setCurrentIndex(idx2)
-
-        self.adxl_cal_samples.setValue(int(adxl_cfg.get("calibration_samples", 300)))
 
     @Slot()
     def _on_save_sensors_clicked(self) -> None:
@@ -545,16 +513,6 @@ class SettingsTab(QWidget):
             }
         )
         sensors["mpu6050"] = mpu_cfg
-
-        adxl_cfg = dict(sensors.get("adxl203_ads1115", {}) or {})
-        adxl_cfg.update(
-            {
-                "sample_rate_hz": int(self.adxl_rate.value()),
-                "channels": str(self.adxl_channels.currentText()),
-                "calibration_samples": int(self.adxl_cal_samples.value()),
-            }
-        )
-        sensors["adxl203_ads1115"] = adxl_cfg
 
         try:
             self._sensor_defaults.save(sensors)
@@ -624,7 +582,6 @@ scripts_dir = inventory.scripts_dir_for(host_cfg)
 # build CLI args from sensor defaults
 sensors = SensorDefaults()
 mpu_args = sensors.build_mpu6050_cli_args()          # ['--rate', '200', '--channels', 'both', '--dlpf', '3']
-adxl_args = sensors.build_adxl203_cli_args()         # ['--rate', '100', '--channels', 'both', '--calibrate', '300']
 
 
 You can also combine this with the live SettingsTab:
@@ -639,12 +596,10 @@ remote_host = inventory.to_remote_host(host_cfg)
 scripts_dir = inventory.scripts_dir_for(host_cfg)
 
 mpu_defaults = sensor_cfg.get("mpu6050", {})
-adxl_defaults = sensor_cfg.get("adxl203_ads1115", {})
 
-from ...config.app_config import build_mpu6050_cli_args, build_adxl203_cli_args
+from ...config.app_config import build_mpu6050_cli_args
 
 mpu_args = build_mpu6050_cli_args(mpu_defaults)
-adxl_args = build_adxl203_cli_args(adxl_defaults)
 
 
 All ~ expansion happens right before use, not in the YAML itself.
