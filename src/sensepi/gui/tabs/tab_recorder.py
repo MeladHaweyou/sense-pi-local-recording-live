@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..widgets import CollapsibleSection
 from ...analysis.rate import RateController
 from ...config.app_config import HostInventory, SensorDefaults
 from ...core.live_stream import select_parser, stream_lines
@@ -112,7 +113,12 @@ class RecorderTab(QWidget):
         self.host_status_label = QLabel("No hosts configured.", self.host_group)
         host_form.addRow("Status:", self.host_status_label)
 
-        layout.addWidget(self.host_group)
+        host_section = CollapsibleSection("Raspberry Pi host", self)
+        host_layout = QVBoxLayout()
+        host_layout.setContentsMargins(0, 0, 0, 0)
+        host_layout.addWidget(self.host_group)
+        host_section.setContentLayout(host_layout)
+        layout.addWidget(host_section)
 
         # MPU6050 settings
         self.mpu_group = QGroupBox("MPU6050 settings", self)
@@ -239,7 +245,13 @@ class RecorderTab(QWidget):
 
         mpu_layout.addWidget(adv_group)
 
-        layout.addWidget(self.mpu_group)
+        mpu_section = CollapsibleSection("MPU6050 settings", self)
+        mpu_container = QVBoxLayout()
+        mpu_container.setContentsMargins(0, 0, 0, 0)
+        mpu_container.addWidget(self.mpu_group)
+        mpu_section.setContentLayout(mpu_container)
+        mpu_section.setCollapsed(True)
+        layout.addWidget(mpu_section)
 
         # Status + rate
         self.overall_status = QLabel("Idle.", self)
@@ -250,6 +262,8 @@ class RecorderTab(QWidget):
             "Estimated sample rate of data arriving in this GUI tab."
         )
         layout.addWidget(self.mpu_rate_label)
+
+        layout.addStretch()
 
         # Hidden start/stop buttons (driven programmatically by MainWindow)
         button_box = QGroupBox(self)

@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
+from ..widgets import CollapsibleSection
 from ...core.models import LiveSample
 from ...core.ringbuffer import RingBuffer
 from ...sensors.mpu6050 import MpuSample
@@ -303,6 +304,7 @@ class SignalsTab(QWidget):
 
         self._plot = SignalPlotWidget(max_seconds=10.0)
         self._channel_checkboxes: Dict[str, QCheckBox] = {}
+        self._controls_section: CollapsibleSection | None = None
 
         layout = QVBoxLayout(self)
 
@@ -383,7 +385,6 @@ class SignalsTab(QWidget):
         group_layout.addWidget(self._mode_hint_label)
 
         top_row_group.setLayout(group_layout)
-        layout.addWidget(top_row_group)
 
         self._update_base_window_label()
 
@@ -391,14 +392,24 @@ class SignalsTab(QWidget):
         channel_group = QGroupBox("Channels", self)
         self._channel_layout = QHBoxLayout(channel_group)
         channel_group.setLayout(self._channel_layout)
-        layout.addWidget(channel_group)
 
         # Refresh settings -----------------------------------------------------
         refresh_group = self._build_refresh_controls()
-        layout.addWidget(refresh_group)
+
+        controls_section = CollapsibleSection(
+            "Controls / channels / refresh", self
+        )
+        controls_layout = QVBoxLayout()
+        controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.addWidget(top_row_group)
+        controls_layout.addWidget(channel_group)
+        controls_layout.addWidget(refresh_group)
+        controls_section.setContentLayout(controls_layout)
+        layout.addWidget(controls_section)
+        self._controls_section = controls_section
 
         # Plot widget -----------------------------------------------------------
-        layout.addWidget(self._plot)
+        layout.addWidget(self._plot, stretch=1)
 
         # Status label ----------------------------------------------------------
         self._status_label = QLabel("Waiting for stream...", self)
@@ -418,6 +429,8 @@ class SignalsTab(QWidget):
         self.stop_button.setEnabled(True)
         self._status_label.setText("Streaming...")
         self.start_stream_requested.emit(self.recording_check.isChecked())
+        if self._controls_section is not None:
+            self._controls_section.setCollapsed(True)
 
     @Slot()
     def _on_stop_clicked(self) -> None:
@@ -425,6 +438,8 @@ class SignalsTab(QWidget):
         self.stop_button.setEnabled(False)
         self._status_label.setText("Stopping...")
         self.stop_stream_requested.emit()
+        if self._controls_section is not None:
+            self._controls_section.setCollapsed(False)
 
     @Slot(object)
     def handle_sample(self, sample: object) -> None:
