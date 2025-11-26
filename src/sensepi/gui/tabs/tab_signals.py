@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, Optional
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Signal, Slot, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -178,6 +178,12 @@ class SignalsTab(QWidget):
 
         self._rebuild_channel_checkboxes()
 
+        # periodic redraw of the plot
+        self._timer = QTimer(self)
+        self._timer.setInterval(100)
+        self._timer.timeout.connect(self._plot.redraw)
+        self._timer.start()
+
     # --------------------------------------------------------------- slots
     @Slot()
     def _on_start_clicked(self) -> None:
@@ -243,16 +249,19 @@ class SignalsTab(QWidget):
         ]
         self._plot.set_visible_channels(visible)
 
-    def handle_stream_started(self) -> None:
+    @Slot()
+    def on_stream_started(self) -> None:
         self._status_label.setText("Streaming...")
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
 
-    def handle_stream_stopped(self) -> None:
+    @Slot()
+    def on_stream_stopped(self) -> None:
         self._status_label.setText("Stopped.")
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self._plot.clear()
 
+    @Slot(str)
     def handle_error(self, message: str) -> None:
         self._status_label.setText(message)
