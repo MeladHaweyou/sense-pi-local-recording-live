@@ -41,16 +41,8 @@ class MpuGuiConfig:
     channels: str = "default"
     include_temp: bool = False
     stream_every: int = 1
-    dlpf: int = 3
-    sensor_map: str = ""
+    limit_duration: bool = False
     duration_s: float = 0.0
-    samples: int = 0
-    format: str = "csv"
-    prefix: str = "mpu"
-    flush_every: int = 0
-    flush_seconds: float = 0.0
-    fsync_each_flush: bool = False
-    stream_fields: str = ""
 
 
 class _StopStreaming(Exception):
@@ -170,80 +162,23 @@ class RecorderTab(QWidget):
         )
         mpu_layout.addWidget(self.mpu_stream_every_spin)
 
-        adv_group = QGroupBox("Advanced MPU6050 options", self.mpu_group)
-        adv_group.setCheckable(True)
-        adv_group.setChecked(False)
-        adv_layout = QFormLayout()
-        adv_group.setLayout(adv_layout)
-
-        self.mpu_dlpf_spin = QSpinBox(adv_group)
-        self.mpu_dlpf_spin.setRange(0, 6)
-        self.mpu_dlpf_spin.setValue(3)
-        self.mpu_dlpf_spin.setToolTip(
-            "Digital low-pass filter config (0–6). 3 is a good default."
+        duration_row = QHBoxLayout()
+        self.mpu_limit_duration_chk = QCheckBox(
+            "Limit duration (s):", self.mpu_group
         )
-        adv_layout.addRow("DLPF (0–6):", self.mpu_dlpf_spin)
-
-        self.mpu_map_edit = QLineEdit(adv_group)
-        self.mpu_map_edit.setPlaceholderText("1:1-0x68,2:1-0x69,3:0-0x68")
-        self.mpu_map_edit.setToolTip(
-            "Override default bus/address per sensor: 1:BUS-ADDR,2:BUS-ADDR,..."
-        )
-        adv_layout.addRow("Sensor map:", self.mpu_map_edit)
-
-        self.mpu_duration_spin = QDoubleSpinBox(adv_group)
-        self.mpu_duration_spin.setRange(0.0, 3600.0)
+        self.mpu_duration_spin = QDoubleSpinBox(self.mpu_group)
+        self.mpu_duration_spin.setRange(0.1, 3600.0)
         self.mpu_duration_spin.setDecimals(1)
-        self.mpu_duration_spin.setSuffix(" s")
-        self.mpu_duration_spin.setToolTip(
-            "Optional stop after this many seconds (0 = no duration limit)."
+        self.mpu_duration_spin.setSingleStep(1.0)
+        self.mpu_duration_spin.setValue(10.0)
+        self.mpu_duration_spin.setEnabled(False)
+        self.mpu_limit_duration_chk.toggled.connect(
+            self.mpu_duration_spin.setEnabled
         )
-        adv_layout.addRow("Duration limit:", self.mpu_duration_spin)
-
-        self.mpu_samples_spin = QSpinBox(adv_group)
-        self.mpu_samples_spin.setRange(0, 10_000_000)
-        self.mpu_samples_spin.setToolTip(
-            "Optional stop after this many samples (0 = no sample limit)."
-        )
-        adv_layout.addRow("Sample limit:", self.mpu_samples_spin)
-
-        self.mpu_format_combo = QComboBox(adv_group)
-        self.mpu_format_combo.addItem("CSV", userData="csv")
-        self.mpu_format_combo.addItem("JSONL", userData="jsonl")
-        adv_layout.addRow("File format:", self.mpu_format_combo)
-
-        self.mpu_prefix_edit = QLineEdit(adv_group)
-        self.mpu_prefix_edit.setPlaceholderText("mpu")
-        self.mpu_prefix_edit.setToolTip("Filename prefix for recorded files.")
-        adv_layout.addRow("Filename prefix:", self.mpu_prefix_edit)
-
-        self.mpu_flush_every_spin = QSpinBox(adv_group)
-        self.mpu_flush_every_spin.setRange(0, 100_000)
-        self.mpu_flush_every_spin.setToolTip(
-            "Flush every N samples (0 = logger default)."
-        )
-        adv_layout.addRow("Flush every N samples:", self.mpu_flush_every_spin)
-
-        self.mpu_flush_seconds_spin = QDoubleSpinBox(adv_group)
-        self.mpu_flush_seconds_spin.setRange(0.0, 60.0)
-        self.mpu_flush_seconds_spin.setDecimals(1)
-        self.mpu_flush_seconds_spin.setToolTip(
-            "Flush at least every N seconds (0 = logger default)."
-        )
-        adv_layout.addRow("Flush every N seconds:", self.mpu_flush_seconds_spin)
-
-        self.mpu_fsync_chk = QCheckBox("fsync each flush (slower, safer)", adv_group)
-        adv_layout.addRow(self.mpu_fsync_chk)
-
-        self.mpu_stream_fields_edit = QLineEdit(adv_group)
-        self.mpu_stream_fields_edit.setPlaceholderText("ax,ay,gz,temp_c")
-        self.mpu_stream_fields_edit.setToolTip(
-            "Optional comma-separated subset of fields to stream. "
-            "Leave blank to use logger defaults."
-        )
-        adv_layout.addRow("Stream fields:", self.mpu_stream_fields_edit)
-
-        mpu_layout.addWidget(adv_group)
+        duration_row.addWidget(self.mpu_limit_duration_chk)
+        duration_row.addWidget(self.mpu_duration_spin)
+        duration_row.addStretch(1)
+        mpu_layout.addLayout(duration_row)
 
         mpu_section = CollapsibleSection("MPU6050 settings", self)
         mpu_container = QVBoxLayout()
@@ -348,6 +283,19 @@ class RecorderTab(QWidget):
         except (TypeError, ValueError):
             return 200.0
 
+    def _get_default_mpu_dlpf(self) -> int | None:
+        """Return the MPU6050 DLPF setting from sensors.yaml."""
+        try:
+            config = self._sensor_defaults.load()
+        except Exception:
+            return 3
+        mpu_cfg = dict(config.get("mpu6050", {}) or {})
+        dlpf = mpu_cfg.get("dlpf")
+        try:
+            return int(dlpf)
+        except (TypeError, ValueError):
+            return None
+
     def _update_recording_rate_from_defaults(self) -> None:
         rate = self._get_default_mpu_sample_rate()
         if hasattr(self, "mpu_recording_rate_label"):
@@ -361,16 +309,10 @@ class RecorderTab(QWidget):
             channels=self.mpu_channels_combo.currentData(),
             include_temp=self.mpu_temp_chk.isChecked(),
             stream_every=max(1, int(self.mpu_stream_every_spin.value())),
-            dlpf=int(self.mpu_dlpf_spin.value()),
-            sensor_map=self.mpu_map_edit.text().strip(),
-            duration_s=float(self.mpu_duration_spin.value()),
-            samples=int(self.mpu_samples_spin.value()),
-            format=self.mpu_format_combo.currentData() or "csv",
-            prefix=self.mpu_prefix_edit.text().strip() or "mpu",
-            flush_every=int(self.mpu_flush_every_spin.value()),
-            flush_seconds=float(self.mpu_flush_seconds_spin.value()),
-            fsync_each_flush=self.mpu_fsync_chk.isChecked(),
-            stream_fields=self.mpu_stream_fields_edit.text().strip(),
+            limit_duration=self.mpu_limit_duration_chk.isChecked(),
+            duration_s=float(self.mpu_duration_spin.value())
+            if self.mpu_limit_duration_chk.isChecked()
+            else 0.0,
         )
 
     def _build_mpu_extra_args(self) -> list[str]:
@@ -395,48 +337,19 @@ class RecorderTab(QWidget):
         if self.mpu_temp_chk.isChecked():
             args.append("--temp")
 
+        dlpf = self._get_default_mpu_dlpf()
+        if dlpf is not None:
+            args += ["--dlpf", str(dlpf)]
+
         stream_every = max(1, int(self.mpu_stream_every_spin.value()))
         if self._recording_mode:
             stream_every = max(stream_every, 5)
         args += ["--stream-every", str(stream_every)]
 
-        dlpf = int(self.mpu_dlpf_spin.value())
-        if dlpf != 3:
-            args += ["--dlpf", str(dlpf)]
-
-        sensor_map = self.mpu_map_edit.text().strip()
-        if sensor_map:
-            args += ["--map", sensor_map]
-
-        duration_s = float(self.mpu_duration_spin.value())
-        samples = int(self.mpu_samples_spin.value())
-        if samples > 0:
-            args += ["--samples", str(samples)]
-        elif duration_s > 0:
-            args += ["--duration", str(duration_s)]
-
-        fmt = self.mpu_format_combo.currentData()
-        if fmt:
-            args += ["--format", fmt]
-
-        prefix = self.mpu_prefix_edit.text().strip()
-        if prefix:
-            args += ["--prefix", prefix]
-
-        flush_every = int(self.mpu_flush_every_spin.value())
-        if flush_every > 0:
-            args += ["--flush-every", str(flush_every)]
-
-        flush_seconds = float(self.mpu_flush_seconds_spin.value())
-        if flush_seconds > 0:
-            args += ["--flush-seconds", str(flush_seconds)]
-
-        if self.mpu_fsync_chk.isChecked():
-            args.append("--fsync-each-flush")
-
-        stream_fields = self.mpu_stream_fields_edit.text().strip()
-        if stream_fields:
-            args += ["--stream-fields", stream_fields]
+        if self.mpu_limit_duration_chk.isChecked():
+            duration_s = float(self.mpu_duration_spin.value())
+            if duration_s > 0:
+                args += ["--duration", f"{duration_s:.3f}"]
 
         return args
 

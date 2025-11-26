@@ -623,6 +623,9 @@ class SignalsTab(QWidget):
 
     @Slot()
     def on_stream_started(self) -> None:
+        self._plot.clear()
+        self._sampling_rate_hz = None
+        self._stream_rate_label.setText("Stream rate: -- Hz")
         self._status_label.setText("Streaming...")
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
