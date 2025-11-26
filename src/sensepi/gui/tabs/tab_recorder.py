@@ -58,9 +58,13 @@ class RecorderTab(QWidget):
     error_reported = Signal(str)
     rate_updated = Signal(str, float)
 
-    def __init__(self, host_inventory: HostInventory, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        host_inventory: HostInventory | None = None,
+        parent: Optional[QWidget] = None,
+    ) -> None:
         super().__init__(parent)
-        self._host_inventory = host_inventory
+        self._host_inventory = host_inventory or HostInventory()
 
         self._hosts: Dict[str, Dict[str, object]] = {}
         self._pi_recorder: Optional[PiRecorder] = None
