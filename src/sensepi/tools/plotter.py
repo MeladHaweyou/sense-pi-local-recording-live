@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Simple CLI plotter for SensePi CSV logs.
+Simple CLI plotter for SensePi CSV/JSONL logs.
 
 This script is intended to be launched either directly from the command line
 or via ``LocalPlotRunner`` in ``sensepi.tools.local_plot_runner``. It uses Matplotlib's
 standard interactive window (no PySide6 integration) to display either:
 
-  * a static replay of a CSV log (``--mode replay``), or
-  * a "live" view that periodically reloads the CSV file (``--mode follow``).
+  * a static replay of a log file (``--mode replay``), or
+  * a "live" view that periodically reloads the log file (``--mode follow``).
 
 By default, if no ``--file`` is provided, the script will look for the newest
-``*.csv`` file under:
+``*.csv`` or ``*.jsonl`` file under:
 
   * ``data/raw/``
   * ``logs/``
@@ -22,29 +22,174 @@ and use that as the source.
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.animation import FuncAnimation
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+BASE_TIME_FIELDS = {"timestamp_ns", "t_s", "t_rel_s", "timestamp"}
+BASE_IGNORE_FIELDS = BASE_TIME_FIELDS | {"sensor_id"}
 
 
 # --------------------------------------------------------------------------- # helpers
-def find_latest_csv(search_roots: Sequence[Path]) -> Optional[Path]:
+def find_latest_log(search_roots: Sequence[Path]) -> Optional[Path]:
     candidates: list[Path] = []
+    patterns = ("*.csv", "*.jsonl")
     for root in search_roots:
         if not root.exists():
             continue
-        candidates.extend(root.glob("*.csv"))
+        for pattern in patterns:
+            candidates.extend(root.glob(pattern))
 
     if not candidates:
         return None
 
     return max(candidates, key=lambda p: p.stat().st_mtime)
+
+
+def _load_meta_sidecar(path: Path) -> dict[str, Any] | None:
+    meta_path = path.with_suffix(path.suffix + ".meta.json")
+    if not meta_path.exists():
+        return None
+    try:
+        with meta_path.open("r", encoding="utf-8") as handle:
+            meta = json.load(handle)
+    except Exception as exc:
+        raise ValueError(f"Failed to parse metadata {meta_path}: {exc}") from exc
+    if not isinstance(meta, dict):
+        raise ValueError(f"Metadata file {meta_path} must contain a JSON object")
+    return meta
+
+
+def _load_csv_with_meta(path: Path) -> tuple[np.ndarray, list[str], dict[str, Any] | None]:
+    data, columns = load_csv(path)
+    meta = _load_meta_sidecar(path)
+    return data, columns, meta
+
+
+def _classify_value(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "bool"
+    if isinstance(value, (int, np.integer)) and not isinstance(value, bool):
+        return "int"
+    if isinstance(value, (float, np.floating)):
+        return "float"
+    if isinstance(value, str):
+        return "str"
+    return "object"
+
+
+def _merge_kinds(existing: str | None, new_kind: str | None) -> str | None:
+    if new_kind is None:
+        return existing
+    if existing is None:
+        return new_kind
+    if existing == new_kind:
+        return existing
+    numeric = {"int", "float"}
+    if existing in numeric and new_kind in numeric:
+        return "float"
+    return "object"
+
+
+def _dtype_for_kind(kind: str | None) -> str:
+    if kind == "float":
+        return "f8"
+    if kind == "int":
+        return "i8"
+    if kind == "bool":
+        return "?"
+    # Strings and mixed/unknown types fall back to Python objects
+    return "O"
+
+
+def _records_to_structured_array(
+    records: Sequence[dict[str, Any]], meta: dict[str, Any] | None
+) -> tuple[np.ndarray, list[str]]:
+    order: list[str] = []
+    if meta:
+        header = meta.get("header")
+        if isinstance(header, list):
+            for entry in header:
+                if isinstance(entry, str) and entry not in order:
+                    order.append(entry)
+
+    for record in records:
+        for key in record.keys():
+            if key not in order:
+                order.append(key)
+
+    if not order:
+        raise ValueError("JSONL log contains no columns")
+
+    kinds: dict[str, str | None] = {col: None for col in order}
+    for record in records:
+        for key, value in record.items():
+            if key not in kinds:
+                kinds[key] = None
+            kinds[key] = _merge_kinds(kinds.get(key), _classify_value(value))
+
+    dtype = [(col, _dtype_for_kind(kinds.get(col))) for col in order]
+    data = np.zeros(len(records), dtype=dtype)
+
+    for col, kind in ((col_name, kinds.get(col_name)) for col_name in order):
+        if kind == "float":
+            data[col] = np.nan
+
+    for row_idx, record in enumerate(records):
+        for key, value in record.items():
+            if value is None or key not in data.dtype.names:
+                continue
+            data[key][row_idx] = value
+
+    columns = list(data.dtype.names or [])
+    return data, columns
+
+
+def _load_jsonl_with_meta(path: Path) -> tuple[np.ndarray, list[str], dict[str, Any] | None]:
+    records: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line_no, raw in enumerate(handle, start=1):
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSON at line {line_no} in {path}: {exc}") from exc
+            if not isinstance(obj, dict):
+                raise ValueError(f"Line {line_no} in {path} is not a JSON object")
+            records.append(obj)
+
+    if not records:
+        raise ValueError(f"{path} contains no JSON objects")
+
+    meta = _load_meta_sidecar(path)
+    data, columns = _records_to_structured_array(records, meta)
+
+    if not any(field in columns for field in BASE_TIME_FIELDS):
+        raise ValueError(f"{path} is missing a timestamp field")
+    plottable = [c for c in columns if c.lower() not in BASE_IGNORE_FIELDS]
+    if not plottable:
+        raise ValueError(f"{path} does not contain any data channels to plot")
+
+    return data, columns, meta
+
+
+def _load_log_with_meta(path: Path) -> tuple[np.ndarray, list[str], dict[str, Any] | None]:
+    suffix = path.suffix.lower()
+    if suffix == ".csv":
+        return _load_csv_with_meta(path)
+    if suffix == ".jsonl":
+        return _load_jsonl_with_meta(path)
+    raise ValueError(f"Unsupported log file type: {path.suffix}")
 
 
 def load_csv(path: Path) -> tuple[np.ndarray, list[str]]:
@@ -64,12 +209,17 @@ def load_csv(path: Path) -> tuple[np.ndarray, list[str]]:
     return data, names
 
 
-def infer_sensor_type(columns: Sequence[str]) -> str:
+def infer_sensor_type(columns: Sequence[str], meta: dict[str, Any] | None = None) -> str:
     """
-    Heuristically infer sensor type from CSV header.
+    Heuristically infer sensor type from the available columns/metadata.
 
     Returns "mpu6050" if it finds typical MPU6050 columns, otherwise "generic".
     """
+    if meta:
+        declared = meta.get("sensor_type")
+        if isinstance(declared, str) and declared.strip():
+            return declared.strip().lower()
+
     lower = {c.lower() for c in columns}
 
     if {"sensor_id", "ax", "ay", "az", "gx", "gy", "gz"} <= lower:
@@ -79,8 +229,13 @@ def infer_sensor_type(columns: Sequence[str]) -> str:
     return "generic"
 
 
-def build_time_axis(data: np.ndarray, columns: Sequence[str]) -> tuple[np.ndarray, str]:
+def build_time_axis(
+    data: np.ndarray, columns: Sequence[str], meta: dict[str, Any] | None = None
+) -> tuple[np.ndarray, str]:
     """Return (t, x_label)."""
+    if "t_rel_s" in columns:
+        t = data["t_rel_s"]
+        return t, "Time [s]"
     if "t_s" in columns:
         t = data["t_s"]
         return t, "Time [s]"
@@ -89,32 +244,95 @@ def build_time_axis(data: np.ndarray, columns: Sequence[str]) -> tuple[np.ndarra
         t0 = ns[0]
         t = (ns - t0) * 1e-9
         return t, "Time [s since start]"
+    if "timestamp" in columns:
+        ts = data["timestamp"]
+        t0 = ts[0]
+        t = ts - t0
+        return t, "Time [relative units]"
+    if meta:
+        rate = meta.get("device_rate_hz")
+        if isinstance(rate, (int, float)) and rate > 0:
+            n = data.shape[0]
+            t = np.arange(n, dtype=float) / float(rate)
+            return t, f"Time [s @ {rate:g} Hz]"
     n = data.shape[0]
     t = np.arange(n, dtype=float)
     return t, "Sample index"
 
 
-def pick_data_columns(sensor_type: str, columns: Sequence[str]) -> tuple[list[str], list[str]]:
+def _meta_sampling_rate(meta: dict[str, Any] | None) -> float | None:
+    if not meta:
+        return None
+    for key in ("device_rate_hz", "requested_rate_hz", "clamped_rate_hz"):
+        value = meta.get(key)
+        if isinstance(value, (int, float)) and value > 0:
+            return float(value)
+    return None
+
+
+def _preferred_data_columns(columns: Sequence[str], meta: dict[str, Any] | None) -> list[str]:
+    cols = [c for c in columns if c]
+    lookup = {c.lower(): c for c in cols}
+    if meta:
+        meta_channels = meta.get("channels")
+        ordered: list[str] = []
+        if isinstance(meta_channels, list):
+            for entry in meta_channels:
+                if not isinstance(entry, str):
+                    continue
+                resolved = lookup.get(entry.lower())
+                if resolved and resolved not in ordered:
+                    ordered.append(resolved)
+        if ordered:
+            return ordered
+
+        header = meta.get("header")
+        if isinstance(header, list):
+            ordered = []
+            for entry in header:
+                if not isinstance(entry, str):
+                    continue
+                key = entry.lower()
+                if key in BASE_IGNORE_FIELDS:
+                    continue
+                resolved = lookup.get(key)
+                if resolved and resolved not in ordered:
+                    ordered.append(resolved)
+            if ordered:
+                return ordered
+
+    filtered = [c for c in cols if c.lower() not in BASE_IGNORE_FIELDS]
+    if filtered:
+        return filtered
+    return list(cols)
+
+
+def pick_data_columns(
+    sensor_type: str, columns: Sequence[str], meta: dict[str, Any] | None = None
+) -> tuple[list[str], list[str]]:
     """Return (acc_columns, gyro_columns) based on the header."""
-    cols = [c.strip() for c in columns]
-    lower = [c.lower() for c in cols]
+    cols = [c for c in columns if c]
+    lower_map = {c.lower(): c for c in cols}
+    ordered = _preferred_data_columns(cols, meta)
 
     if sensor_type == "mpu6050":
-        wanted = ["ax", "ay", "az", "gx", "gy", "gz"]
         acc_cols: list[str] = []
         gyro_cols: list[str] = []
-        for desired in wanted:
-            if desired in lower:
-                idx = lower.index(desired)
-                if desired.startswith("g"):
-                    gyro_cols.append(cols[idx])
-                else:
-                    acc_cols.append(cols[idx])
-        return acc_cols or cols, gyro_cols
+        for desired in ("ax", "ay", "az"):
+            actual = lower_map.get(desired)
+            if actual:
+                acc_cols.append(actual)
+        for desired in ("gx", "gy", "gz"):
+            actual = lower_map.get(desired)
+            if actual:
+                gyro_cols.append(actual)
+        if not acc_cols and ordered:
+            acc_cols = ordered
+        return acc_cols, gyro_cols
 
-    ignore = {"timestamp_ns", "t_s", "sensor_id", "timestamp"}
-    acc_cols = [c for c in cols if c.lower() not in ignore]
-    return acc_cols, []
+    if ordered:
+        return ordered, []
+    return cols, []
 
 
 def setup_figure(
@@ -122,10 +340,11 @@ def setup_figure(
     sensor_type: str,
     data: np.ndarray,
     columns: Sequence[str],
+    meta: dict[str, Any] | None = None,
 ):
     """Create figure/axes/lines and return (fig, axes, lines, time_vector)."""
-    t, x_label = build_time_axis(data, columns)
-    acc_cols, gyro_cols = pick_data_columns(sensor_type, columns)
+    t, x_label = build_time_axis(data, columns, meta)
+    acc_cols, gyro_cols = pick_data_columns(sensor_type, columns, meta)
 
     if not acc_cols and not gyro_cols:
         raise ValueError(f"No plottable data columns found in {path}")
@@ -149,7 +368,9 @@ def setup_figure(
         else:
             ax0.set_ylabel("Value")
         ax0.legend(loc="upper right")
-        ax0.set_title(f"{sensor_type} — {path.name}")
+        rate = _meta_sampling_rate(meta)
+        rate_str = f" @ {rate:g} Hz" if rate else ""
+        ax0.set_title(f"{sensor_type}{rate_str} — {path.name}")
 
     # Gyro subplot
     if gyro_cols:
@@ -170,11 +391,11 @@ def setup_figure(
 def build_plot_for_file(path: Path, sensor_type: str = "auto"):
     """Return a Matplotlib Figure configured for the given log file."""
 
-    data, columns = load_csv(path)
+    data, columns, meta = _load_log_with_meta(path)
     if sensor_type == "auto":
-        sensor_type = infer_sensor_type(columns)
+        sensor_type = infer_sensor_type(columns, meta)
 
-    fig, axes, lines, _t = setup_figure(path, sensor_type, data, columns)
+    fig, axes, lines, _t = setup_figure(path, sensor_type, data, columns, meta)
     return fig, axes, lines
 
 
@@ -186,21 +407,21 @@ def plot_replay(path: Path, sensor_type: str) -> None:
 
 
 def plot_follow(path: Path, sensor_type: str, interval_s: float) -> None:
-    data, columns = load_csv(path)
+    data, columns, meta = _load_log_with_meta(path)
     if sensor_type == "auto":
-        sensor_type = infer_sensor_type(columns)
+        sensor_type = infer_sensor_type(columns, meta)
 
-    fig, axes, lines, _t = setup_figure(path, sensor_type, data, columns)
+    fig, axes, lines, _t = setup_figure(path, sensor_type, data, columns, meta)
 
     def _update(_frame):
         try:
-            new_data, new_columns = load_csv(path)
+            new_data, new_columns, new_meta = _load_log_with_meta(path)
         except Exception:
             # If the file temporarily disappears or is being written to, just
             # skip this frame.
             return list(lines.values())
 
-        t_new, _x_label = build_time_axis(new_data, new_columns)
+        t_new, _x_label = build_time_axis(new_data, new_columns, new_meta)
 
         for name, line in lines.items():
             if name not in new_columns:
@@ -222,15 +443,15 @@ def plot_follow(path: Path, sensor_type: str, interval_s: float) -> None:
 # --------------------------------------------------------------------------- # CLI
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Simple Matplotlib-based plotter for SensePi CSV logs."
+        description="Simple Matplotlib-based plotter for SensePi CSV/JSONL logs."
     )
     parser.add_argument(
         "-f",
         "--file",
         type=str,
         help=(
-            "Path to a CSV log file. If omitted, the newest CSV found under "
-            "data/raw, logs, or the project root is used."
+            "Path to a log file (.csv or .jsonl). If omitted, the newest log "
+            "found under data/raw, logs, or the project root is used."
         ),
     )
     parser.add_argument(
@@ -265,9 +486,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.file:
         csv_path = Path(args.file).expanduser().resolve()
         if not csv_path.exists():
-            parser.error(f"CSV file not found: {csv_path}")
+            parser.error(f"Log file not found: {csv_path}")
     else:
-        csv_path = find_latest_csv(
+        csv_path = find_latest_log(
             [
                 REPO_ROOT / "data" / "raw",
                 REPO_ROOT / "logs",
@@ -276,10 +497,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         if csv_path is None:
             parser.error(
-                "No CSV files found in data/raw, logs, or the project root.\n"
+                "No log files found in data/raw, logs, or the project root.\n"
                 "Specify a file explicitly with --file."
             )
-        print(f"[INFO] Using latest CSV log: {csv_path}")
+        print(f"[INFO] Using latest log: {csv_path}")
 
     try:
         if args.mode == "replay":

@@ -2,24 +2,53 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
+import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import yaml
 
 
+DEFAULT_BASE_PATH = Path("~/sensor")
+DEFAULT_DATA_DIR = Path("~/logs")
+
+
 @dataclass
 class AppPaths:
-    """Commonly used paths for the desktop application."""
+    """
+    Commonly used paths for the desktop application.
+
+    ``SENSEPI_DATA_ROOT`` and ``SENSEPI_LOG_DIR`` override the default
+    ``data``/``logs`` folders relative to the repository root so that
+    packaged installs and alternate layouts can store files elsewhere.
+    """
 
     # repo_root points at the project root (one level above src/)
     repo_root: Path = Path(__file__).resolve().parents[3]
-    data_root: Path = repo_root / "data"
-    raw_data: Path = data_root / "raw"
-    processed_data: Path = data_root / "processed"
-    logs: Path = repo_root / "logs"
-    config_dir: Path = repo_root / "src" / "sensepi" / "config"
+    data_root: Path = field(init=False)
+    raw_data: Path = field(init=False)
+    processed_data: Path = field(init=False)
+    logs: Path = field(init=False)
+    config_dir: Path = field(init=False)
+
+    def __post_init__(self) -> None:
+        env_data_root = os.environ.get("SENSEPI_DATA_ROOT")
+        if env_data_root:
+            self.data_root = Path(env_data_root).expanduser()
+        else:
+            self.data_root = self.repo_root / "data"
+
+        env_logs_dir = os.environ.get("SENSEPI_LOG_DIR")
+        if env_logs_dir:
+            self.logs = Path(env_logs_dir).expanduser()
+        else:
+            self.logs = self.repo_root / "logs"
+
+        self.raw_data = self.data_root / "raw"
+        self.processed_data = self.data_root / "processed"
+        self.config_dir = self.repo_root / "src" / "sensepi" / "config"
 
     def ensure(self) -> None:
         """Create directories if they do not yet exist."""
@@ -41,11 +70,92 @@ class HostConfig:
     password: Optional[str] = None
 
 
+def _hz_to_interval_ms(value_hz: float, fallback_ms: int) -> int:
+    """Convert a frequency in Hz into a positive integer interval in ms."""
+    try:
+        hz = float(value_hz)
+    except (TypeError, ValueError):
+        hz = 0.0
+    if hz <= 0.0 or math.isnan(hz) or math.isinf(hz):
+        return max(1, int(fallback_ms))
+    interval = int(round(1000.0 / hz))
+    return max(1, interval)
+
+
+@dataclass
+class PlotPerformanceConfig:
+    """
+    Tunable limits and refresh rates for the live plot / FFT tabs.
+
+    These parameters cap resource usage so the GUI stays responsive even
+    when multiple sensors or view presets are active.
+    """
+
+    signal_update_hz: float = 50.0
+    time_window_seconds: float = 3.0
+    fft_update_hz: float = 10.0
+    max_signal_subplots: int = 18
+    max_lines_per_subplot: int = 1
+    signal_max_points_per_line: int = 2000
+
+    def signal_refresh_interval_ms(self) -> int:
+        """Return the timer interval that corresponds to ``signal_update_hz``."""
+        return _hz_to_interval_ms(self.signal_update_hz, fallback_ms=50)
+
+    def fft_refresh_interval_ms(self) -> int:
+        """Return the timer interval that corresponds to ``fft_update_hz``."""
+        return _hz_to_interval_ms(self.fft_update_hz, fallback_ms=500)
+
+    def normalized_time_window_s(self) -> float:
+        """Clamp the time-domain window length to a safe, positive range."""
+        try:
+            window = float(self.time_window_seconds)
+        except (TypeError, ValueError):
+            window = 3.0
+        if not math.isfinite(window) or window <= 0.5:
+            return 2.0
+        return min(10.0, window)
+
+    def normalized_max_subplots(self) -> int:
+        try:
+            value = int(self.max_signal_subplots)
+        except (TypeError, ValueError):
+            value = 18
+        return max(1, value)
+
+    def normalized_max_lines(self) -> int:
+        try:
+            value = int(self.max_lines_per_subplot)
+        except (TypeError, ValueError):
+            value = 1
+        return max(1, value)
+
+    def normalized_max_points(self) -> int:
+        try:
+            value = int(self.signal_max_points_per_line)
+        except (TypeError, ValueError):
+            value = 2000
+        return max(100, value)
+
+
 @dataclass
 class AppConfig:
-    """In-memory configuration snapshot used for Pi sync."""
+    """In-memory configuration snapshot used for Pi sync and GUI runtime."""
 
-    sensor_defaults: Dict[str, Any]
+    sensor_defaults: Dict[str, Any] = field(default_factory=dict)
+    signal_backend: str = "pyqtgraph"
+    plot_performance: PlotPerformanceConfig = field(
+        default_factory=PlotPerformanceConfig
+    )
+
+    def normalized_signal_backend(self) -> str:
+        """Return the canonical backend identifier (``pyqtgraph`` or ``matplotlib``)."""
+        backend = str(self.signal_backend or "").strip().lower()
+        if backend in {"matplotlib", "mpl"}:
+            return "matplotlib"
+        if backend in {"pyqtgraph", "pg", "pyqt"}:
+            return "pyqtgraph"
+        return "pyqtgraph"
 
 
 @dataclass
@@ -128,7 +238,7 @@ class HostInventory:
             host: 192.168.0.6
             user: pi
             password: "hunter2"
-            base_path: /home/verwalter/sensor
+            base_path: ~/sensor
             port: 22
     """
 
@@ -180,7 +290,7 @@ class HostInventory:
         raw = (
             host_cfg.get("base_path")
             or host_cfg.get("scripts_dir")
-            or "/home/verwalter/sensor"
+            or DEFAULT_BASE_PATH
         )
         return Path(str(raw)).expanduser()
 
@@ -193,8 +303,8 @@ class HostInventory:
         port = int(host_cfg.get("port", 22))
         password = host_cfg.get("password")
 
-        base_path = Path(str(host_cfg.get("base_path", "/home/verwalter/sensor"))).expanduser()
-        data_dir = Path(str(host_cfg.get("data_dir", "/home/verwalter/logs"))).expanduser()
+        base_path = Path(str(host_cfg.get("base_path", DEFAULT_BASE_PATH))).expanduser()
+        data_dir = Path(str(host_cfg.get("data_dir", DEFAULT_DATA_DIR))).expanduser()
         pi_cfg = Path(
             str(host_cfg.get("pi_config_path", base_path / "pi_config.yaml"))
         ).expanduser()

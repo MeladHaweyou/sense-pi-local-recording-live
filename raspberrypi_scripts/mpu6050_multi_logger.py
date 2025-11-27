@@ -81,6 +81,7 @@ import csv
 import json
 import os
 import queue
+import re
 import signal
 import socket
 import sys
@@ -346,9 +347,23 @@ def monotonic_controller(rate_hz: float):
         yield next_t
 
 
+def slugify_session_name(value: str, limit: int = 80) -> str:
+    """Return a filesystem-friendly session label."""
+    text = (value or "").strip()
+    if not text:
+        return ""
+    text = re.sub(r"[^A-Za-z0-9._-]+", "-", text)
+    text = text.strip("-_.")
+    if limit > 0:
+        text = text[:limit]
+    return text
+
+
 def main():
     ap = argparse.ArgumentParser(description="Multi‑MPU6050 local logger (CSV/JSONL). No MQTT.")
     ap.add_argument("--list", action="store_true", help="List detected 0x68/0x69 on bus 0 and 1 and exit")
+    ap.add_argument("--sample-rate-hz", type=int, default=None,
+                    help="Preferred sampling rate in Hz (50-1000)")
     ap.add_argument("--rate", type=float, help="Sampling rate in Hz (e.g., 10, 20, 50, 100, 200)", required=False)
     ap.add_argument("--sensors", type=str, default="1,2,3", help="Comma‑separated sensor ids to enable (subset of 1,2,3)")
     ap.add_argument("--map", type=str, default="", help="Override mapping like '1:1-0x68,2:1-0x69,3:0-0x68'")
@@ -366,6 +381,8 @@ def main():
     ap.add_argument("--duration", type=float, default=None, help="Duration in seconds (optional)")
     ap.add_argument("--samples", type=int, default=None, help="Number of samples to capture (optional)")
     ap.add_argument("--out", type=str, default="./logs", help="Output folder")
+    ap.add_argument("--log-file", type=str, default=None,
+                    help="Optional JSONL log file that receives every sample across sensors")
     ap.add_argument(
         "--config",
         type=str,
@@ -377,6 +394,7 @@ def main():
     )
     ap.add_argument("--format", type=str, choices=["csv", "jsonl"], default="csv", help="Output format")
     ap.add_argument("--prefix", type=str, default="mpu", help="Output filename prefix")
+    ap.add_argument("--session-name", type=str, default="", help="Optional session label used as a directory/prefix")
     ap.add_argument("--dlpf", type=int, default=DLPF_DEFAULT, help="DLPF cfg 0..6 (default 3≈44 Hz)")
     ap.add_argument("--temp", action="store_true", help="Also log on‑die temperature (°C)")
     # NEW: flushing controls
@@ -400,7 +418,10 @@ def main():
         "--stream-every",
         type=int,
         default=1,
-        help="Only stream every N-th sample per sensor (default: 1 = every sample)."
+        help=(
+            "Only stream every N-th sample per sensor (default: 1 = every sample). "
+            "Effective GUI stream rate ≈ device_rate_hz / N."
+        ),
     )
     ap.add_argument(
         "--timing-warnings",
@@ -420,13 +441,13 @@ def main():
         type=str,
         default="ax,ay,az,gx,gy,gz",
         help=(
-            "Comma-separated list of data fields (e.g. "
-            "'ax,ay,az,gx,gy,gz,temp_c') to include in streamed JSON, in "
-            "addition to the always-present timestamp_ns, t_s, and sensor_id."
+            "Comma-separated list of data fields to include in streamed JSON, chosen from: "
+            "ax, ay, az, gx, gy, gz, temp_c. Always includes timestamp_ns, t_s, and sensor_id."
         ),
     )
 
     args = ap.parse_args()
+    args.stream_every = max(1, int(args.stream_every))
 
     if args.list:
         scan_buses()
@@ -469,11 +490,16 @@ def main():
         prefix = name + "="
         return any(a == name or a.startswith(prefix) for a in argv)
 
-    # sample rate (Hz)
+    # sample rate (Hz) via --sample-rate-hz / --rate / config fallback
     cfg_rate = section.get("sample_rate_hz")
-    if args.rate is None and cfg_rate is not None:
+    resolved_rate = None
+    if args.sample_rate_hz is not None:
+        resolved_rate = float(args.sample_rate_hz)
+    elif args.rate is not None:
+        resolved_rate = float(args.rate)
+    elif cfg_rate is not None:
         try:
-            args.rate = float(cfg_rate)
+            resolved_rate = float(cfg_rate)
         except Exception:
             print(f"[WARN] Invalid mpu6050.sample_rate_hz in config: {cfg_rate!r}", file=sys.stderr)
 
@@ -516,7 +542,7 @@ def main():
     cfg_stream_every = section.get("stream_every")
     if cfg_stream_every is not None and not _flag_present("--stream-every"):
         try:
-            args.stream_every = int(cfg_stream_every)
+            args.stream_every = max(1, int(cfg_stream_every))
         except Exception:
             print(f"[WARN] Invalid mpu6050.stream_every in config: {cfg_stream_every!r}", file=sys.stderr)
 
@@ -538,16 +564,39 @@ def main():
         except Exception:
             print(f"[WARN] Invalid mpu6050.samples in config: {cfg_samples!r}", file=sys.stderr)
 
-    if args.rate is None or args.rate <= 0:
+    cfg_session = section.get("session_name")
+    if cfg_session and not _flag_present("--session-name") and not args.session_name:
+        args.session_name = str(cfg_session)
+
+    if resolved_rate is None or resolved_rate <= 0:
         print(
-            "ERROR: --rate must be > 0 (set via CLI --rate or "
-            "mpu6050.sample_rate_hz in pi_config.yaml).",
+            "ERROR: provide a positive --sample-rate-hz/--rate (or set mpu6050.sample_rate_hz in pi_config.yaml).",
             file=sys.stderr,
         )
         return 2
 
+    args.rate = resolved_rate
+    args.sample_rate_hz = resolved_rate
+    session_name = (args.session_name or "").strip()
+    session_slug = slugify_session_name(session_name)
+
     # Clamp requested rate to practical 4..1000 Hz with DLPF enabled (datasheet)
-    req_rate = max(4.0, min(float(args.rate), 1000.0))
+    req_rate = max(4.0, min(float(resolved_rate), 1000.0))
+
+    # ------------------------------------------------------------------
+    # Rates overview
+    # ------------------------------------------------------------------
+    # - args.rate / mpu6050.sample_rate_hz:
+    #     Device sampling + recording rate (Hz) on the Pi. Every enabled
+    #     MPU6050 sensor runs at this cadence and records every sample.
+    # - args.stream_every:
+    #     Stream decimation factor; only every N-th sample per sensor is
+    #     emitted over stdout for remote GUIs to keep bandwidth manageable.
+    # - GUI refresh rate:
+    #     Controlled on the desktop side (SignalsTab QTimer). This timer
+    #     controls how frequently the plots redraw and is independent from
+    #     the Pi sampling rate unless the GUI is in "follow sampling rate"
+    #     mode.
 
     try:
         enabled = sorted({int(x) for x in args.sensors.split(",") if x.strip()})
@@ -574,7 +623,8 @@ def main():
     overruns = 0
 
     # File writers per sensor
-    out_dir = Path(args.out).expanduser().resolve()
+    base_out_dir = Path(args.out).expanduser().resolve()
+    out_dir = base_out_dir / session_slug if session_slug else base_out_dir
     try:
         out_dir.mkdir(parents=True, exist_ok=True)
     except Exception as exc:
@@ -585,6 +635,19 @@ def main():
         return 1
 
     writers: Dict[int, AsyncWriter] = {}
+
+    # Optional aggregated JSONL log file (single file for all sensors)
+    log_file_handle = None
+    log_file_path: Optional[Path] = None
+    log_file_error = False
+    if args.log_file:
+        try:
+            log_file_path = Path(args.log_file).expanduser()
+            log_file_path.parent.mkdir(parents=True, exist_ok=True)
+            log_file_handle = open(log_file_path, "a", buffering=1, encoding="utf-8")
+        except Exception as exc:
+            print(f"[WARN] Unable to open log file {args.log_file}: {exc}", file=sys.stderr)
+            return 1
 
     # Header now includes time vector `t_s` (seconds since start)
     header = ["timestamp_ns", "t_s", "sensor_id"]
@@ -670,7 +733,10 @@ def main():
                     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                     suffix = f"S{sid}"
                     ext = "csv" if args.format == "csv" else "jsonl"
-                    fpath = out_dir / f"{args.prefix}_{suffix}_{timestamp}.{ext}"
+                    prefix = args.prefix
+                    if session_slug:
+                        prefix = f"{session_slug}_{prefix}"
+                    fpath = out_dir / f"{prefix}_{suffix}_{timestamp}.{ext}"
                     writer = AsyncWriter(
                         fpath, args.format, header,
                         flush_every=args.flush_every,
@@ -699,6 +765,11 @@ def main():
                         "format": args.format,
                         "header": header,
                         "start_monotonic_ns": start_mono_ns,
+                        "session_name": session_name,
+                        "session_slug": session_slug,
+                        "session_dir": str(out_dir),
+                        "stream_every": int(args.stream_every),
+                        "stream_fields": list(stream_fields),
                         "version": 3
                     }
                     writer.write_metadata(meta)
@@ -725,6 +796,15 @@ def main():
     if not devices:
         print("ERROR: No sensors initialized. Exiting.", file=sys.stderr)
         return 2
+
+    if args.stream_stdout:
+        for sid in sorted(devices.keys()):
+            rate = actual_rates.get(sid, req_rate)
+            print(
+                f"[INFO] streaming: sensor={sid} rate={rate:.1f}Hz "
+                f"stream_every={args.stream_every} stream_fields={stream_fields}",
+                file=sys.stderr,
+            )
 
     # Sampling control
     controller = monotonic_controller(req_rate)
@@ -764,6 +844,7 @@ def main():
             # timestamp each read individually
             for sid, dev in list(devices.items()):
                 try:
+                    wall_ns = time.time_ns()
                     ts_ns = time.monotonic_ns()
                     t_s = (ts_ns - start_mono_ns) / 1e9
                     row = {"timestamp_ns": ts_ns, "t_s": t_s, "sensor_id": sid}
@@ -809,15 +890,32 @@ def main():
                         except Exception:
                             row["temp_c"] = float("nan")
 
-                    # 1) Optional file output
+                    # 1) Optional aggregated JSONL logging (one file for all samples)
+                    if log_file_handle is not None and not log_file_error:
+                        log_payload = {
+                            "sensor_id": sid,
+                            "t_s": wall_ns,
+                            "timestamp_ns": ts_ns,
+                            "t_rel_s": t_s,
+                        }
+                        for key in ("ax", "ay", "az", "gx", "gy", "gz", "temp_c"):
+                            if key in row:
+                                log_payload[key] = row[key]
+                        try:
+                            log_file_handle.write(json.dumps(log_payload, separators=(",", ":")) + "\n")
+                        except Exception as exc:
+                            log_file_error = True
+                            print(f"[WARN] Failed to write to log file {log_file_path}: {exc}", file=sys.stderr)
+
+                    # 2) Optional per-sensor file output
                     w = writers.get(sid)
                     if w is not None:
                         w.write(row)
 
-                    # 2) Update per-sensor sample counter
+                    # 3) Update per-sensor sample counter
                     samples_written[sid] += 1
 
-                    # 3) Optional stdout streaming (decimated per sensor)
+                    # 4) Optional stdout streaming (decimated per sensor)
                     if args.stream_stdout and (samples_written[sid] % max(1, args.stream_every) == 0):
                         out_obj = {
                             "timestamp_ns": ts_ns,
@@ -852,16 +950,28 @@ def main():
                 bus.close()
             except Exception:
                 pass
+        if log_file_handle is not None:
+            try:
+                log_file_handle.close()
+            except Exception:
+                pass
 
         # Summary
         print("\n=== Run summary ===")
         print(f"Host: {hostname}")
         print(f"Started: {start_iso}")
+        if session_name:
+            if session_slug:
+                print(f"Session: {session_name} (slug: {session_slug})")
+            else:
+                print(f"Session: {session_name}")
         for sid in enabled:
             if sid in samples_written:
                 print(f" Sensor {sid}: samples={samples_written[sid]}, errors={errors.get(sid, 0)}")
         print(f" Overruns: {overruns}")
         print("Output directory:", out_dir)
+        if log_file_path is not None:
+            print("Aggregated log file:", log_file_path)
 
 
 if __name__ == "__main__":
