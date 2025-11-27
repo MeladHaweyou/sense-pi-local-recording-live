@@ -88,8 +88,8 @@ class SignalPlotWidgetBase(QWidget):
         super().__init__(parent)
 
         self._max_seconds = float(max_seconds)
-        self._max_rate_hz = 500.0
-        self._buffer_margin = 1.2
+        self._max_rate_hz: float = 500.0
+        self._buffer_margin: float = 1.2
         self._buffer_capacity = calculate_capacity(
             self._max_seconds,
             self._max_rate_hz,
@@ -123,7 +123,9 @@ class SignalPlotWidgetBase(QWidget):
         self._needs_layout: bool = True
 
         self._nominal_sample_rate_hz: float = 200.0
-        self._plot_window_samples: int = self._compute_window_samples(self._nominal_sample_rate_hz)
+        self._plot_window_samples: int = self._compute_window_samples(
+            self._nominal_sample_rate_hz
+        )
         self._time_axis: np.ndarray = self._compute_time_axis(
             self._plot_window_samples,
             self._nominal_sample_rate_hz,
@@ -177,6 +179,23 @@ class SignalPlotWidgetBase(QWidget):
         rate = max(1.0, float(sample_rate_hz))
         count = max(1, int(window_samples))
         return np.arange(count, dtype=np.float64) / rate
+
+    def _time_axis_domain(self) -> tuple[float, float]:
+        """
+        Return (xmin, xmax) in seconds for the current time axis.
+
+        Backend plotting code (both Matplotlib and PyQtGraph) will use this
+        to set the x-axis range.
+        """
+
+        if getattr(self, "_time_axis", None) is not None:
+            try:
+                if self._time_axis.size > 0:
+                    return float(self._time_axis[0]), float(self._time_axis[-1])
+            except AttributeError:
+                # _time_axis exists but is not a NumPy array; fall through
+                pass
+        return 0.0, self._max_seconds
 
     @staticmethod
     def _channel_units(channel: str) -> str:
@@ -807,13 +826,7 @@ class SignalPlotWidgetBase(QWidget):
         return window_values
 
     def _get_time_axis_domain(self) -> tuple[float, float]:
-        if self._time_axis.size > 0:
-            return float(self._time_axis[0]), float(self._time_axis[-1])
-        return 0.0, self._max_seconds
-
-    # Preserve the legacy name used by subclasses and queued Qt calls.
-    def _time_axis_domain(self) -> tuple[float, float]:
-        return self._get_time_axis_domain()
+        return self._time_axis_domain()
 
     # ------------------------------------------------------------------ backend hooks
     def _set_line_data(self, key: SampleKey, times: Sequence[float], values: Sequence[float]) -> None:
@@ -882,7 +895,7 @@ class SignalPlotWidgetPyQtGraph(SignalPlotWidgetBase):
         self._plots.clear()
 
     def _backend_refresh_axes_limits(self) -> None:
-        xmin, xmax = self._get_time_axis_domain()
+        xmin, xmax = self._time_axis_domain()
         for plot in self._plots.values():
             plot.setXRange(xmin, xmax, padding=0.0)
 
@@ -892,7 +905,7 @@ class SignalPlotWidgetPyQtGraph(SignalPlotWidgetBase):
 
         nrows = len(sensor_ids)
         ncols = len(visible_channels)
-        xmin, xmax = self._get_time_axis_domain()
+        xmin, xmax = self._time_axis_domain()
 
         for row_idx, sid in enumerate(sensor_ids):
             for col_idx, ch in enumerate(visible_channels):
@@ -1491,7 +1504,7 @@ class SignalsTab(QWidget):
         top_row.addWidget(self._base_window_label)
         top_row.addStretch()
 
-        group_layout = QVBoxLayout(top_row_group)
+        group_layout = QVBoxLayout()
         group_layout.setSpacing(10)
         group_layout.addLayout(sensor_layout)
         group_layout.addLayout(top_row)
@@ -1517,7 +1530,7 @@ class SignalsTab(QWidget):
 
         # Channel selection -----------------------------------------------------
         channel_group = QGroupBox("Channels", self)
-        self._channel_layout = QHBoxLayout(channel_group)
+        self._channel_layout = QHBoxLayout()
         channel_group.setLayout(self._channel_layout)
 
         recording_section = CollapsibleSection("Recording / stream controls", self)
