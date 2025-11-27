@@ -804,10 +804,14 @@ class SignalPlotWidgetBase(QWidget):
             window_values[-shift:] = np.nan
         return window_values
 
-    def _time_axis_domain(self) -> tuple[float, float]:
+    def _get_time_axis_domain(self) -> tuple[float, float]:
         if self._time_axis.size > 0:
             return float(self._time_axis[0]), float(self._time_axis[-1])
         return 0.0, self._max_seconds
+
+    # Preserve the legacy name used by subclasses and queued Qt calls.
+    def _time_axis_domain(self) -> tuple[float, float]:
+        return self._get_time_axis_domain()
 
     # ------------------------------------------------------------------ backend hooks
     def _set_line_data(self, key: SampleKey, times: Sequence[float], values: Sequence[float]) -> None:
@@ -876,7 +880,7 @@ class SignalPlotWidgetPyQtGraph(SignalPlotWidgetBase):
         self._plots.clear()
 
     def _backend_refresh_axes_limits(self) -> None:
-        xmin, xmax = self._time_axis_domain()
+        xmin, xmax = self._get_time_axis_domain()
         for plot in self._plots.values():
             plot.setXRange(xmin, xmax, padding=0.0)
 
@@ -886,7 +890,7 @@ class SignalPlotWidgetPyQtGraph(SignalPlotWidgetBase):
 
         nrows = len(sensor_ids)
         ncols = len(visible_channels)
-        xmin, xmax = self._time_axis_domain()
+        xmin, xmax = self._get_time_axis_domain()
 
         for row_idx, sid in enumerate(sensor_ids):
             for col_idx, ch in enumerate(visible_channels):
@@ -987,7 +991,7 @@ class SignalPlotWidgetMatplotlib(SignalPlotWidgetBase):
         self._canvas.draw_idle()
 
     def _backend_refresh_axes_limits(self) -> None:
-        xmin, xmax = self._time_axis_domain()
+        xmin, xmax = self._get_time_axis_domain()
         for ax in self._axes_map.values():
             current_xmin, current_xmax = ax.get_xlim()
             if not (
@@ -1097,7 +1101,7 @@ class SignalPlotWidgetMatplotlib(SignalPlotWidgetBase):
         ax = self._figure.add_axes([0.0, 0.0, 1.0, 1.0])
         ax.set_visible(False)
         ax.grid(True, which="both", alpha=0.3)
-        xmin, xmax = self._time_axis_domain()
+        xmin, xmax = self._get_time_axis_domain()
         ax.set_xlim(xmin, xmax)
         initial_limits = self._initial_limits_for_channel(channel)
         ax.set_ylim(*initial_limits)
