@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import math
-from typing import Dict, Iterable, Optional, Set, Tuple
+import queue
+import time
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, TYPE_CHECKING, cast
 
-from PySide6.QtCore import QSettings, Signal, Slot, QTimer, Qt
+from PySide6.QtCore import Signal, Slot, QTimer, Qt, QSignalBlocker
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -11,71 +14,167 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
-
+import pyqtgraph as pg
+import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 
-from ..widgets import CollapsibleSection
-from ...core.ringbuffer import RingBuffer
+from ..perf_metrics import PlotPerfStats
+from ..widgets import (
+    AcquisitionSettings,
+    AcquisitionSettingsWidget,
+    CollapsibleSection,
+)
+from ...config.app_config import AppConfig, PlotPerformanceConfig
+from ...config.constants import ENABLE_PLOT_PERF_METRICS
+from ...core.timeseries_buffer import (
+    NS_PER_SECOND,
+    TimeSeriesBuffer,
+    calculate_capacity,
+    initialize_buffers_for_channels,
+    ns_to_seconds,
+)
+from ...data import BufferConfig, StreamingDataBuffer
 from ...sensors.mpu6050 import MpuSample
+from ...perf_system import get_process_cpu_percent
+from ...tools.debug import debug_enabled
+from . import SampleKey
+
+if TYPE_CHECKING:
+    from .tab_recorder import RecorderTab
 
 DEFAULT_REFRESH_MODE = "fixed"
-DEFAULT_REFRESH_INTERVAL_MS = 250  # 4 Hz
-MIN_REFRESH_INTERVAL_MS = 20  # Max 50 Hz
-
+DEFAULT_REFRESH_INTERVAL_MS = 50  # 20 Hz default for live traces
+# Hard lower bound on the GUI timer interval. Updating more often than ~50 Hz
+# brings little perceptual benefit but can chew CPU when many traces are shown.
+MIN_REFRESH_INTERVAL_MS = 20
+REFRESH_PROFILE_CUSTOM_LABEL = "Custom"
 REFRESH_PRESETS: list[tuple[str, int]] = [
-    ("4 Hz (250 ms) – Low CPU", 250),
-    ("20 Hz (50 ms) – Medium", 50),
-    ("50 Hz (20 ms) – High (CPU heavy)", 20),
+    ("Low CPU", 250),
+    ("Balanced", DEFAULT_REFRESH_INTERVAL_MS),
+    ("High fidelity", 20),
 ]
+STREAM_STALL_THRESHOLD_S = 2.0
+DEFAULT_DISPLAY_SLACK_NS = int(0.05 * NS_PER_SECOND)
+MANUAL_STATUS_HOLD_S = 1.5
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_CHANNEL_Y_LIMITS: dict[str, tuple[float, float]] = {
+    "ax": (-20.0, 20.0),
+    "ay": (-20.0, 20.0),
+    "az": (-20.0, 20.0),
+    "gx": (-500.0, 500.0),
+    "gy": (-500.0, 500.0),
+    "gz": (-500.0, 500.0),
+}
+DEFAULT_FALLBACK_Y_LIMITS: tuple[float, float] = (-10.0, 10.0)
 
 
-class SignalPlotWidget(QWidget):
-    """
-    Matplotlib widget that shows a grid of time‑domain plots:
+class SignalPlotWidgetBase(QWidget):
+    """Shared data management and rendering helpers for signal plot widgets."""
 
-        - one row per sensor_id
-        - one column per channel
-
-    Example with 3 sensors and channels ax, ay, gz:
-        3 rows x 3 columns = 9 subplots
-    """
-
-    def __init__(self, parent: Optional[QWidget] = None, max_seconds: float = 10.0):
+    def __init__(self, parent: Optional[QWidget] = None, max_seconds: float = 10.0) -> None:
         super().__init__(parent)
 
         self._max_seconds = float(max_seconds)
         self._max_rate_hz = 500.0
-        # key = (sensor_id, channel)  -> RingBuffer[(t, value)]
-        self._buffers: Dict[Tuple[int, str], RingBuffer[Tuple[float, float]]] = {}
-        self._buffer_capacity = max(1, int(self._max_seconds * self._max_rate_hz))
+        self._buffer_margin = 1.2
+        self._buffer_capacity = calculate_capacity(
+            self._max_seconds,
+            self._max_rate_hz,
+            margin=self._buffer_margin,
+        )
+        self._buffers: Dict[SampleKey, TimeSeriesBuffer] = self._create_buffer_store()
+        self._sensor_ids = self._extract_sensor_ids()
 
-        # Channels currently visible & their preferred order (columns)
         self._visible_channels: Set[str] = set()
         self._channel_order: list[str] = []
 
-        # Appearance
-        self._line_width: float = 0.8  # thinner than Matplotlib default
+        # Per-line visibility filter (keeps backend objects alive while hiding traces)
+        self._visible_line_keys: Set[SampleKey] = set()
+        self._visible_channel_filter: Set[str] = set()
+        self._visibility_filter_active: bool = False
 
-        # Optional base-correction (per sensor/channel)
+        self._line_width: float = 0.8
+        self._max_points_per_trace: int = 2000
+
         self._base_correction_enabled: bool = False
-        self._baseline_offsets: Dict[Tuple[int, str], float] = {}
+        self._baseline_offsets: Dict[SampleKey, float] = {}
+        self._display_slack_ns: int = 0
+        self._latest_timestamp_ns: Optional[int] = None
 
-        self._figure = Figure(figsize=(6, 6), tight_layout=True)
-        self._canvas = FigureCanvasQTAgg(self._figure)
+        self._perf: Optional[PlotPerfStats] = PlotPerfStats() if ENABLE_PLOT_PERF_METRICS else None
+        self._latest_gui_receive_ts: Optional[float] = None
+        self._target_refresh_hz: Optional[float] = None
 
-        layout = QVBoxLayout(self)
-        layout.addWidget(self._canvas)
+        self._lines: Dict[SampleKey, Any] = {}
+        self._layout_signature: tuple[tuple[int, ...], tuple[str, ...]] | tuple[()] = ()
+        self._needs_layout: bool = True
+
+        self._nominal_sample_rate_hz: float = 200.0
+        self._plot_window_samples: int = self._compute_window_samples(self._nominal_sample_rate_hz)
+        self._time_axis: np.ndarray = self._compute_time_axis(
+            self._plot_window_samples,
+            self._nominal_sample_rate_hz,
+        )
+        self._plot_buffers: Dict[SampleKey, np.ndarray] = {}
+        self._plot_write_counts: Dict[SampleKey, int] = {}
+        self._max_subplots: int | None = None
+        self._max_lines_per_subplot: int | None = None
+
+    def _create_buffer_store(self) -> Dict[SampleKey, TimeSeriesBuffer]:
+        return initialize_buffers_for_channels(
+            sensor_ids=(0, 1, 2, 3),
+            channels=("ax", "ay", "az", "gx", "gy", "gz"),
+            window_seconds=self._max_seconds,
+            max_rate_hz=self._max_rate_hz,
+            margin=self._buffer_margin,
+        )
+
+    def _extract_sensor_ids(self) -> list[int]:
+        return sorted({sensor_id for sensor_id, _ in self._buffers.keys()})
+
+    def _make_key(self, sensor_id: int, channel: str) -> SampleKey:
+        return int(sensor_id), str(channel)
+
+    def _get_buffer(self, key: SampleKey) -> TimeSeriesBuffer | None:
+        return self._buffers.get(key)
+
+    def _ensure_buffer(self, key: SampleKey) -> TimeSeriesBuffer:
+        buf = self._buffers.get(key)
+        if buf is None:
+            buf = TimeSeriesBuffer(self._buffer_capacity)
+            self._buffers[key] = buf
+            sensor_id = int(key[0])
+            if sensor_id not in self._sensor_ids:
+                self._sensor_ids.append(sensor_id)
+                self._sensor_ids.sort()
+                self._needs_layout = True
+        return buf
 
     @property
     def window_seconds(self) -> float:
         """Length of the sliding time window shown in the plots."""
         return self._max_seconds
+
+    def _compute_window_samples(self, sample_rate_hz: float) -> int:
+        rate = max(1.0, float(sample_rate_hz))
+        samples = int(math.ceil(rate * self._max_seconds))
+        return max(1, samples)
+
+    def _compute_time_axis(self, window_samples: int, sample_rate_hz: float) -> np.ndarray:
+        rate = max(1.0, float(sample_rate_hz))
+        count = max(1, int(window_samples))
+        return np.arange(count, dtype=np.float64) / rate
 
     @staticmethod
     def _channel_units(channel: str) -> str:
@@ -90,30 +189,254 @@ class SignalPlotWidget(QWidget):
     # --------------------------------------------------------------- public API
     def clear(self) -> None:
         """Clear all buffered data and reset the plot."""
-        self._buffers.clear()
+        self._buffers = self._create_buffer_store()
+        self._sensor_ids = self._extract_sensor_ids()
+        self._reset_plot_buffers()
         self._baseline_offsets.clear()
-        self._figure.clear()
-        self._canvas.draw_idle()
+        self._latest_timestamp_ns = None
+        self._latest_gui_receive_ts = None
+        self._clear_canvas()
 
-    def set_visible_channels(self, channels: Iterable[str]) -> None:
-        """
-        Select which channels should be rendered and in what column order.
+    def set_display_slack_ns(self, slack_ns: int) -> None:
+        """Configure how much to lag the display behind new data to absorb jitter."""
+        self._display_slack_ns = max(0, int(slack_ns))
 
-        The *order* of the iterable defines the column order in the grid.
+    def set_target_refresh_rate(self, hz: Optional[float]) -> None:
+        """Configure the intended refresh rate for FPS/drop metrics."""
+        if hz is None:
+            self._target_refresh_hz = None
+            return
+        try:
+            value = float(hz)
+        except (TypeError, ValueError):
+            self._target_refresh_hz = None
+            return
+        if value <= 0.0:
+            self._target_refresh_hz = None
+            return
+        self._target_refresh_hz = value
+
+    def set_max_points_per_trace(self, max_points: int) -> None:
+        """Cap how many samples are rendered per line in the live plots."""
+        try:
+            value = int(max_points)
+        except (TypeError, ValueError):
+            return
+        self._max_points_per_trace = max(100, value)
+
+    def set_nominal_sample_rate(self, hz: Optional[float]) -> None:
+        """Update the nominal sample rate used for the rolling plot buffers."""
+        try:
+            value = float(hz) if hz is not None else float("nan")
+        except (TypeError, ValueError):
+            value = float("nan")
+        if not math.isfinite(value) or value <= 0.0:
+            value = 200.0
+        value = max(1.0, value)
+        if math.isclose(value, self._nominal_sample_rate_hz, rel_tol=0.05, abs_tol=0.5):
+            return
+        self._nominal_sample_rate_hz = value
+        self._plot_window_samples = self._compute_window_samples(value)
+        self._time_axis = self._compute_time_axis(self._plot_window_samples, value)
+        self._reset_plot_buffers()
+        self._refresh_axes_limits()
+
+    def latest_timestamp_ns(self) -> Optional[int]:
+        """Return the last timestamp appended to any buffer."""
+        if self._latest_timestamp_ns is not None:
+            return self._latest_timestamp_ns
+        latest: Optional[int] = None
+        for buf in self._buffers.values():
+            candidate = buf.latest_timestamp_ns()
+            if candidate is None:
+                continue
+            if latest is None or candidate > latest:
+                latest = candidate
+        self._latest_timestamp_ns = latest
+        return latest
+
+    def live_sensor_ids(self) -> list[int]:
         """
-        channels_list = list(channels)
+        Return sensor IDs that currently have buffered samples.
+
+        This allows other widgets (e.g. FFT) to know which sensors are active
+        when sharing the same ring buffers.
+        """
+        sensor_ids: Set[int] = set()
+        for (sensor_id, _), buf in self._buffers.items():
+            if len(buf) > 0:
+                sensor_ids.add(sensor_id)
+        return sorted(sensor_ids)
+
+    def get_time_series_window(
+        self,
+        sensor_id: int,
+        channel: str,
+        window_seconds: float,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Return ``(times_s, values)`` arrays for the requested channel.
+
+        The timestamps are converted to floating-point seconds so downstream
+        consumers (FFT tab) can compute sample spacing without duplicating the
+        ring-buffer plumbing.
+        """
+        key = self._make_key(sensor_id, channel)
+        buf = self._get_buffer(key)
+        if buf is None or len(buf) == 0:
+            return self._empty_series()
+
+        latest_ns = buf.latest_timestamp_ns()
+        if latest_ns is None:
+            return self._empty_series()
+
+        try:
+            window = float(window_seconds)
+        except (TypeError, ValueError):
+            window = self._max_seconds
+        if window <= 0.0:
+            window = self._max_seconds
+
+        window_ns = int(window * NS_PER_SECOND)
+        start_ns = max(0, latest_ns - window_ns)
+        ts_ns, values = buf.get_window(start_ns, latest_ns)
+        if ts_ns.size == 0 or values.size == 0:
+            return self._empty_series()
+
+        times_s = ns_to_seconds(ts_ns)
+        return times_s, values.copy()
+
+    @staticmethod
+    def _empty_series() -> tuple[np.ndarray, np.ndarray]:
+        """Return empty arrays for shared buffer queries."""
+        return (
+            np.empty(0, dtype=np.float64),
+            np.empty(0, dtype=np.float64),
+        )
+
+    def _reset_plot_buffers(self) -> None:
+        """Reset cached rolling buffers used for display rendering."""
+        self._plot_buffers.clear()
+        self._plot_write_counts.clear()
+
+    def get_perf_snapshot(self) -> dict[str, float]:
+        """Return current performance metrics if tracking is enabled."""
+        target = float(self._target_refresh_hz) if self._target_refresh_hz else 0.0
+        perf = self._perf
+        snapshot = {
+            "fps": 0.0,
+            "achieved_fps": 0.0,
+            "avg_frame_ms": 0.0,
+            "avg_latency_ms": 0.0,
+            "max_latency_ms": 0.0,
+            "target_fps": target,
+            "approx_dropped_frames_per_sec": 0.0,
+        }
+        if not (ENABLE_PLOT_PERF_METRICS and perf):
+            return snapshot
+
+        fps = perf.compute_fps()
+        approx_drop = 0.0
+        if target > 0.0:
+            approx_drop = max(0.0, target - fps)
+        snapshot.update(
+            {
+                "fps": fps,
+                "achieved_fps": fps,
+                "avg_frame_ms": perf.avg_frame_ms(),
+                "avg_latency_ms": perf.avg_latency_ms(),
+                "max_latency_ms": perf.max_latency_ms(),
+                "target_fps": target,
+                "approx_dropped_frames_per_sec": approx_drop,
+            }
+        )
+        return snapshot
+
+    def set_channel_layout(self, channels: Iterable[str]) -> None:
+        """Configure which channel columns should be present in the grid."""
+        channels_list = [str(ch) for ch in channels]
         self._visible_channels = set(channels_list)
         self._channel_order = channels_list
+        self._needs_layout = True
+        self._ensure_layout(self._get_visible_channels())
+
+    def set_visible_channels(
+        self,
+        visible: Optional[Iterable[SampleKey | str]],
+    ) -> None:
+        """
+        Hide or show individual sensor/channel traces without rebuilding plots.
+
+        ``visible`` may contain ``(sensor_id, channel)`` tuples for explicit
+        control or raw channel strings to apply visibility across all sensors.
+        Pass ``None`` to reset the filter and show all traces.
+        """
+        if visible is None:
+            self._visibility_filter_active = False
+            self._visible_line_keys.clear()
+            self._visible_channel_filter.clear()
+            self._apply_visibility_to_all_lines()
+            return
+
+        explicit_keys: Set[SampleKey] = set()
+        channel_filter: Set[str] = set()
+        for item in visible:
+            if isinstance(item, (tuple, list)) and len(item) == 2:
+                sensor_id, channel = item
+                explicit_keys.add(self._make_key(sensor_id, channel))
+            else:
+                channel_filter.add(str(item))
+
+        self._visible_line_keys = explicit_keys
+        self._visible_channel_filter = channel_filter
+        self._visibility_filter_active = True
+        self._apply_visibility_to_all_lines()
+
+    def set_subplot_limits(
+        self,
+        *,
+        max_subplots: Optional[int] = None,
+        max_lines_per_subplot: Optional[int] = None,
+    ) -> None:
+        """Clamp how many subplot slots and traces may be created."""
+        normalized_subplots = self._normalize_positive_int(max_subplots)
+        normalized_lines = self._normalize_positive_int(max_lines_per_subplot)
+        if normalized_lines is None:
+            normalized_lines = None
+        if normalized_subplots == self._max_subplots and normalized_lines == self._max_lines_per_subplot:
+            return
+        self._max_subplots = normalized_subplots
+        self._max_lines_per_subplot = normalized_lines
+        self._needs_layout = True
+
+    @staticmethod
+    def _normalize_positive_int(value: Optional[int]) -> int | None:
+        if value is None:
+            return None
+        try:
+            normalized = int(value)
+        except (TypeError, ValueError):
+            return None
+        if normalized <= 0:
+            return None
+        return normalized
 
     def add_sample(self, sample: MpuSample) -> None:
         """Append a sample from the MPU6050 sensor."""
+        if ENABLE_PLOT_PERF_METRICS:
+            gui_ts = getattr(sample, "gui_receive_ts", None)
+            if gui_ts is not None:
+                try:
+                    self._latest_gui_receive_ts = float(gui_ts)
+                except (TypeError, ValueError):
+                    pass
+
         # Use sensor_id as row index; default to 1 if missing
         sensor_id = int(sample.sensor_id) if sample.sensor_id is not None else 1
-        t = (
-            float(sample.t_s)
-            if sample.t_s is not None
-            else sample.timestamp_ns * 1e-9
-        )
+        if sample.t_s is not None:
+            t_ns = int(round(float(sample.t_s) * NS_PER_SECOND))
+        else:
+            t_ns = int(sample.timestamp_ns)
         for ch in ("ax", "ay", "az", "gx", "gy", "gz"):
             val = getattr(sample, ch, None)
             if val is None:
@@ -124,101 +447,683 @@ class SignalPlotWidget(QWidget):
                 continue
             if math.isnan(v):
                 continue
-            self._append_point(sensor_id, ch, t, v)
+            self._append_point(sensor_id, ch, t_ns, v)
 
     def redraw(self) -> None:
-        """Refresh the Matplotlib plot (intended to be driven by a QTimer)."""
-        # Determine which channels are visible (columns)
-        visible_channels = [
-            ch for ch in self._channel_order if ch in self._visible_channels
-        ]
+        """Refresh the live plots (intended to be driven by a QTimer)."""
+        perf = self._perf if ENABLE_PLOT_PERF_METRICS else None
+        start_ts = time.perf_counter() if perf is not None else None
+        try:
+            visible_channels = self._get_visible_channels()
+            if not visible_channels:
+                self._clear_canvas()
+                return
+
+            self._ensure_layout(visible_channels)
+            if not self._lines:
+                return
+
+            slack_samples = self._display_slack_samples()
+            time_axis = self._time_axis
+            for key in self._lines.keys():
+                window_values = self._get_plot_window(key, slack_samples)
+                if window_values.size == 0:
+                    self._clear_line_data(key)
+                    continue
+                if self._base_correction_enabled:
+                    offset = self._baseline_offsets.get(key, 0.0)
+                    if offset:
+                        window_values = window_values - offset
+
+                finite_mask = np.isfinite(window_values)
+                if not finite_mask.any():
+                    self._clear_line_data(key)
+                    continue
+
+                times = time_axis[finite_mask]
+                values = window_values[finite_mask]
+
+                times_decimated, values_decimated = self._decimate_for_plot(
+                    times,
+                    values,
+                    self._max_points_per_trace,
+                )
+                if not times_decimated:
+                    self._clear_line_data(key)
+                    continue
+                self._set_line_data(key, times_decimated, values_decimated)
+
+            self._refresh_axes_limits()
+        finally:
+            if perf is not None and start_ts is not None:
+                end_ts = time.perf_counter()
+                perf.record_frame(start_ts, end_ts)
+                gui_ts = self._latest_gui_receive_ts
+                if gui_ts is not None:
+                    latency_s = end_ts - gui_ts
+                    if 0.0 <= latency_s < 60.0:
+                        perf.record_latency(latency_s)
+
+        self._finalize_redraw()
+
+    def _decimate_for_plot(
+        self,
+        times: Sequence[float],
+        values: Sequence[float],
+        max_points: int,
+    ) -> Tuple[list[float], list[float]]:
+        """
+        Downsample ``times``/``values`` to at most ``max_points`` samples.
+
+        Uses a simple envelope approach (per-chunk min/max) to preserve spikes
+        without incurring heavy computation.
+        """
+        n = min(len(times), len(values))
+        if n == 0:
+            return [], []
+
+        try:
+            limit = int(max_points)
+        except (TypeError, ValueError):
+            limit = self._max_points_per_trace
+        if limit <= 0:
+            limit = 1
+
+        if limit == 1:
+            return [float(times[0])], [float(values[0])]
+
+        if n <= limit:
+            return (
+                [float(times[i]) for i in range(n)],
+                [float(values[i]) for i in range(n)],
+            )
+
+        last_index = n - 1
+        mid_budget = max(0, limit - 2)
+        selected_indices: list[int] = [0]
+
+        if mid_budget == 0:
+            if last_index != 0:
+                selected_indices.append(last_index)
+            return (
+                [float(times[idx]) for idx in selected_indices],
+                [float(values[idx]) for idx in selected_indices],
+            )
+
+        chunk_budget = max(1, math.ceil(mid_budget / 2))
+        step = max(1, math.ceil(n / chunk_budget))
+        mid_added = 0
+
+        for start in range(0, n, step):
+            if mid_added >= mid_budget:
+                break
+            end = min(n, start + step)
+            if end - start <= 0:
+                continue
+
+            min_idx = start
+            max_idx = start
+            min_val = float(values[start])
+            max_val = min_val
+
+            for idx in range(start + 1, end):
+                v = float(values[idx])
+                if v < min_val:
+                    min_val = v
+                    min_idx = idx
+                if v > max_val:
+                    max_val = v
+                    max_idx = idx
+
+            for idx in sorted({min_idx, max_idx}):
+                if idx == 0 or idx == last_index:
+                    continue
+                if idx <= selected_indices[-1]:
+                    continue
+                selected_indices.append(idx)
+                mid_added += 1
+                if mid_added >= mid_budget:
+                    break
+
+        if selected_indices[-1] != last_index:
+            selected_indices.append(last_index)
+
+        times_out = [float(times[idx]) for idx in selected_indices]
+        values_out = [float(values[idx]) for idx in selected_indices]
+        return times_out, values_out
+
+    def _get_visible_channels(self) -> list[str]:
+        return [ch for ch in self._channel_order if ch in self._visible_channels]
+
+    def _apply_subplot_limits(
+        self,
+        visible_channels: list[str],
+    ) -> tuple[list[int], list[str], bool, bool]:
+        sensors = list(self._sensor_ids)
+        channels = [str(ch) for ch in visible_channels]
+        if not sensors or not channels:
+            return sensors, channels, False, False
+        max_subplots = self._max_subplots
+        if not max_subplots or max_subplots <= 0:
+            return sensors, channels, False, False
+        total = len(sensors) * len(channels)
+        if total <= max_subplots:
+            return sensors, channels, False, False
+
+        limited_channels = list(channels)
+        max_channels = max(1, max_subplots // len(sensors))
+        trimmed_channels = False
+        if len(limited_channels) > max_channels:
+            limited_channels = limited_channels[:max_channels]
+            trimmed_channels = True
+        if not limited_channels and channels:
+            limited_channels = [channels[0]]
+
+        limited_sensors = list(sensors)
+        max_sensors = max(1, max_subplots // len(limited_channels))
+        trimmed_sensors = False
+        if len(limited_sensors) > max_sensors:
+            limited_sensors = limited_sensors[:max_sensors]
+            trimmed_sensors = True
+        return limited_sensors, limited_channels, trimmed_channels, trimmed_sensors
+
+    def _apply_visibility_to_all_lines(self) -> None:
+        if not self._lines:
+            return
+        for key, line in self._lines.items():
+            self._line_set_visible(line, self._is_key_visible(key))
+
+    def _is_key_visible(self, key: SampleKey) -> bool:
+        if not self._visibility_filter_active:
+            return True
+        if key in self._visible_line_keys:
+            return True
+        channel = key[1]
+        if channel in self._visible_channel_filter:
+            return True
+        return False
+
+    def _clear_canvas(self) -> None:
+        self._backend_clear()
+        self._lines.clear()
+        self._layout_signature = ()
+        self._needs_layout = True
+
+    def _refresh_axes_limits(self) -> None:
+        self._backend_refresh_axes_limits()
+
+    def _ensure_layout(self, visible_channels: list[str]) -> None:
         if not visible_channels:
-            self._figure.clear()
-            self._canvas.draw_idle()
+            self._clear_canvas()
             return
-
-        # Active buffers that actually have data
-        active_buffers = [
-            buf
-            for (sid, ch), buf in self._buffers.items()
-            if ch in visible_channels and len(buf) > 0
-        ]
-        if not active_buffers:
-            self._figure.clear()
-            self._canvas.draw_idle()
+        if not self._sensor_ids:
+            self._needs_layout = True
             return
-
-        # Time window: last max_seconds across all sensors/channels.
-        # Clamp to 0 so a fresh stream starts at t = 0 on the x-axis.
-        latest = max(buf[-1][0] for buf in active_buffers)
-        cutoff = max(0.0, latest - self._max_seconds)
-
-        # Sensor rows
-        sensor_ids = sorted(
-            {
-                sid
-                for (sid, ch) in self._buffers.keys()
-                if ch in visible_channels
-            }
+        original_sensor_count = len(self._sensor_ids)
+        original_channel_count = len(visible_channels)
+        (
+            sensor_ids,
+            limited_channels,
+            trimmed_channels,
+            trimmed_sensors,
+        ) = self._apply_subplot_limits(visible_channels)
+        if not sensor_ids or not limited_channels:
+            self._clear_canvas()
+            return
+        signature: tuple[tuple[int, ...], tuple[str, ...]] = (
+            tuple(sensor_ids),
+            tuple(limited_channels),
         )
-        if not sensor_ids:
-            self._figure.clear()
-            self._canvas.draw_idle()
+        should_log_limits = (
+            (trimmed_channels or trimmed_sensors)
+            and (self._needs_layout or signature != self._layout_signature)
+        )
+        if should_log_limits:
+            limit = self._max_subplots
+            if trimmed_channels and original_channel_count > len(limited_channels):
+                logger.warning(
+                    "SignalsTab: reducing visible channels from %d to %d to honor max subplot limit (%s).",
+                    original_channel_count,
+                    len(limited_channels),
+                    limit,
+                )
+            if trimmed_sensors and original_sensor_count > len(sensor_ids):
+                logger.warning(
+                    "SignalsTab: reducing visible sensor rows from %d to %d to honor max subplot limit (%s).",
+                    original_sensor_count,
+                    len(sensor_ids),
+                    limit,
+                )
+        if not self._needs_layout and signature == self._layout_signature:
             return
+        self._lines.clear()
+        self._backend_rebuild_layout(sensor_ids, limited_channels)
+        self._layout_signature = signature
+        self._needs_layout = False
+        self._apply_visibility_to_all_lines()
+
+    # ------------------------------------------------------------------ backend hooks
+    def _set_line_data(self, key: SampleKey, times: Sequence[float], values: Sequence[float]) -> None:
+        line = self._lines.get(key)
+        if line is None:
+            return
+        self._line_set_data(line, times, values)
+
+    def _clear_line_data(self, key: SampleKey) -> None:
+        line = self._lines.get(key)
+        if line is None:
+            return
+        self._line_clear_data(line)
+
+    def _line_set_data(self, line: Any, times: Sequence[float], values: Sequence[float]) -> None:
+        raise NotImplementedError
+
+    def _line_clear_data(self, line: Any) -> None:
+        raise NotImplementedError
+
+    def _line_set_visible(self, line: Any, visible: bool) -> None:
+        raise NotImplementedError
+
+    def _backend_clear(self) -> None:
+        raise NotImplementedError
+
+    def _backend_refresh_axes_limits(self) -> None:
+        raise NotImplementedError
+
+    def _backend_rebuild_layout(self, sensor_ids: list[int], visible_channels: list[str]) -> None:
+        raise NotImplementedError
+
+    def _finalize_redraw(self) -> None:
+        """Hook for subclasses that need to trigger an explicit redraw."""
+        return
+
+
+class SignalPlotWidgetPyQtGraph(SignalPlotWidgetBase):
+    """PyQtGraph implementation of the signal plot widget."""
+
+    def __init__(self, parent: Optional[QWidget] = None, max_seconds: float = 10.0) -> None:
+        super().__init__(parent=parent, max_seconds=max_seconds)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._glw = pg.GraphicsLayoutWidget(self)
+        layout.addWidget(self._glw)
+
+        self._plots: Dict[SampleKey, pg.PlotItem] = {}
+        self._line_pen = pg.mkPen(width=max(1.0, float(self._line_width)))
+
+    def _line_set_data(self, line: pg.PlotDataItem, times: Sequence[float], values: Sequence[float]) -> None:
+        line.setData(times, values)
+
+    def _line_clear_data(self, line: pg.PlotDataItem) -> None:
+        line.setData([], [])
+
+    def _line_set_visible(self, line: pg.PlotDataItem, visible: bool) -> None:
+        line.setVisible(visible)
+
+    def _backend_clear(self) -> None:
+        self._glw.clear()
+        self._plots.clear()
+
+    def _backend_refresh_axes_limits(self) -> None:
+        xmin, xmax = self._time_axis_domain()
+        for plot in self._plots.values():
+            plot.setXRange(xmin, xmax, padding=0.0)
+
+    def _backend_rebuild_layout(self, sensor_ids: list[int], visible_channels: list[str]) -> None:
+        self._glw.clear()
+        self._plots.clear()
 
         nrows = len(sensor_ids)
         ncols = len(visible_channels)
-
-        self._figure.clear()
+        xmin, xmax = self._time_axis_domain()
 
         for row_idx, sid in enumerate(sensor_ids):
             for col_idx, ch in enumerate(visible_channels):
-                subplot_index = row_idx * ncols + col_idx + 1
-                ax = self._figure.add_subplot(nrows, ncols, subplot_index)
+                plot = self._glw.addPlot(row=row_idx, col=col_idx)
+                plot.setMenuEnabled(False)
+                plot.hideButtons()
+                plot.showGrid(x=True, y=True, alpha=0.3)
+                plot.setXRange(xmin, xmax, padding=0.0)
+                plot.enableAutoRange(x=False, y=True)
 
-                buf = self._buffers.get((sid, ch))
-                if buf is None or len(buf) == 0:
-                    ax.set_visible(False)
-                    continue
-
-                points = [(t, v) for (t, v) in buf if t >= cutoff]
-                if not points:
-                    ax.set_visible(False)
-                    continue
-
-                times = [t - cutoff for (t, v) in points]
-                raw_values = [v for (_t, v) in points]
-
-                offset = 0.0
-                if self._base_correction_enabled:
-                    offset = self._baseline_offsets.get((sid, ch), 0.0)
-                values = [v - offset for v in raw_values]
-
-                ax.plot(times, values, linewidth=self._line_width)
-
-                # X label only on the bottom row
                 if row_idx == nrows - 1:
-                    ax.set_xlabel("Time (s)")
+                    plot.setLabel("bottom", "Time", units="s")
 
                 unit = self._channel_units(ch)
                 base_label = ch.upper()
                 if unit:
                     base_label = f"{base_label} [{unit}]"
 
-                # Leftmost column shows sensor row + channel
                 if col_idx == 0:
-                    if sid == 0:
-                        prefix = "Live"
-                    else:
-                        prefix = f"S{sid}"
-                    ax.set_ylabel(f"{prefix}\n{base_label}")
+                    prefix = "Live" if sid == 0 else f"S{sid}"
+                    plot.setLabel("left", f"{prefix}\n{base_label}")
                 else:
-                    ax.set_ylabel(base_label)
+                    plot.setLabel("left", base_label)
 
-                ax.grid(True)
+                line = plot.plot([], [], pen=self._line_pen)
+                key = self._make_key(sid, ch)
+                self._plots[key] = plot
+                self._lines[key] = line
 
-        self._figure.tight_layout()
+
+class SignalPlotWidgetMatplotlib(SignalPlotWidgetBase):
+    """Matplotlib implementation of the signal plot widget."""
+
+    def __init__(self, parent: Optional[QWidget] = None, max_seconds: float = 10.0) -> None:
+        super().__init__(parent=parent, max_seconds=max_seconds)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._figure = Figure(figsize=(6, 6))
+        self._canvas = FigureCanvasQTAgg(self._figure)
+        layout.addWidget(self._canvas)
+        self.use_blit: bool = True
+        self._bg_cache: Any | None = None
+        self._full_redraw_requested = False
+        self._canvas.mpl_connect("draw_event", self._on_canvas_draw)
+        self._axes_map: Dict[SampleKey, Axes] = {}
+        self._lines_map: Dict[SampleKey, Line2D] = cast(Dict[SampleKey, Line2D], self._lines)
+        self._axes_cache: Dict[SampleKey, Axes] = {}
+        self._lines_cache: Dict[SampleKey, Line2D] = {}
+        self._axis_y_limits: Dict[SampleKey, tuple[float, float]] = {}
+        self._channel_initial_ylim: Dict[str, tuple[float, float]] = dict(DEFAULT_CHANNEL_Y_LIMITS)
+        self._default_initial_ylim: tuple[float, float] = DEFAULT_FALLBACK_Y_LIMITS
+        self._autoscale_margin = 0.1
+        self._channel_superset = self._infer_available_channels()
+        for sensor_id in self._sensor_ids:
+            self._ensure_cached_axes_for_sensor(sensor_id)
+
+    def _on_canvas_draw(self, event: Any) -> None:
+        if event is not None and getattr(event, "canvas", None) is not self._canvas:
+            return
+        if not self.use_blit:
+            self._bg_cache = None
+            self._full_redraw_requested = False
+            return
+        self._bg_cache = self._canvas.copy_from_bbox(self._figure.bbox)
+        self._full_redraw_requested = False
+
+    def _request_full_redraw(self) -> None:
+        self._bg_cache = None
+        self._full_redraw_requested = True
+
+    def _set_line_data(self, key: SampleKey, times: Sequence[float], values: Sequence[float]) -> None:
+        line = self._lines_map.get(key)
+        if line is None:
+            return
+        self._line_set_data(line, times, values)
+        limits_changed = self._update_axis_limits_from_data(key, values)
+        if limits_changed:
+            self._request_full_redraw()
+
+    def _line_set_data(self, line: Line2D, times: Sequence[float], values: Sequence[float]) -> None:
+        line.set_data(times, values)
+
+    def _line_clear_data(self, line: Line2D) -> None:
+        line.set_data([], [])
+
+    def _line_set_visible(self, line: Line2D, visible: bool) -> None:
+        line.set_visible(visible)
+
+    def _backend_clear(self) -> None:
+        for line in self._lines_cache.values():
+            line.set_data([], [])
+            line.set_visible(False)
+        for ax in self._axes_cache.values():
+            ax.set_visible(False)
+        self._axes_map.clear()
+        self._lines_map.clear()
+        self._request_full_redraw()
         self._canvas.draw_idle()
+
+    def _backend_refresh_axes_limits(self) -> None:
+        xmin, xmax = self._time_axis_domain()
+        for ax in self._axes_map.values():
+            current_xmin, current_xmax = ax.get_xlim()
+            if not (
+                math.isclose(current_xmin, xmin, rel_tol=1e-9, abs_tol=1e-9)
+                and math.isclose(current_xmax, xmax, rel_tol=1e-9, abs_tol=1e-9)
+            ):
+                ax.set_xlim(xmin, xmax)
+                self._request_full_redraw()
+
+    def _backend_rebuild_layout(self, sensor_ids: list[int], visible_channels: list[str]) -> None:
+        for channel in visible_channels:
+            self._ensure_channel_slot(channel)
+        for sensor_id in sensor_ids:
+            self._ensure_cached_axes_for_sensor(sensor_id)
+
+        self._axes_map.clear()
+        self._lines_map.clear()
+
+        active_sensor_ids = list(sensor_ids)
+        if not active_sensor_ids or not visible_channels:
+            for ax in self._axes_cache.values():
+                ax.set_visible(False)
+            for line in self._lines_cache.values():
+                line.set_visible(False)
+            self._request_full_redraw()
+            self._canvas.draw_idle()
+            return
+
+        sensor_index = {sid: idx for idx, sid in enumerate(active_sensor_ids)}
+        channel_index = {ch: idx for idx, ch in enumerate(visible_channels)}
+        nrows = len(active_sensor_ids)
+        ncols = len(visible_channels)
+
+        for key, ax in self._axes_cache.items():
+            sensor_id, channel = key
+            if sensor_id not in sensor_index or channel not in channel_index:
+                ax.set_visible(False)
+                self._lines_cache[key].set_visible(False)
+                continue
+
+            row_idx = sensor_index[sensor_id]
+            col_idx = channel_index[channel]
+            ax.set_position(self._compute_axes_position(row_idx, col_idx, nrows, ncols))
+            ax.set_visible(True)
+            self._configure_axis_labels(ax, sensor_id, channel, row_idx, col_idx, nrows, ncols)
+
+            line = self._lines_cache[key]
+            line.set_visible(True)
+            self._axes_map[key] = ax
+            self._lines_map[key] = line
+
+        self._request_full_redraw()
+        self._canvas.draw_idle()
+
+    def _finalize_redraw(self) -> None:
+        if not self.use_blit or not self._lines_map:
+            self._canvas.draw_idle()
+            return
+
+        if self._full_redraw_requested or self._bg_cache is None:
+            self._full_redraw_requested = False
+            self._canvas.draw()
+            return
+
+        try:
+            self._canvas.restore_region(self._bg_cache)
+        except Exception:
+            # If restoring fails (e.g., after a resize), do a full redraw.
+            self._request_full_redraw()
+            self._canvas.draw()
+            return
+
+        for line in self._lines_map.values():
+            if not line.get_visible():
+                continue
+            ax = line.axes
+            if ax is None or not ax.get_visible():
+                continue
+            ax.draw_artist(line)
+
+        self._canvas.blit(self._figure.bbox)
+
+    def _infer_available_channels(self) -> list[str]:
+        channels = sorted({channel for _, channel in self._buffers.keys()})
+        if channels:
+            return channels
+        return ["ax", "ay", "az", "gx", "gy", "gz"]
+
+    def _ensure_channel_slot(self, channel: str) -> None:
+        if channel in self._channel_superset:
+            return
+        self._channel_superset.append(channel)
+        for sensor_id in self._sensor_ids:
+            self._ensure_cached_axis(sensor_id, channel)
+
+    def _ensure_cached_axes_for_sensor(self, sensor_id: int) -> None:
+        for channel in self._channel_superset:
+            self._ensure_cached_axis(sensor_id, channel)
+
+    def _ensure_cached_axis(self, sensor_id: int, channel: str) -> None:
+        key = self._make_key(sensor_id, channel)
+        if key in self._axes_cache:
+            if key not in self._axis_y_limits:
+                ax = self._axes_cache[key]
+                self._axis_y_limits[key] = ax.get_ylim()
+            return
+        ax = self._figure.add_axes([0.0, 0.0, 1.0, 1.0])
+        ax.set_visible(False)
+        ax.grid(True, which="both", alpha=0.3)
+        xmin, xmax = self._time_axis_domain()
+        ax.set_xlim(xmin, xmax)
+        initial_limits = self._initial_limits_for_channel(channel)
+        ax.set_ylim(*initial_limits)
+        line, = ax.plot([], [], linewidth=self._line_width)
+        line.set_visible(False)
+        self._axes_cache[key] = ax
+        self._lines_cache[key] = line
+        self._axis_y_limits[key] = initial_limits
+
+    def _configure_axis_labels(
+        self,
+        ax: Axes,
+        sensor_id: int,
+        channel: str,
+        row_idx: int,
+        col_idx: int,
+        nrows: int,
+        ncols: int,
+    ) -> None:
+        if row_idx == nrows - 1:
+            ax.set_xlabel("Time [s]")
+            ax.tick_params(labelbottom=True)
+        else:
+            ax.set_xlabel("")
+            ax.tick_params(labelbottom=False)
+
+        unit = self._channel_units(channel)
+        base_label = channel.upper()
+        if unit:
+            base_label = f"{base_label} [{unit}]"
+
+        if col_idx == 0:
+            prefix = "Live" if sensor_id == 0 else f"S{sensor_id}"
+            ax.set_ylabel(f"{prefix}\n{base_label}")
+        else:
+            ax.set_ylabel(base_label)
+
+    def _compute_axes_position(
+        self,
+        row_idx: int,
+        col_idx: int,
+        nrows: int,
+        ncols: int,
+    ) -> list[float]:
+        left = 0.08
+        right = 0.98
+        bottom = 0.07
+        top = 0.98
+        hpad = 0.03
+        vpad = 0.03
+
+        total_width = max(0.0, right - left)
+        total_height = max(0.0, top - bottom)
+        width = total_width if ncols <= 1 else (total_width - hpad * (ncols - 1)) / ncols
+        height = total_height if nrows <= 1 else (total_height - vpad * (nrows - 1)) / nrows
+
+        x = left + col_idx * (width + (0 if ncols <= 1 else hpad))
+        y = bottom + (nrows - 1 - row_idx) * (height + (0 if nrows <= 1 else vpad))
+        return [x, y, width, height]
+
+    def _initial_limits_for_channel(self, channel: str) -> tuple[float, float]:
+        return self._channel_initial_ylim.get(channel, self._default_initial_ylim)
+
+    def _update_axis_limits_from_data(self, key: SampleKey, values: Sequence[float]) -> bool:
+        if not values:
+            return False
+        arr = np.asarray(values, dtype=np.float64)
+        if arr.size == 0:
+            return False
+        finite = arr[np.isfinite(arr)]
+        if finite.size == 0:
+            return False
+
+        data_min = float(finite.min())
+        data_max = float(finite.max())
+        ax = self._axes_cache.get(key)
+        if ax is None:
+            return False
+
+        current_limits = self._axis_y_limits.get(key)
+        if current_limits is None:
+            current_limits = ax.get_ylim()
+            self._axis_y_limits[key] = current_limits
+
+        ymin, ymax = current_limits
+        span = max(ymax - ymin, 1e-6)
+        new_ymin, new_ymax = ymin, ymax
+        changed = False
+
+        if data_max > ymax:
+            new_ymax = data_max + span * self._autoscale_margin
+            changed = True
+        if data_min < ymin:
+            new_ymin = data_min - span * self._autoscale_margin
+            changed = True
+
+        if changed:
+            ax.set_ylim(new_ymin, new_ymax)
+            self._axis_y_limits[key] = (new_ymin, new_ymax)
+            return True
+        return False
+
+
+# Backwards compatibility alias: existing imports that expect ``SignalPlotWidget``
+# will receive the PyQtGraph backend unless explicitly overridden via config.
+SignalPlotWidget = SignalPlotWidgetPyQtGraph
+
+
+def _normalize_signal_backend(name: str | None) -> str:
+    if not name:
+        return "pyqtgraph"
+    normalized = str(name).strip().lower()
+    if normalized in {"matplotlib", "mpl"}:
+        return "matplotlib"
+    if normalized in {"pyqtgraph", "pg", "pyqt"}:
+        return "pyqtgraph"
+    return "pyqtgraph"
+
+
+def create_signal_plot_widget(
+    parent: Optional[QWidget],
+    backend: str | None,
+    *,
+    max_seconds: float = 10.0,
+) -> SignalPlotWidgetBase:
+    """Factory that returns a signal-plot widget for the requested backend."""
+    normalized = _normalize_signal_backend(backend)
+    if normalized == "matplotlib":
+        widget = SignalPlotWidgetMatplotlib(parent=parent, max_seconds=max_seconds)
+    else:
+        if backend is not None and normalized != str(backend).strip().lower():
+            logger.warning(
+                "Unknown signal plot backend '%s'; falling back to PyQtGraph.",
+                backend,
+            )
+        widget = SignalPlotWidgetPyQtGraph(parent=parent, max_seconds=max_seconds)
+    return widget
 
     # --------------------------------------------------------------- base correction API
     def enable_base_correction(self, enabled: bool) -> None:
@@ -239,32 +1144,93 @@ class SignalPlotWidget(QWidget):
         if not self._buffers:
             return
 
-        latest_times = [buf[-1][0] for buf in self._buffers.values() if len(buf) > 0]
+        latest_times = [
+            ts
+            for buf in self._buffers.values()
+            if len(buf) > 0 and (ts := buf.latest_timestamp_ns()) is not None
+        ]
         if not latest_times:
             return
 
-        latest = max(latest_times)
-        cutoff = max(0.0, latest - self._max_seconds)
+        window_ns = int(self._max_seconds * NS_PER_SECOND)
+        latest_ns = max(latest_times)
+        cutoff_ns = max(0, latest_ns - window_ns)
 
-        new_offsets: Dict[Tuple[int, str], float] = {}
+        new_offsets: Dict[SampleKey, float] = {}
         for key, buf in self._buffers.items():
             if not buf:
                 continue
-            values = [v for (t, v) in buf if t >= cutoff]
-            if not values:
+            _, values = buf.get_window(cutoff_ns, latest_ns)
+            if values.size == 0:
                 continue
-            new_offsets[key] = sum(values) / float(len(values))
+            new_offsets[key] = float(values.mean())
 
         self._baseline_offsets = new_offsets
 
     # --------------------------------------------------------------- internals
-    def _append_point(self, sensor_id: int, channel: str, t: float, value: float) -> None:
-        key = (sensor_id, channel)
-        buf = self._buffers.get(key)
+    def _append_point(self, sensor_id: int, channel: str, t_ns: int, value: float) -> None:
+        key = self._make_key(sensor_id, channel)
+        buf = self._ensure_buffer(key)
+        buf.append(t_ns, value)
+        self._append_plot_value(key, value)
+        if self._latest_timestamp_ns is None or t_ns > self._latest_timestamp_ns:
+            self._latest_timestamp_ns = t_ns
+
+    def _append_plot_value(self, key: SampleKey, value: float) -> None:
+        """Append a sample to the rolling buffer used for live rendering."""
+        window = self._plot_window_samples
+        if window <= 0:
+            return
+        buf = self._ensure_plot_buffer(key)
+        write_count = self._plot_write_counts.get(key, 0)
+        idx = write_count % window
+        buf[idx] = float(value)
+        self._plot_write_counts[key] = write_count + 1
+
+    def _ensure_plot_buffer(self, key: SampleKey) -> np.ndarray:
+        buf = self._plot_buffers.get(key)
+        if buf is not None and buf.shape[0] == self._plot_window_samples:
+            return buf
+        new_buf = np.full(self._plot_window_samples, np.nan, dtype=np.float64)
+        self._plot_buffers[key] = new_buf
+        self._plot_write_counts[key] = 0
+        return new_buf
+
+    def _display_slack_samples(self) -> int:
+        if self._display_slack_ns <= 0:
+            return 0
+        slack_seconds = self._display_slack_ns / float(NS_PER_SECOND)
+        samples = int(round(slack_seconds * self._nominal_sample_rate_hz))
+        if samples <= 0:
+            return 0
+        return min(samples, self._plot_window_samples)
+
+    def _get_plot_window(self, key: SampleKey, slack_samples: int) -> np.ndarray:
+        buf = self._plot_buffers.get(key)
         if buf is None:
-            buf = RingBuffer(self._buffer_capacity)
-            self._buffers[key] = buf
-        buf.append((t, value))
+            return np.empty(0, dtype=np.float64)
+        window = self._plot_window_samples
+        if window <= 0:
+            return np.empty(0, dtype=np.float64)
+        write_count = self._plot_write_counts.get(key, 0)
+        if write_count <= 0:
+            return np.empty(0, dtype=np.float64)
+        idx = write_count % window
+        window_values = np.roll(buf, -idx).copy()
+        if write_count < window:
+            invalid = window - int(write_count)
+            if invalid > 0:
+                window_values[:invalid] = np.nan
+        if slack_samples > 0:
+            shift = min(slack_samples, window)
+            window_values = np.roll(window_values, -shift)
+            window_values[-shift:] = np.nan
+        return window_values
+
+    def _time_axis_domain(self) -> tuple[float, float]:
+        if self._time_axis.size > 0:
+            return float(self._time_axis[0]), float(self._time_axis[-1])
+        return 0.0, self._max_seconds
 
 
 class SignalsTab(QWidget):
@@ -277,21 +1243,136 @@ class SignalsTab(QWidget):
 
     start_stream_requested = Signal(bool)  # bool = recording mode
     stop_stream_requested = Signal()
+    fft_refresh_interval_changed = Signal(int)
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        recorder_tab: "RecorderTab | None" = None,
+        parent: Optional[QWidget] = None,
+        plot_widget: SignalPlotWidgetBase | None = None,
+        app_config: AppConfig | None = None,
+    ) -> None:
         super().__init__(parent)
+
+        self._recorder_tab: RecorderTab | None = recorder_tab
+        self._app_config: AppConfig = app_config or AppConfig()
+        plot_perf = getattr(self._app_config, "plot_performance", None)
+        if not isinstance(plot_perf, PlotPerformanceConfig):
+            plot_perf = PlotPerformanceConfig()
+        self._plot_perf_config: PlotPerformanceConfig = plot_perf
+        default_refresh_ms = max(
+            MIN_REFRESH_INTERVAL_MS,
+            int(self._plot_perf_config.signal_refresh_interval_ms()),
+        )
 
         # Refresh configuration
         self.refresh_mode: str = DEFAULT_REFRESH_MODE
-        self.refresh_interval_ms: int = DEFAULT_REFRESH_INTERVAL_MS
+        self.refresh_interval_ms: int = default_refresh_ms
         self._sampling_rate_hz: Optional[float] = None
-        self._load_refresh_settings()
+        self._last_follow_interval_ms: Optional[int] = None
 
-        self._plot = SignalPlotWidget(max_seconds=10.0)
+        max_window_seconds = self._plot_perf_config.normalized_time_window_s()
+        if plot_widget is None:
+            plot_widget = SignalPlotWidgetPyQtGraph(max_seconds=max_window_seconds)
+        if plot_widget.parent() is None:
+            plot_widget.setParent(self)
+        self._plot: SignalPlotWidgetBase = plot_widget
+        self._plot.set_subplot_limits(
+            max_subplots=self._plot_perf_config.normalized_max_subplots(),
+            max_lines_per_subplot=self._plot_perf_config.normalized_max_lines(),
+        )
+        self._plot.set_max_points_per_trace(
+            self._plot_perf_config.normalized_max_points()
+        )
+        self._fallback_data_buffer = StreamingDataBuffer(
+            BufferConfig(
+                max_seconds=self._plot.window_seconds,
+                sample_rate_hz=self._sampling_rate_hz or 200.0,
+            )
+        )
+        self._data_buffer: StreamingDataBuffer | None = None
+        self._buffer_cursors: Dict[int | str, float] = {}
+        self._synthetic_active = False
+        if recorder_tab is not None:
+            try:
+                self.set_data_buffer(recorder_tab.data_buffer())
+            except AttributeError:
+                self._data_buffer = None
+            host_combo = getattr(recorder_tab, "host_combo", None)
+            if host_combo is not None:
+                host_combo.currentIndexChanged.connect(self._refresh_mode_hint)
+        self._target_refresh_hz: Optional[float] = None
+        self._last_refresh_timestamp: float | None = None
+        self._smoothed_refresh_hz: float | None = None
+        self._timer_tick_counter = 0
+        self._timer_measure_window_start = time.perf_counter()
+        self._timer_stats_hz = 0.0
         self._channel_checkboxes: Dict[str, QCheckBox] = {}
         self._recording_section: CollapsibleSection | None = None
         self._host_section: CollapsibleSection | None = None
         self._mpu_section: CollapsibleSection | None = None
+        self._acquisition_section: CollapsibleSection | None = None
+        self._acquisition_widget = AcquisitionSettingsWidget(self)
+        self._acquisition_widget.signalsModeChanged.connect(
+            self._on_acquisition_mode_changed
+        )
+        self._acquisition_widget.signalsRefreshChanged.connect(
+            self._on_acquisition_refresh_changed
+        )
+        self._acquisition_widget.fftRefreshChanged.connect(
+            self._emit_fft_refresh_interval_changed
+        )
+        self._acquisition_widget.set_signals_refresh_interval(self.refresh_interval_ms)
+        fft_spin_min = int(self._acquisition_widget.fft_refresh_spin.minimum())
+        default_fft_interval = max(
+            fft_spin_min,
+            int(self._plot_perf_config.fft_refresh_interval_ms()),
+        )
+        self._acquisition_widget.set_fft_refresh_interval(default_fft_interval)
+        self._plot.set_display_slack_ns(DEFAULT_DISPLAY_SLACK_NS)
+        self._perf_hud_label = QLabel(self._plot)
+        self._perf_hud_label.setText("")
+        self._perf_hud_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self._perf_hud_label.setMargin(6)
+        self._perf_hud_label.setStyleSheet(
+            "QLabel {"
+            "background-color: rgba(0, 0, 0, 150);"
+            "color: white;"
+            "font-family: monospace;"
+            "font-size: 9pt;"
+            "}"
+        )
+        self._perf_hud_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self._perf_hud_label.move(8, 8)
+        self._perf_hud_label.setVisible(False)
+
+        self._stream_active = False
+        self._awaiting_first_sample = False
+        self._stream_stalled = False
+        self._stall_threshold_s = STREAM_STALL_THRESHOLD_S
+        self._last_data_monotonic: float = 0.0
+        self._manual_status_hold_s = MANUAL_STATUS_HOLD_S
+        self._status_source: str = "stream"
+        self._last_status_change_monotonic: float = 0.0
+        self._synthetic_timer: QTimer | None = None
+        self._synthetic_rate_hz: float = 0.0
+        self._synthetic_phase: float = 0.0
+        self._synthetic_phase_step: float = 0.0
+        self._synthetic_sensor_ids: List[int] = [1]
+        self._synthetic_interval_ns: int = int(self.refresh_interval_ms * 1_000_000)
+        self._synthetic_next_timestamp_ns: int = time.monotonic_ns()
+        self._synthetic_start_timestamp_ns: int = self._synthetic_next_timestamp_ns
+        self._last_redraw_ms: float = 0.0
+        self._redraw_ema_ms: float = 0.0
+        self._adaptive_slow_cycles: int = 0
+        self._adaptive_fast_cycles: int = 0
+        self._queue_ingest_time_acc_ms: float = 0.0
+        self._queue_ingest_batches: int = 0
+        self._queue_ingest_samples: int = 0
+        now = time.perf_counter()
+        self._queue_ingest_last_log: float = now
+        self._redraw_debug_ema_ms: float = 0.0
+        self._redraw_debug_last_log: float = now
 
         layout = QVBoxLayout(self)
 
@@ -317,6 +1398,33 @@ class SignalsTab(QWidget):
         )
         top_row.addWidget(self.view_mode_combo)
 
+        self._refresh_profile_custom_index: int | None = None
+        self._active_refresh_profile_label: str | None = None
+        self._refresh_profile_label = QLabel("Refresh:", top_row_group)
+        top_row.addWidget(self._refresh_profile_label)
+        self.refresh_profile_combo = QComboBox(top_row_group)
+        self.refresh_profile_combo.setToolTip(
+            "Preset GUI refresh intervals for the time-domain plots."
+        )
+        for name, interval in REFRESH_PRESETS:
+            hz = int(round(1000.0 / interval)) if interval > 0 else 0
+            label = f"{name} ({hz} Hz / {int(interval)} ms)"
+            self.refresh_profile_combo.addItem(label, int(interval))
+        self._refresh_profile_custom_index = self.refresh_profile_combo.count()
+        self.refresh_profile_combo.addItem(
+            self._format_custom_refresh_profile_label(self.refresh_interval_ms),
+            None,
+        )
+        self.refresh_profile_combo.currentIndexChanged.connect(
+            self._on_refresh_profile_changed
+        )
+        top_row.addWidget(self.refresh_profile_combo)
+        self.adaptive_mode_check = QCheckBox("Adaptive performance", top_row_group)
+        self.adaptive_mode_check.setToolTip(
+            "Automatically lower plotting/streaming load if redraws become too slow."
+        )
+        top_row.addWidget(self.adaptive_mode_check)
+
         self.view_mode_combo.currentIndexChanged.connect(
             self._on_view_mode_changed
         )
@@ -326,6 +1434,10 @@ class SignalsTab(QWidget):
             "Default is live streaming only. Tick this to also record every "
             "sample on the Pi at the configured rate."
         )
+        self._session_name_edit = QLineEdit(top_row_group)
+        self._session_name_edit.setPlaceholderText("Session name (optional)")
+        self._session_name_edit.setClearButtonEnabled(True)
+        self._session_name_edit.setMaximumWidth(200)
 
         # Base correction controls
         self.base_correction_check = QCheckBox("Base correction", top_row_group)
@@ -339,7 +1451,12 @@ class SignalsTab(QWidget):
         # Small info labels: stream rate + calibration window length
         self._stream_rate_label = QLabel("Stream rate: -- Hz", top_row_group)
         self._stream_rate_label.setToolTip(
-            "Estimated rate at which samples arrive in this GUI tab."
+            "Estimated rate at which samples arrive in this GUI tab after any "
+            "Pi-side stream decimation (mpu6050 --stream-every)."
+        )
+        self._plot_refresh_label = QLabel("Plot refresh: -- Hz", top_row_group)
+        self._plot_refresh_label.setToolTip(
+            "Approximate refresh/FPS rate achieved by the GUI plot."
         )
         self._base_window_label = QLabel("", top_row_group)
 
@@ -349,13 +1466,18 @@ class SignalsTab(QWidget):
             self._on_base_correction_toggled
         )
         self.calibrate_button.clicked.connect(self._on_calibrate_clicked)
+        self.recording_check.stateChanged.connect(self._on_recording_toggled)
+        self._session_name_edit.textChanged.connect(self._refresh_mode_hint)
 
         top_row.addWidget(self.recording_check)
+        top_row.addWidget(QLabel("Session:", top_row_group))
+        top_row.addWidget(self._session_name_edit)
         top_row.addWidget(self.base_correction_check)
         top_row.addWidget(self.calibrate_button)
         top_row.addWidget(self.start_button)
         top_row.addWidget(self.stop_button)
         top_row.addWidget(self._stream_rate_label)
+        top_row.addWidget(self._plot_refresh_label)
         top_row.addWidget(self._base_window_label)
         top_row.addStretch()
 
@@ -365,10 +1487,7 @@ class SignalsTab(QWidget):
         group_layout.addLayout(top_row)
 
         # Short explanatory text under the buttons
-        self._mode_hint_label = QLabel(
-            "Default: live streaming only. Tick 'Recording' to also save data on the Pi.",
-            top_row_group,
-        )
+        self._mode_hint_label = QLabel("", top_row_group)
         self._mode_hint_label.setWordWrap(True)
         self._mode_hint_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self._mode_hint_label.setSizePolicy(
@@ -384,6 +1503,7 @@ class SignalsTab(QWidget):
         top_row_group.setLayout(group_layout)
 
         self._update_base_window_label()
+        self._refresh_mode_hint()
 
         # Channel selection -----------------------------------------------------
         channel_group = QGroupBox("Channels", self)
@@ -399,72 +1519,330 @@ class SignalsTab(QWidget):
         layout.addWidget(recording_section)
         self._recording_section = recording_section
 
-        # Refresh settings -----------------------------------------------------
-        refresh_group = self._build_refresh_controls()
-        refresh_section = CollapsibleSection(
-            "Plot refresh rate / GUI refresh", self
+        # Acquisition / refresh settings ---------------------------------------
+        acquisition_section = CollapsibleSection(
+            "Sampling / stream / refresh", self
         )
-        refresh_layout = QVBoxLayout()
-        refresh_layout.setContentsMargins(0, 0, 0, 0)
-        refresh_layout.addWidget(refresh_group)
-        refresh_section.setContentLayout(refresh_layout)
-        layout.addWidget(refresh_section)
+        acquisition_layout = QVBoxLayout()
+        acquisition_layout.setContentsMargins(0, 0, 0, 0)
+        acquisition_layout.addWidget(self._acquisition_widget)
+        help_label = QLabel(
+            "High refresh rates and 'Follow sampling rate' may be heavy on CPU, "
+            "especially when many channels are visible.\n"
+            "In 'Fixed refresh rate' mode the plot timer runs at the configured "
+            "interval regardless of the incoming stream rate.\n"
+            "In 'Follow sampling rate' mode the timer interval is derived from "
+            "the estimated stream rate reported by the Recorder tab."
+        )
+        help_label.setWordWrap(True)
+        acquisition_layout.addWidget(help_label)
+        acquisition_section.setContentLayout(acquisition_layout)
+        layout.addWidget(acquisition_section)
+        self._acquisition_section = acquisition_section
 
         # Plot widget -----------------------------------------------------------
         layout.addWidget(self._plot, stretch=1)
+        self._perf_hud_label.raise_()
 
         # Status label ----------------------------------------------------------
-        self._status_label = QLabel("Waiting for stream...", self)
+        self._status_label = QLabel("", self)
         layout.addWidget(self._status_label)
+        self._set_stream_status("Waiting for stream...", force=True)
+
+        self._perf_summary_label = QLabel("", self)
+        layout.addWidget(self._perf_summary_label)
+        self._update_perf_summary()
 
         self._rebuild_channel_checkboxes()
 
+        # periodic sample ingestion (decoupled from redraw refresh)
+        self._ingest_timer = QTimer(self)
+        self._ingest_timer.setInterval(20)
+        self._ingest_timer.timeout.connect(self._drain_samples)
+        self._ingest_timer.start()
+
         # periodic redraw of the plot
         self._timer = QTimer(self)
-        self._timer.timeout.connect(self._plot.redraw)
+        self._timer.timeout.connect(self._on_redraw_timer)
         self._apply_refresh_settings()
+        self._update_refresh_profile_enabled()
+        self._perf_hud_timer = QTimer(self)
+        self._perf_hud_timer.setInterval(1000)
+        self._perf_hud_timer.timeout.connect(self._update_perf_hud)
+        self._perf_hud_timer.start()
+        self._adaptive_timer = QTimer(self)
+        self._adaptive_timer.setInterval(2000)
+        self._adaptive_timer.timeout.connect(self._adaptive_step)
+        self._adaptive_timer.start()
 
     # --------------------------------------------------------------- slots
     @Slot()
     def _on_start_clicked(self) -> None:
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
-        self._status_label.setText("Streaming...")
+        self._set_stream_status("Streaming...", force=True)
         self.start_stream_requested.emit(self.recording_check.isChecked())
         if self._recording_section is not None:
             self._recording_section.setCollapsed(True)
+        if self._acquisition_section is not None:
+            self._acquisition_section.setCollapsed(True)
 
     @Slot()
     def _on_stop_clicked(self) -> None:
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
-        self._status_label.setText("Stopping...")
+        self._set_manual_status("Stopping...")
         self.stop_stream_requested.emit()
         if self._recording_section is not None:
             self._recording_section.setCollapsed(False)
+        if self._acquisition_section is not None:
+            self._acquisition_section.setCollapsed(False)
+        self._refresh_mode_hint()
 
-    @Slot(object)
-    def handle_sample(self, sample: object) -> None:
-        """Called by RecorderTab when a new sample arrives."""
-        if not isinstance(sample, MpuSample):
-            return
+    @Slot(int)
+    def _on_recording_toggled(self, state: int) -> None:
+        self._refresh_mode_hint()
 
-        self._plot.add_sample(sample)
+    def current_acquisition_settings(self) -> AcquisitionSettings:
+        """Return the current sampling / refresh settings."""
+        settings = self._acquisition_widget.settings()
+        recorder = self._recorder_tab
+        if recorder is not None:
+            recording = self.recording_check.isChecked()
+            fallback_every = int(settings.stream_every)
+            stream_every = recorder.compute_stream_every(
+                settings.sample_rate_hz,
+                recording=recording,
+                fallback_every=fallback_every,
+            )
+            settings.stream_every = stream_every
+            self._acquisition_widget.display_effective_stream_rate(
+                settings.effective_stream_rate_hz
+            )
+        return settings
+
+    def session_name(self) -> str:
+        """Return the normalized session label provided by the user."""
+        if not hasattr(self, "_session_name_edit"):
+            return ""
+        return self._session_name_edit.text().strip()
+
+    def set_data_buffer(
+        self, data_buffer: Optional[StreamingDataBuffer]
+    ) -> None:
+        """Set the StreamingDataBuffer used for timer-driven updates."""
+        self._data_buffer = data_buffer
+        self._buffer_cursors.clear()
+
+    def live_sensor_ids(self) -> list[int]:
+        """
+        Expose the sensor IDs with buffered data (shared with FFT tab).
+        """
+        return self._plot.live_sensor_ids()
+
+    def get_time_series_window(
+        self,
+        sensor_id: int,
+        channel: str,
+        window_seconds: float,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Return ``(times_s, values)`` arrays for ``sensor_id``/``channel``.
+
+        Delegates to the underlying SignalPlotWidget so other tabs can reuse
+        the exact same ring buffers used for the PyQtGraph plots.
+        """
+        return self._plot.get_time_series_window(sensor_id, channel, window_seconds)
+
+    def _active_data_buffer(self) -> Optional[StreamingDataBuffer]:
+        """Return the current data buffer (external or fallback)."""
+        return self._data_buffer or self._fallback_data_buffer
+
+    def get_perf_snapshot(self) -> dict[str, float]:
+        """
+        Combine plot metrics and timer statistics for overlays or logging.
+        """
+        snap = self._plot.get_perf_snapshot()
+        timer_hz = self._timer_stats_hz if ENABLE_PLOT_PERF_METRICS else 0.0
+        target = self._target_refresh_hz
+        if target is None:
+            target = snap.get("target_fps", 0.0) or 0.0
+        achieved = snap.get("achieved_fps")
+        if achieved is None:
+            achieved = snap.get("fps", 0.0)
+        if achieved is None:
+            achieved = 0.0
+        achieved = float(achieved)
+        approx_drop = snap.get("approx_dropped_frames_per_sec", 0.0) or 0.0
+        if ENABLE_PLOT_PERF_METRICS:
+            effective_timer = timer_hz if timer_hz > 0.0 else target
+            if effective_timer > 0.0:
+                approx_drop = max(0.0, effective_timer - achieved)
+        snap.update(
+            {
+                "target_fps": target,
+                "achieved_fps": achieved,
+                "timer_hz": timer_hz,
+                "approx_dropped_frames_per_sec": approx_drop,
+            }
+        )
+        return snap
+
+    def set_perf_hud_visible(self, visible: bool) -> None:
+        """Show or hide the lightweight performance HUD overlay."""
+        self._perf_hud_label.setVisible(visible)
+        if visible:
+            self._update_perf_hud()
 
     # --------------------------------------------------------------- helpers
+    def _set_status_text(self, text: str, *, source: str) -> None:
+        self._status_label.setText(text)
+        self._status_source = source
+        self._last_status_change_monotonic = time.monotonic()
+
+    def _set_stream_status(self, text: str, *, force: bool = False) -> None:
+        if (
+            not force
+            and self._status_source == "manual"
+            and (time.monotonic() - self._last_status_change_monotonic)
+            < self._manual_status_hold_s
+        ):
+            return
+        self._set_status_text(text, source="stream")
+
+    def _set_manual_status(self, text: str) -> None:
+        self._set_status_text(text, source="manual")
+
+    def _remote_destination_text(self) -> str:
+        """Return a user-facing description of the remote recording folder."""
+        recorder = getattr(self, "_recorder_tab", None)
+        if recorder is None:
+            return ""
+        try:
+            remote_dir = recorder.current_remote_data_dir()
+        except AttributeError:
+            return ""
+        if remote_dir is None:
+            return ""
+        return remote_dir.as_posix()
+
+    def _refresh_mode_hint(self) -> None:
+        label = getattr(self, "_mode_hint_label", None)
+        if label is None:
+            return
+        dest = self._remote_destination_text()
+        session = " ".join(self.session_name().split())
+        if self.recording_check.isChecked():
+            hint = "Recording enabled. "
+            if dest:
+                hint += f"Data is written to {dest} on the Pi."
+            else:
+                hint += "Data is written to the configured Pi logs directory."
+        else:
+            hint = "Streaming only (samples are not stored on the Pi). "
+            if dest:
+                hint += f"Enable recording to write into {dest}."
+        if session:
+            hint += f" Session name: {session}."
+        label.setText(hint.strip())
+        self._update_recording_indicator()
+
+    def _update_recording_indicator(self) -> None:
+        wants_recording = self.recording_check.isChecked()
+        style = ""
+        if wants_recording and self._stream_active:
+            style = (
+                "QPushButton {"
+                "background-color: #b3202c;"
+                "color: white;"
+                "font-weight: bold;"
+                "}"
+            )
+        self.start_button.setStyleSheet(style)
+
     def _update_base_window_label(self) -> None:
         seconds = self._plot.window_seconds
         self._base_window_label.setText(f"Base/cali window: last {seconds:.1f} s")
 
+    def _extract_sample_timestamp_ns(self, sample: MpuSample) -> Optional[int]:
+        if sample.t_s is not None:
+            try:
+                return int(round(float(sample.t_s) * NS_PER_SECOND))
+            except (TypeError, ValueError):
+                return None
+        try:
+            return int(sample.timestamp_ns)
+        except (TypeError, ValueError):
+            return None
+
+    def _sample_time_seconds(self, sample: MpuSample) -> Optional[float]:
+        ts_ns = self._extract_sample_timestamp_ns(sample)
+        if ts_ns is None:
+            return None
+        return ts_ns / float(NS_PER_SECOND)
+
     @Slot(str, float)
     def update_stream_rate(self, sensor_type: str, hz: float) -> None:
-        """Update the small stream-rate label from RecorderTab."""
+        """Update the GUI-side stream rate shown in the Signals tab.
+
+        ``hz`` reflects the effective rate at which samples arrive in the GUI
+        after any Pi-side stream decimation (``mpu6050 --stream-every``). The
+        Recorder tab emits this signal whenever it refreshes its rate estimate.
+        """
         if sensor_type != "mpu6050":
             return
         self._stream_rate_label.setText(f"Stream rate: {hz:.1f} Hz")
         self._sampling_rate_hz = hz
+        self._plot.set_nominal_sample_rate(hz)
         if self.refresh_mode == "follow_sampling_rate":
+            # Rate updates from RecorderTab may frequently adjust the timer
+            # interval when we're following the stream rate.
             self._apply_refresh_settings()
+        else:
+            self._update_perf_summary()
+
+    @property
+    def fixed_interval_ms(self) -> int:
+        return self.refresh_interval_ms
+
+    @fixed_interval_ms.setter
+    def fixed_interval_ms(self, value: int) -> None:
+        interval = max(MIN_REFRESH_INTERVAL_MS, int(value))
+        self.refresh_interval_ms = interval
+        if self.refresh_mode == "fixed":
+            self._apply_refresh_settings()
+
+    @Slot(int)
+    def _on_acquisition_refresh_changed(self, interval_ms: int) -> None:
+        """Update the timer interval when the acquisition widget spin changes."""
+        self.fixed_interval_ms = max(MIN_REFRESH_INTERVAL_MS, int(interval_ms))
+
+    @Slot(str)
+    def _on_acquisition_mode_changed(self, mode: str) -> None:
+        """Switch between fixed and adaptive refresh modes from the UI."""
+        stream_rate = self._get_sampling_rate_hz()
+        self.set_refresh_mode(mode, stream_rate)
+
+    @Slot(int)
+    def _emit_fft_refresh_interval_changed(self, interval_ms: int) -> None:
+        """Relay FFT refresh adjustments so MainWindow can reconfigure FftTab."""
+        self.fft_refresh_interval_changed.emit(int(interval_ms))
+
+    @Slot(int)
+    def _on_refresh_profile_changed(self, index: int) -> None:
+        combo = getattr(self, "refresh_profile_combo", None)
+        if combo is None or index < 0:
+            return
+        interval_data = combo.itemData(index)
+        if interval_data is None:
+            # Custom entry - editing happens via the acquisition widget spin box.
+            return
+        interval_ms = max(MIN_REFRESH_INTERVAL_MS, int(interval_data))
+        self._acquisition_widget.set_signals_refresh_interval(interval_ms)
+        was_fixed = self.refresh_mode == "fixed"
+        self.fixed_interval_ms = interval_ms
+        if not was_fixed:
+            self.set_refresh_mode("fixed")
 
     def _rebuild_channel_checkboxes(self) -> None:
         # Clear previous
@@ -496,6 +1874,7 @@ class SignalsTab(QWidget):
             self._channel_checkboxes[ch] = cb
             self._channel_layout.addWidget(cb)
 
+        self._plot.set_channel_layout(channels)
         self._channel_layout.addStretch(1)
         self._on_channel_toggles_changed()
 
@@ -512,74 +1891,396 @@ class SignalsTab(QWidget):
         ]
         self._plot.set_visible_channels(visible)
 
-    def _build_refresh_controls(self) -> QGroupBox:
-        group = QGroupBox(self)
-        form = QFormLayout(group)
+    def set_refresh_mode(
+        self, mode: str, stream_rate_hz: Optional[float] = None
+    ) -> None:
+        """
+        Configure how often the plot is refreshed.
 
-        self.refresh_mode_combo = QComboBox(group)
-        self.refresh_mode_combo.addItem("Fixed refresh rate", "fixed")
-        self.refresh_mode_combo.addItem(
-            "Follow sampling rate (advanced / may be heavy)",
-            "follow_sampling_rate",
-        )
-        idx = self.refresh_mode_combo.findData(self.refresh_mode)
-        if idx >= 0:
-            self.refresh_mode_combo.setCurrentIndex(idx)
-        self.refresh_mode_combo.currentIndexChanged.connect(
-            self._on_refresh_mode_changed
-        )
-
-        self.fixed_interval_combo = QComboBox(group)
-        for label, interval in REFRESH_PRESETS:
-            self.fixed_interval_combo.addItem(label, interval)
-        self._select_fixed_interval(self.refresh_interval_ms)
-        self.fixed_interval_combo.currentIndexChanged.connect(
-            self._on_fixed_interval_changed
-        )
-
-        help_label = QLabel(
-            "High refresh rates and 'Follow sampling rate' may be heavy on CPU, "
-            "especially with many channels.",
-            group,
-        )
-        help_label.setWordWrap(True)
-        help_label.setToolTip(
-            "Use 'Low CPU' unless you specifically need fast visual updates."
-        )
-
-        form.addRow("Mode:", self.refresh_mode_combo)
-        form.addRow("Fixed rate:", self.fixed_interval_combo)
-        form.addRow(help_label)
-
-        self.fixed_interval_combo.setEnabled(self.refresh_mode == "fixed")
-
-        group.setLayout(form)
-        return group
-
-    def _select_fixed_interval(self, interval_ms: int) -> None:
-        for i in range(self.fixed_interval_combo.count()):
-            if self.fixed_interval_combo.itemData(i) == interval_ms:
-                self.fixed_interval_combo.setCurrentIndex(i)
-                return
-
-    def _on_refresh_mode_changed(self, index: int) -> None:
-        self.refresh_mode = self.refresh_mode_combo.currentData()
-        self.fixed_interval_combo.setEnabled(self.refresh_mode == "fixed")
+        ``mode`` accepts ``"fixed"`` (use ``self.refresh_interval_ms``) or
+        ``"adaptive"``/``"follow_sampling_rate"`` which uses ``stream_rate_hz``.
+        """
+        normalized = self._normalize_refresh_mode(mode)
+        self.refresh_mode = normalized
+        if stream_rate_hz is not None:
+            self._sampling_rate_hz = stream_rate_hz
+            self._plot.set_nominal_sample_rate(stream_rate_hz)
         self._apply_refresh_settings()
-        self._save_refresh_settings()
+        self._update_refresh_profile_enabled()
 
-    def _on_fixed_interval_changed(self, index: int) -> None:
-        value = self.fixed_interval_combo.itemData(index)
-        if value is None:
+    def _ingest_buffer_data(self) -> None:
+        """Append new samples from the active StreamingDataBuffer to the plot buffers."""
+        data_buffer = self._active_data_buffer()
+        if data_buffer is None:
             return
-        self.refresh_interval_ms = int(value)
-        if self.refresh_mode == "fixed":
-            self._apply_refresh_settings()
-        self._save_refresh_settings()
+
+        sensor_ids = data_buffer.get_sensor_ids()
+        if not sensor_ids:
+            return
+
+        window_s = self._plot.window_seconds
+        for sensor_id in sensor_ids:
+            samples = data_buffer.get_recent_samples(sensor_id, seconds=window_s)
+            if not samples:
+                continue
+            last_seen = self._buffer_cursors.get(sensor_id)
+            updated_last = last_seen
+            for sample in samples:
+                ts_s = self._sample_time_seconds(sample)
+                if ts_s is None:
+                    continue
+                if updated_last is not None and ts_s <= updated_last:
+                    continue
+                if ENABLE_PLOT_PERF_METRICS:
+                    try:
+                        sample.gui_receive_ts = time.perf_counter()
+                    except Exception:
+                        pass
+                self._plot.add_sample(sample)
+                updated_last = ts_s
+                self._handle_ingested_sample(sample)
+            if updated_last is not None:
+                self._buffer_cursors[sensor_id] = updated_last
+
+    def _handle_ingested_sample(self, sample: MpuSample) -> None:
+        """Update stream state tracking when new data arrives."""
+        if not self._stream_active:
+            return
+
+        timestamp_ns = self._extract_sample_timestamp_ns(sample)
+        if timestamp_ns is None:
+            return
+
+        self._last_data_monotonic = time.monotonic()
+        if self._awaiting_first_sample:
+            self._awaiting_first_sample = False
+            self._set_stream_status("Streaming...")
+        if self._stream_stalled:
+            self._stream_stalled = False
+            self._set_stream_status("Streaming...")
+
+    @Slot()
+    def _on_redraw_timer(self) -> None:
+        start = time.perf_counter()
+        self.update_plot()
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        self._last_redraw_ms = elapsed_ms
+        alpha = 0.2
+        if self._redraw_ema_ms <= 0.0:
+            self._redraw_ema_ms = elapsed_ms
+        else:
+            self._redraw_ema_ms = alpha * elapsed_ms + (1.0 - alpha) * self._redraw_ema_ms
+
+    @Slot()
+    def update_plot(self) -> None:
+        """Timer slot that refreshes the SignalPlotWidget."""
+        debug_on = debug_enabled()
+        if ENABLE_PLOT_PERF_METRICS:
+            self._record_timer_tick()
+        if self._stream_active:
+            if self._awaiting_first_sample:
+                self._set_stream_status("Waiting for data...")
+            else:
+                stalled = False
+                if self._last_data_monotonic > 0.0:
+                    stalled = (time.monotonic() - self._last_data_monotonic) >= self._stall_threshold_s
+
+                if stalled:
+                    if not self._stream_stalled:
+                        self._stream_stalled = True
+                        self._set_stream_status("No recent data (stream paused?)", force=True)
+                elif self._stream_stalled:
+                    self._stream_stalled = False
+                    self._set_stream_status("Streaming...")
+        redraw_start = time.perf_counter() if debug_on else 0.0
+        self._plot.redraw()
+        if debug_on:
+            redraw_ms = (time.perf_counter() - redraw_start) * 1000.0
+            alpha = 0.2
+            if self._redraw_debug_ema_ms <= 0.0:
+                self._redraw_debug_ema_ms = redraw_ms
+            else:
+                self._redraw_debug_ema_ms = (
+                    alpha * redraw_ms + (1.0 - alpha) * self._redraw_debug_ema_ms
+                )
+            now_perf = time.perf_counter()
+            if now_perf - self._redraw_debug_last_log >= 5.0:
+                interval_ms = self._timer.interval() if hasattr(self, "_timer") else 0
+                print(
+                    f"[DEBUG] signals_redraw interval={interval_ms} ms ema≈{self._redraw_debug_ema_ms:.2f} ms",
+                    flush=True,
+                )
+                self._redraw_debug_last_log = now_perf
+        self._record_refresh_tick()
+
+    def _adaptive_step(self) -> None:
+        """Periodic background check that nudges refresh/stream fidelity."""
+        self._update_perf_summary()
+        checkbox = getattr(self, "adaptive_mode_check", None)
+        if checkbox is None or not checkbox.isChecked():
+            self._adaptive_slow_cycles = 0
+            self._adaptive_fast_cycles = 0
+            return
+        if not (self._stream_active or self._synthetic_active):
+            return
+        redraw_ms = self._redraw_ema_ms
+        if redraw_ms <= 0.0:
+            return
+        target_interval_ms = self._compute_refresh_interval()
+        if target_interval_ms <= 0:
+            return
+        stream_rate = float(self._sampling_rate_hz or 0.0)
+        target_stream = float(self._target_stream_rate_from_recorder() or 0.0)
+        max_frame_ms = target_interval_ms * 0.9
+        redraw_slow = redraw_ms > max_frame_ms
+        overloaded_stream = False
+        if target_stream > 0.0 and stream_rate > 0.0:
+            overloaded_stream = stream_rate > target_stream * 1.15
+        comfortable = redraw_ms < target_interval_ms * 0.6
+        more_stream_allowed = (
+            target_stream > 0.0
+            and stream_rate > 0.0
+            and stream_rate < target_stream * 0.8
+        )
+
+        if redraw_slow or overloaded_stream:
+            self._adaptive_slow_cycles += 1
+            self._adaptive_fast_cycles = 0
+            if self._adaptive_slow_cycles >= 2:
+                if self._lower_fidelity():
+                    self._adaptive_slow_cycles = 0
+            return
+
+        self._adaptive_slow_cycles = 0
+        if comfortable:
+            self._adaptive_fast_cycles += 1
+        else:
+            self._adaptive_fast_cycles = 0
+
+        if comfortable and self._adaptive_fast_cycles >= 3:
+            if self._maybe_increase_fidelity(allow_stream_tuning=more_stream_allowed):
+                self._adaptive_fast_cycles = 0
+
+    def _lower_fidelity(self) -> bool:
+        """Try to reduce GUI/stream demand when frames are too slow."""
+        adjusted = False
+        widget = getattr(self, "_acquisition_widget", None)
+        if self.refresh_mode == "fixed" and widget is not None:
+            current = int(self.refresh_interval_ms)
+            new_interval = min(500, int(max(MIN_REFRESH_INTERVAL_MS, math.ceil(current * 1.5))))
+            if new_interval > current:
+                widget.set_signals_refresh_interval(int(new_interval))
+                self.fixed_interval_ms = int(new_interval)
+                adjusted = True
+        if adjusted:
+            self._update_perf_summary()
+            return True
+        recorder = getattr(self, "_recorder_tab", None)
+        if recorder is not None and hasattr(recorder, "request_coarser_streaming"):
+            try:
+                recorder.request_coarser_streaming()
+                return True
+            except Exception:
+                logger.exception("SignalsTab: failed to request coarser streaming")
+        return False
+
+    def _maybe_increase_fidelity(self, *, allow_stream_tuning: bool) -> bool:
+        """If redraws are comfortably fast, cautiously improve fidelity."""
+        adjusted = False
+        widget = getattr(self, "_acquisition_widget", None)
+        if self.refresh_mode == "fixed" and widget is not None:
+            current = int(self.refresh_interval_ms)
+            if current > MIN_REFRESH_INTERVAL_MS:
+                reduced = max(MIN_REFRESH_INTERVAL_MS, int(current * 0.8))
+                if reduced < current:
+                    widget.set_signals_refresh_interval(int(reduced))
+                    self.fixed_interval_ms = int(reduced)
+                    adjusted = True
+        if adjusted:
+            self._update_perf_summary()
+            return True
+        if not allow_stream_tuning:
+            return False
+        recorder = getattr(self, "_recorder_tab", None)
+        if recorder is not None and hasattr(recorder, "request_finer_streaming"):
+            try:
+                recorder.request_finer_streaming()
+                return True
+            except Exception:
+                logger.exception("SignalsTab: failed to request finer streaming")
+        return False
+
+    def _drain_samples(self) -> None:
+        """Drain queued samples from RecorderTab and append them to the plots."""
+        if not self._stream_active and not self._synthetic_active:
+            return
+
+        queue_obj = self._recorder_sample_queue() if self._stream_active else None
+        if queue_obj is None:
+            # Fall back to the shared StreamingDataBuffer (synthetic data or tests)
+            self._ingest_buffer_data()
+            return
+
+        drained: list[object] = []
+        try:
+            while True:
+                drained.append(queue_obj.get_nowait())
+        except queue.Empty:
+            pass
+
+        if not drained:
+            return
+
+        debug_on = debug_enabled()
+        ingest_start = time.perf_counter() if debug_on else 0.0
+        processed_samples = 0
+
+        for sample in drained:
+            if not isinstance(sample, MpuSample):
+                continue
+            if ENABLE_PLOT_PERF_METRICS:
+                try:
+                    sample.gui_receive_ts = time.perf_counter()
+                except Exception:
+                    pass
+            self._plot.add_sample(sample)
+            self._handle_ingested_sample(sample)
+            processed_samples += 1
+
+        if debug_on and processed_samples > 0:
+            elapsed_ms = (time.perf_counter() - ingest_start) * 1000.0
+            self._queue_ingest_time_acc_ms += elapsed_ms
+            self._queue_ingest_batches += 1
+            self._queue_ingest_samples += processed_samples
+            now_perf = time.perf_counter()
+            if now_perf - self._queue_ingest_last_log >= 5.0:
+                avg_batch_ms = self._queue_ingest_time_acc_ms / max(
+                    1, self._queue_ingest_batches
+                )
+                avg_us_per_sample = (
+                    self._queue_ingest_time_acc_ms
+                    / max(1, self._queue_ingest_samples)
+                    * 1000.0
+                )
+                print(
+                    "[DEBUG] queue_ingest samples="
+                    f"{self._queue_ingest_samples} batches={self._queue_ingest_batches} "
+                    f"avg≈{avg_batch_ms:.3f} ms/batch ≈{avg_us_per_sample:.3f} µs/sample",
+                    flush=True,
+                )
+                self._queue_ingest_time_acc_ms = 0.0
+                self._queue_ingest_batches = 0
+                self._queue_ingest_samples = 0
+                self._queue_ingest_last_log = now_perf
+
+    def _recorder_sample_queue(self) -> queue.Queue[object] | None:
+        recorder = getattr(self, "_recorder_tab", None)
+        if recorder is None:
+            return None
+        try:
+            queue_obj = recorder.sample_queue
+        except AttributeError:
+            return None
+        return queue_obj
+
+    def _normalize_refresh_mode(self, mode: Optional[str]) -> str:
+        if mode in {"fixed", "follow_sampling_rate"}:
+            return str(mode)
+        if mode == "adaptive":
+            return "follow_sampling_rate"
+        return DEFAULT_REFRESH_MODE
 
     def _get_sampling_rate_hz(self) -> Optional[float]:
         if self._sampling_rate_hz is not None:
             return self._sampling_rate_hz
+        return None
+
+    def _target_stream_rate_from_recorder(self) -> Optional[float]:
+        recorder = getattr(self, "_recorder_tab", None)
+        if recorder is None:
+            return None
+        getter = getattr(recorder, "target_stream_rate_hz", None)
+        if callable(getter):
+            try:
+                value = getter()
+            except Exception:
+                return None
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+        widget = getattr(recorder, "mpu_target_stream_rate", None)
+        if widget is not None:
+            try:
+                return float(widget.value())
+            except (TypeError, ValueError):
+                return None
+        return None
+
+    def _sync_refresh_profile_combo(self, interval_ms: int) -> None:
+        combo = getattr(self, "refresh_profile_combo", None)
+        if combo is None:
+            return
+        idx = combo.findData(int(interval_ms))
+        with QSignalBlocker(combo):
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+                interval_data = combo.itemData(idx)
+                self._active_refresh_profile_label = self._preset_name_for_interval(
+                    int(interval_data)
+                )
+            elif self._refresh_profile_custom_index is not None:
+                self._set_custom_refresh_profile_label(interval_ms)
+                combo.setCurrentIndex(self._refresh_profile_custom_index)
+                self._active_refresh_profile_label = REFRESH_PROFILE_CUSTOM_LABEL
+            else:
+                self._active_refresh_profile_label = REFRESH_PROFILE_CUSTOM_LABEL
+
+    def _set_custom_refresh_profile_label(self, interval_ms: int) -> None:
+        if self._refresh_profile_custom_index is None:
+            return
+        combo = getattr(self, "refresh_profile_combo", None)
+        if combo is None:
+            return
+        combo.setItemText(
+            self._refresh_profile_custom_index,
+            self._format_custom_refresh_profile_label(interval_ms),
+        )
+
+    def _format_custom_refresh_profile_label(self, interval_ms: int) -> str:
+        if interval_ms <= 0:
+            return REFRESH_PROFILE_CUSTOM_LABEL
+        return f"{REFRESH_PROFILE_CUSTOM_LABEL} ({interval_ms} ms)"
+
+    def _update_refresh_profile_enabled(self) -> None:
+        combo = getattr(self, "refresh_profile_combo", None)
+        label = getattr(self, "_refresh_profile_label", None)
+        enabled = self.refresh_mode == "fixed"
+        tooltip = (
+            "Preset refresh rates are available only when using a fixed interval."
+            if not enabled
+            else "Preset GUI refresh rates for the time-domain plots."
+        )
+        if combo is not None:
+            combo.setEnabled(enabled)
+            combo.setToolTip(tooltip)
+        if label is not None:
+            label.setEnabled(enabled)
+        if not enabled:
+            self._active_refresh_profile_label = None
+
+    def _refresh_profile_descriptor(self) -> str:
+        if self.refresh_mode == "follow_sampling_rate":
+            return "Follow stream rate"
+        if self._active_refresh_profile_label:
+            return self._active_refresh_profile_label
+        return REFRESH_PROFILE_CUSTOM_LABEL
+
+    @staticmethod
+    def _preset_name_for_interval(interval_ms: int) -> str | None:
+        for name, preset_interval in REFRESH_PRESETS:
+            if int(preset_interval) == int(interval_ms):
+                return name
         return None
 
     def _compute_refresh_interval(self) -> int:
@@ -590,75 +2291,317 @@ class SignalsTab(QWidget):
 
             interval_ms = int(1000.0 / rate_hz)
             if interval_ms < MIN_REFRESH_INTERVAL_MS:
+                # Guard against extremely fast redraws when the device samples
+                # faster than humans can meaningfully perceive.
                 interval_ms = MIN_REFRESH_INTERVAL_MS
             return interval_ms
 
         return int(self.refresh_interval_ms)
 
+    def _reset_timer_stats(self) -> None:
+        self._timer_tick_counter = 0
+        self._timer_measure_window_start = time.perf_counter()
+        self._timer_stats_hz = 0.0
+
+    def _record_timer_tick(self) -> None:
+        now = time.perf_counter()
+        # Initialize the window start if this is the first tick.
+        if self._timer_measure_window_start <= 0.0:
+            self._timer_measure_window_start = now
+        self._timer_tick_counter += 1
+        elapsed = now - self._timer_measure_window_start
+        if elapsed >= 1.0:
+            self._timer_stats_hz = self._timer_tick_counter / elapsed
+            self._timer_tick_counter = 0
+            self._timer_measure_window_start = now
+
+    def _reset_refresh_measurement(self) -> None:
+        self._last_refresh_timestamp = None
+        self._smoothed_refresh_hz = None
+        self._update_plot_refresh_label()
+
+    def _record_refresh_tick(self) -> None:
+        now = time.monotonic()
+        last = self._last_refresh_timestamp
+        if last is not None:
+            dt = now - last
+            if dt > 0.0:
+                inst_hz = 1.0 / dt
+                smoothed = self._smoothed_refresh_hz
+                if smoothed is None:
+                    self._smoothed_refresh_hz = inst_hz
+                else:
+                    alpha = 0.2
+                    self._smoothed_refresh_hz = alpha * inst_hz + (1.0 - alpha) * smoothed
+        self._last_refresh_timestamp = now
+        self._update_plot_refresh_label()
+
+    def _update_perf_summary(self) -> None:
+        label = getattr(self, "_perf_summary_label", None)
+        if label is None:
+            return
+        stream_hz = float(self._sampling_rate_hz or 0.0)
+        redraw_ms = self._redraw_ema_ms if self._redraw_ema_ms > 0.0 else self._last_redraw_ms
+        if redraw_ms <= 0.0:
+            redraw_ms = 0.0
+        interval_ms = 0.0
+        timer = getattr(self, "_timer", None)
+        if timer is not None:
+            try:
+                interval_ms = float(timer.interval())
+            except (TypeError, ValueError):
+                interval_ms = 0.0
+        if interval_ms <= 0.0:
+            interval_ms = float(self._compute_refresh_interval())
+        if interval_ms <= 0.0:
+            interval_ms = float(self.refresh_interval_ms)
+        label.setText(
+            f"Perf: Stream ≈ {stream_hz:4.1f} Hz  |  "
+            f"Redraw EMA ≈ {redraw_ms:4.1f} ms  |  "
+            f"Refresh interval ≈ {interval_ms:.0f} ms"
+        )
+
+    def _update_plot_refresh_label(self) -> None:
+        label = getattr(self, "_plot_refresh_label", None)
+        if label is None:
+            return
+        timer = getattr(self, "_timer", None)
+        timer_active = True
+        interval_ms = int(self.refresh_interval_ms)
+        if timer is not None:
+            timer_active = timer.isActive()
+            try:
+                interval_ms = int(timer.interval())
+            except TypeError:
+                pass
+        descriptor = self._refresh_profile_descriptor()
+        hz = self._smoothed_refresh_hz
+        suffix = ""
+        interval_parts: list[str] = []
+        if interval_ms > 0:
+            interval_parts.append(f"{interval_ms} ms")
+        if descriptor:
+            interval_parts.append(descriptor)
+        if interval_parts:
+            suffix = f" ({' – '.join(interval_parts)})"
+        if hz is not None:
+            label.setText(f"Plot refresh: {hz:4.1f} Hz{suffix}")
+            return
+        target = self._target_refresh_hz
+        if not timer_active:
+            label.setText("Plot refresh: paused")
+            return
+        if target and target > 0.0:
+            label.setText(f"Plot refresh (target): {target:4.1f} Hz{suffix}")
+        else:
+            label.setText(f"Plot refresh: -- Hz{suffix}")
+
+    def _refresh_timer_state(self) -> None:
+        """Start or stop the plot timer depending on stream activity."""
+        if not hasattr(self, "_timer"):
+            return
+        should_run = self._stream_active or self._synthetic_active
+        if should_run:
+            if not self._timer.isActive():
+                self._timer.start()
+                self._reset_refresh_measurement()
+        else:
+            if self._timer.isActive():
+                self._timer.stop()
+                self._reset_refresh_measurement()
+        self._update_plot_refresh_label()
+
     def _apply_refresh_settings(self) -> None:
         interval_ms = self._compute_refresh_interval()
+        if self.refresh_mode == "follow_sampling_rate":
+            previous = self._last_follow_interval_ms
+            self._last_follow_interval_ms = interval_ms
+            if (
+                previous
+                and previous > 0
+                and abs(interval_ms - previous) / float(previous) > 0.10
+            ):
+                logger.debug(
+                    "SignalsTab: adjusting follow-mode refresh interval from %d ms to %d ms",
+                    previous,
+                    interval_ms,
+                )
+        else:
+            self._last_follow_interval_ms = None
+        target_hz = 1000.0 / interval_ms if interval_ms > 0 else None
+        self._target_refresh_hz = target_hz
+        self._plot.set_target_refresh_rate(target_hz)
+        self._sync_refresh_profile_combo(interval_ms)
+        self._reset_refresh_measurement()
+        if ENABLE_PLOT_PERF_METRICS:
+            self._reset_timer_stats()
         if hasattr(self, "_timer"):
-            self._timer.start(interval_ms)
+            self._timer.setInterval(interval_ms)
+            if self._timer.isActive():
+                self._timer.start(interval_ms)
+            else:
+                self._refresh_timer_state()
+        self._update_perf_summary()
 
-    def _load_refresh_settings(self) -> None:
-        settings = QSettings("SensePi", "SensePiLocal")
-        mode = str(settings.value("signals/refresh_mode", DEFAULT_REFRESH_MODE))
-        if mode not in {"fixed", "follow_sampling_rate"}:
-            mode = DEFAULT_REFRESH_MODE
-        self.refresh_mode = mode
+    def _update_perf_hud(self) -> None:
+        cpu_percent = get_process_cpu_percent()
+        if not self._perf_hud_label.isVisible():
+            return
 
-        interval_value = settings.value(
-            "signals/refresh_interval_ms", DEFAULT_REFRESH_INTERVAL_MS
+        snap = self.get_perf_snapshot() if ENABLE_PLOT_PERF_METRICS else {}
+        fps = float(snap.get("fps", 0.0) or 0.0)
+        target_fps = float(snap.get("target_fps", 0.0) or 0.0)
+        avg_frame_ms = float(snap.get("avg_frame_ms", 0.0) or 0.0)
+        avg_latency_ms = float(snap.get("avg_latency_ms", 0.0) or 0.0)
+        max_latency_ms = float(snap.get("max_latency_ms", 0.0) or 0.0)
+        approx_dropped = snap.get("approx_dropped_fps")
+        if approx_dropped is None:
+            approx_dropped = snap.get("approx_dropped_frames_per_sec", 0.0)
+        approx_dropped = float(approx_dropped or 0.0)
+        timer_hz = float(snap.get("timer_hz", 0.0) or 0.0)
+
+        text = (
+            f"CPU: {cpu_percent:5.1f}%\n"
+            f"FPS: {fps:5.1f} / target {target_fps:4.1f}  (timer: {timer_hz:4.1f} Hz)\n"
+            f"Frame: {avg_frame_ms:5.1f} ms\n"
+            f"Latency: avg {avg_latency_ms:5.1f} ms, max {max_latency_ms:5.1f} ms\n"
+            f"Dropped: ~{approx_dropped:4.1f} fps"
         )
-        try:
-            interval_ms = int(interval_value)
-        except (TypeError, ValueError):
-            interval_ms = DEFAULT_REFRESH_INTERVAL_MS
-        self.refresh_interval_ms = interval_ms
+        self._perf_hud_label.setText(text)
 
-    def _save_refresh_settings(self) -> None:
-        settings = QSettings("SensePi", "SensePiLocal")
-        settings.setValue("signals/refresh_mode", self.refresh_mode)
-        settings.setValue("signals/refresh_interval_ms", self.refresh_interval_ms)
+    # --------------------------------------------------------------- synthetic data helpers
+    def start_synthetic_stream(
+        self,
+        rate_hz: float,
+        sensor_ids: Iterable[int] | None = None,
+    ) -> None:
+        interval_ms = max(1, int(round(1000.0 / max(1.0, rate_hz))))
+        interval_ns = max(1, int(1_000_000_000 / max(1.0, rate_hz)))
+        self.stop_synthetic_stream()
+        self._synthetic_rate_hz = float(rate_hz)
+        self._synthetic_sensor_ids = list(sensor_ids) if sensor_ids else [1]
+        self._synthetic_phase = 0.0
+        self._synthetic_phase_step = 2.0 * math.pi * (1.0 / max(1.0, rate_hz))
+        self._synthetic_interval_ns = interval_ns
+        self._synthetic_start_timestamp_ns = time.monotonic_ns()
+        self._synthetic_next_timestamp_ns = self._synthetic_start_timestamp_ns
+        self._fallback_data_buffer.clear()
+        self._buffer_cursors.clear()
+        timer = QTimer(self)
+        timer.setTimerType(Qt.PreciseTimer)
+        timer.setInterval(interval_ms)
+        timer.timeout.connect(self._on_synthetic_tick)
+        timer.start()
+        self._synthetic_timer = timer
+        self._synthetic_active = True
+        self._refresh_timer_state()
+
+    def stop_synthetic_stream(self) -> None:
+        timer = self._synthetic_timer
+        if timer is not None:
+            timer.stop()
+            timer.deleteLater()
+        self._synthetic_timer = None
+        self._synthetic_active = False
+        self._refresh_timer_state()
+
+    def _on_synthetic_tick(self) -> None:
+        if self._synthetic_timer is None:
+            return
+        timestamp_ns = self._synthetic_next_timestamp_ns
+        interval_ns = self._synthetic_interval_ns
+        start_ns = self._synthetic_start_timestamp_ns
+        phase = self._synthetic_phase
+        phase_step = self._synthetic_phase_step
+        per_sensor_offset_ns = max(1, interval_ns // max(1, len(self._synthetic_sensor_ids)))
+        generated: List[MpuSample] = []
+        for idx, sensor_id in enumerate(self._synthetic_sensor_ids):
+            offset = idx * 0.5
+            val_sin = math.sin(phase + offset)
+            val_cos = math.cos(phase + offset)
+            sample_ns = int(timestamp_ns + idx * per_sensor_offset_ns)
+            sample = MpuSample(
+                timestamp_ns=sample_ns,
+                ax=val_sin,
+                ay=math.sin(phase + offset + 0.5),
+                az=math.sin(phase + offset + 1.0),
+                gx=val_cos,
+                gy=math.cos(phase + offset + 0.5),
+                gz=math.cos(phase + offset + 1.0),
+                sensor_id=int(sensor_id),
+                t_s=float((sample_ns - start_ns) / 1_000_000_000),
+            )
+            generated.append(sample)
+        self._synthetic_phase = phase + phase_step
+        self._synthetic_next_timestamp_ns = timestamp_ns + interval_ns
+        if generated:
+            self._fallback_data_buffer.add_samples(generated)
 
     @Slot()
     def on_stream_started(self) -> None:
         self._plot.clear()
+        self._buffer_cursors.clear()
         self._sampling_rate_hz = None
+        self._plot.set_nominal_sample_rate(None)
         self._stream_rate_label.setText("Stream rate: -- Hz")
-        self._status_label.setText("Streaming...")
+        self._stream_active = True
+        self._awaiting_first_sample = True
+        self._stream_stalled = False
+        self._last_data_monotonic = 0.0
+        self._set_stream_status("Streaming...", force=True)
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
+        self._refresh_timer_state()
+        self._refresh_mode_hint()
+
+    def set_view_mode_by_channels(self, charts: int) -> None:
+        preset = "all6" if charts >= 18 else "default3"
+        self.set_view_mode_preset(preset)
+
+    def set_view_mode_preset(self, preset: str) -> None:
+        idx = self.view_mode_combo.findData(preset)
+        if idx < 0:
+            return
+        with QSignalBlocker(self.view_mode_combo):
+            self.view_mode_combo.setCurrentIndex(idx)
+        self._rebuild_channel_checkboxes()
 
     @Slot()
     def on_stream_stopped(self) -> None:
-        self._status_label.setText("Stopped.")
+        self._stream_active = False
+        self._awaiting_first_sample = False
+        self._stream_stalled = False
+        self._last_data_monotonic = 0.0
+        self._set_stream_status("Stopped.", force=True)
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self._plot.clear()
+        self._buffer_cursors.clear()
+        self._refresh_timer_state()
+        self._refresh_mode_hint()
 
     @Slot(str)
     def handle_error(self, message: str) -> None:
-        self._status_label.setText(message)
+        self._set_manual_status(message)
 
     @Slot(int)
     def _on_base_correction_toggled(self, state: int) -> None:
         enabled = state == Qt.Checked
         self._plot.enable_base_correction(enabled)
         if enabled:
-            self._status_label.setText("Base correction enabled.")
+            self._set_manual_status("Base correction enabled.")
         else:
-            self._status_label.setText("Base correction disabled.")
+            self._set_manual_status("Base correction disabled.")
 
     @Slot()
     def _on_calibrate_clicked(self) -> None:
         self._plot.calibrate_from_buffer()
         if self.base_correction_check.isChecked():
-            self._status_label.setText(
+            self._set_manual_status(
                 "Calibration updated (base correction applied)."
             )
         else:
-            self._status_label.setText(
+            self._set_manual_status(
                 "Calibration stored (enable 'Base correction' to apply)."
             )
 

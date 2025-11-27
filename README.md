@@ -2,6 +2,56 @@
 
 This repository hosts a desktop application for managing Raspberry Pi–based sensor loggers alongside the scripts that run directly on the Pi. The PC/WSL side provides a PySide6 GUI for recording, live viewing, and analyzing data, while the Pi side supplies lightweight logger scripts for specific sensors. The desktop app focuses on inspecting logs from the MPU6050 logger.
 
+## Architecture & Roles
+
+- **Desktop GUI (PC/WSL)**
+  - Starts/stops Pi loggers over SSH and synchronizes files over SFTP
+  - Displays live time-domain and FFT plots
+  - Pushes sensor defaults from `src/sensepi/config/sensors.yaml` into each Pi’s `pi_config.yaml`
+  - Downloads recent CSV/JSONL logs for offline browsing
+- **Raspberry Pi logger**
+  - Runs the `raspberrypi_scripts/` CSV/JSONL logging scripts on the device
+  - Streams JSON lines over stdout to the desktop (protocol: `docs/json_protocol.md`)
+
+```mermaid
+flowchart LR
+  PC[Desktop GUI] <-->|SSH / SFTP| Pi[Raspberry Pi logger]
+  Pi -->|JSON lines over stdout| PC
+```
+
+The JSON streaming format and field definitions are documented in `docs/json_protocol.md`.
+
+Configuration files live with the GUI under `src/sensepi/config/hosts.yaml` and `src/sensepi/config/sensors.yaml`, while each Pi keeps its active settings in `raspberrypi_scripts/pi_config.yaml`; the GUI’s Sync action pushes the desktop sensor defaults to that Pi file so every logger shares the same baseline.
+
+## Decimation & Plotting Configuration
+
+Low-latency recording, streaming, and visualization all pull their settings from the `SensePiConfig` dataclass (`src/sensepi/config/runtime.py`).  Load it from YAML via `sensepi.config.load_config`, tweak the fields you care about, then pass it to `sensepi.core.pipeline_wiring.build_pipeline` (for the recorder/streamer/plotter fan-out) and `LivePlot.from_config` (for Matplotlib demos such as `run_live_plot.py`).  Adjusting the config object once at startup keeps rasterizer, streamer, and recorder behaviour in sync without editing multiple modules.
+
+Recommended starting points for human-friendly refresh rates:
+
+- `plot_fs ≈ 50 Hz` keeps the Matplotlib view smooth on Pi Zero 2 while keeping the decimator ratio large enough for 500–1000 Hz sensors.
+- `smoothing_alpha ≈ 0.2` corresponds to ~20–50 ms of IIR smoothing—large enough to calm jitter but small enough to keep spikes visible.
+- `plot_window_seconds ≈ 5–10 s` balances temporal context and responsivity for the scrolling plot.
+- `spike_threshold ≈ 3×` the noise standard deviation works well for highlighting interesting transients without littering the plot with markers.
+
+Create a YAML file with the fields you need (unknown keys are ignored) and point the demo at it:
+
+```yaml
+pipeline:
+  sensor_fs: 1000.0
+  stream_fs: 40.0
+  plot_fs: 48.0
+  plot_window_seconds: 8.0
+  smoothing_alpha: 0.2
+  spike_threshold: 0.6
+```
+
+```bash
+python run_live_plot.py --config configs/pipeline.yaml
+```
+
+`run_live_plot.py` also exposes `--plot-window`, `--spike-threshold`, and `--plot-fs` flags for quick experiments without editing the YAML file.
+
 ## Project layout
 
 ```
@@ -40,6 +90,15 @@ The desktop app connects to each Raspberry Pi using a username and password.
 Populate `src/sensepi/config/hosts.yaml` (or the Settings tab) with the host,
 port, username, and password for each Pi. SSH key authentication and agent
 forwarding are not supported in this version.
+
+## Configuration paths
+
+By default the GUI stores output under `data/` and `logs/` inside the project
+root. Set `SENSEPI_DATA_ROOT` or `SENSEPI_LOG_DIR` (they both understand `~`)
+before launching the app to relocate those folders for packaged installs or
+custom deployments. The paths shown in `src/sensepi/config/hosts.yaml` and
+`raspberrypi_scripts/pi_config.yaml` are only examples—update them to match
+each Pi’s filesystem layout.
 
 ## Sync config to Pi
 

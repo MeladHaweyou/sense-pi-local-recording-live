@@ -17,7 +17,10 @@ import json
 import logging
 import math
 from dataclasses import dataclass
+import time
 from typing import Optional, Sequence
+
+from ..tools.debug import debug_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +115,10 @@ def _parse_csv_line(text: str) -> MpuSample | None:
     )
 
 
+_parse_time_acc = 0.0
+_parse_count = 0
+
+
 def parse_line(line: str) -> MpuSample | None:
     """
     Parse a single text line from the MPU6050 logger into an :class:`MpuSample`.
@@ -120,11 +127,27 @@ def parse_line(line: str) -> MpuSample | None:
     legacy CSV format. Invalid lines return ``None`` so callers can skip them
     without raising exceptions.
     """
+    global _parse_time_acc, _parse_count
+
     text = line.strip()
     if not text:
         return None
 
-    if text[0] == "{":
-        return _parse_json_line(text)
+    debug_on = debug_enabled()
+    start = time.perf_counter() if debug_on else 0.0
 
-    return _parse_csv_line(text)
+    if text[0] == "{":
+        sample = _parse_json_line(text)
+    else:
+        sample = _parse_csv_line(text)
+
+    if debug_on:
+        _parse_time_acc += time.perf_counter() - start
+        _parse_count += 1
+        if _parse_count % 1000 == 0:
+            avg_us = (_parse_time_acc / max(1, _parse_count)) * 1e6
+            logger.info(
+                "mpu6050.parse_line avg %.1f µs over %d samples", avg_us, _parse_count
+            )
+
+    return sample

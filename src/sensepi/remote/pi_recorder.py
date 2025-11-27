@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path, PurePosixPath
 from typing import Callable, Iterable, Optional
 
+from ..config.app_config import DEFAULT_BASE_PATH
 from .ssh_client import Host, SSHClient
 
 
@@ -14,10 +15,10 @@ class PiRecorder:
     def __init__(self, host: Host, base_path: Optional[Path] = None) -> None:
         self.host = host
         if base_path is None:
-            base_path = Path("/home/verwalter/sensor")
+            base_path = DEFAULT_BASE_PATH
 
         # Ensure the remote path is always POSIX-style, even on Windows hosts.
-        base_path = Path(base_path)
+        base_path = Path(base_path).expanduser()
         self.base_path = PurePosixPath(base_path.as_posix())
         self.client = SSHClient(host)
 
