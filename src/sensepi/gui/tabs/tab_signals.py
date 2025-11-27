@@ -134,6 +134,19 @@ class SignalPlotWidgetBase(QWidget):
         # Keep a legacy alias for queued Qt calls that reference the older name.
         self._time_axis_domain = self._get_time_axis_domain
 
+    def __getattr__(self, name: str) -> Any:
+        """Provide a backward-compatible alias for renamed helpers.
+
+        Some queued Qt calls still reference the old ``_time_axis_domain`` name
+        that predated ``_get_time_axis_domain``. In case the attribute is not
+        present (for example, after refactors or in partially constructed
+        instances), fall back to returning the new helper instead of raising.
+        """
+
+        if name == "_time_axis_domain":
+            return self._get_time_axis_domain
+        raise AttributeError(f"{type(self).__name__!s} object has no attribute {name!r}")
+
     def _create_buffer_store(self) -> Dict[SampleKey, TimeSeriesBuffer]:
         return initialize_buffers_for_channels(
             sensor_ids=(0, 1, 2, 3),
