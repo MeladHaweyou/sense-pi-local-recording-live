@@ -181,20 +181,11 @@ class SignalPlotWidgetBase(QWidget):
         return np.arange(count, dtype=np.float64) / rate
 
     def _time_axis_domain(self) -> tuple[float, float]:
-        """
-        Return (xmin, xmax) in seconds for the current time axis.
+        """Return the (xmin, xmax) bounds in seconds for the rolling window."""
 
-        Backend plotting code (both Matplotlib and PyQtGraph) will use this
-        to set the x-axis range.
-        """
-
-        if getattr(self, "_time_axis", None) is not None:
-            try:
-                if self._time_axis.size > 0:
-                    return float(self._time_axis[0]), float(self._time_axis[-1])
-            except AttributeError:
-                # _time_axis exists but is not a NumPy array; fall through
-                pass
+        time_axis = getattr(self, "_time_axis", None)
+        if isinstance(time_axis, np.ndarray) and time_axis.size:
+            return float(time_axis[0]), float(time_axis[-1])
         return 0.0, self._max_seconds
 
     @staticmethod
