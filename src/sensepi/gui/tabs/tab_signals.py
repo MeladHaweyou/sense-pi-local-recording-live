@@ -858,6 +858,10 @@ class SignalPlotWidgetPyQtGraph(SignalPlotWidgetBase):
         self._plots: Dict[SampleKey, pg.PlotItem] = {}
         self._line_pen = pg.mkPen(width=max(1.0, float(self._line_width)))
 
+    def _time_axis_domain(self) -> tuple[float, float]:
+        """Expose the base-class time axis helper for Qt's attribute lookup."""
+        return super()._time_axis_domain()
+
     def _line_set_data(self, line: pg.PlotDataItem, times: Sequence[float], values: Sequence[float]) -> None:
         line.setData(times, values)
 
