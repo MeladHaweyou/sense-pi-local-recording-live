@@ -131,6 +131,9 @@ class SignalPlotWidgetBase(QWidget):
         self._max_subplots: int | None = None
         self._max_lines_per_subplot: int | None = None
 
+        # Keep a legacy alias for queued Qt calls that reference the older name.
+        self._time_axis_domain = self._get_time_axis_domain
+
     def _create_buffer_store(self) -> Dict[SampleKey, TimeSeriesBuffer]:
         return initialize_buffers_for_channels(
             sensor_ids=(0, 1, 2, 3),
