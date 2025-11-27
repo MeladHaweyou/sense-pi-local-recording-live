@@ -702,6 +702,113 @@ class SignalPlotWidgetBase(QWidget):
         self._needs_layout = False
         self._apply_visibility_to_all_lines()
 
+    # --------------------------------------------------------------- base correction API
+    def enable_base_correction(self, enabled: bool) -> None:
+        """Enable or disable baseline subtraction."""
+        self._base_correction_enabled = bool(enabled)
+
+    def reset_calibration(self) -> None:
+        """Clear all stored baseline offsets."""
+        self._baseline_offsets.clear()
+
+    def calibrate_from_buffer(self) -> None:
+        """
+        Compute per-channel baseline from the most recent time window.
+
+        For each (sensor_id, channel) we take the mean over the same sliding
+        window that is used for plotting (self._max_seconds).
+        """
+        if not self._buffers:
+            return
+
+        latest_times = [
+            ts
+            for buf in self._buffers.values()
+            if len(buf) > 0 and (ts := buf.latest_timestamp_ns()) is not None
+        ]
+        if not latest_times:
+            return
+
+        window_ns = int(self._max_seconds * NS_PER_SECOND)
+        latest_ns = max(latest_times)
+        cutoff_ns = max(0, latest_ns - window_ns)
+
+        new_offsets: Dict[SampleKey, float] = {}
+        for key, buf in self._buffers.items():
+            if not buf:
+                continue
+            _, values = buf.get_window(cutoff_ns, latest_ns)
+            if values.size == 0:
+                continue
+            new_offsets[key] = float(values.mean())
+
+        self._baseline_offsets = new_offsets
+
+    # --------------------------------------------------------------- internals
+    def _append_point(self, sensor_id: int, channel: str, t_ns: int, value: float) -> None:
+        key = self._make_key(sensor_id, channel)
+        buf = self._ensure_buffer(key)
+        buf.append(t_ns, value)
+        self._append_plot_value(key, value)
+        if self._latest_timestamp_ns is None or t_ns > self._latest_timestamp_ns:
+            self._latest_timestamp_ns = t_ns
+
+    def _append_plot_value(self, key: SampleKey, value: float) -> None:
+        """Append a sample to the rolling buffer used for live rendering."""
+        window = self._plot_window_samples
+        if window <= 0:
+            return
+        buf = self._ensure_plot_buffer(key)
+        write_count = self._plot_write_counts.get(key, 0)
+        idx = write_count % window
+        buf[idx] = float(value)
+        self._plot_write_counts[key] = write_count + 1
+
+    def _ensure_plot_buffer(self, key: SampleKey) -> np.ndarray:
+        buf = self._plot_buffers.get(key)
+        if buf is not None and buf.shape[0] == self._plot_window_samples:
+            return buf
+        new_buf = np.full(self._plot_window_samples, np.nan, dtype=np.float64)
+        self._plot_buffers[key] = new_buf
+        self._plot_write_counts[key] = 0
+        return new_buf
+
+    def _display_slack_samples(self) -> int:
+        if self._display_slack_ns <= 0:
+            return 0
+        slack_seconds = self._display_slack_ns / float(NS_PER_SECOND)
+        samples = int(round(slack_seconds * self._nominal_sample_rate_hz))
+        if samples <= 0:
+            return 0
+        return min(samples, self._plot_window_samples)
+
+    def _get_plot_window(self, key: SampleKey, slack_samples: int) -> np.ndarray:
+        buf = self._plot_buffers.get(key)
+        if buf is None:
+            return np.empty(0, dtype=np.float64)
+        window = self._plot_window_samples
+        if window <= 0:
+            return np.empty(0, dtype=np.float64)
+        write_count = self._plot_write_counts.get(key, 0)
+        if write_count <= 0:
+            return np.empty(0, dtype=np.float64)
+        idx = write_count % window
+        window_values = np.roll(buf, -idx).copy()
+        if write_count < window:
+            invalid = window - int(write_count)
+            if invalid > 0:
+                window_values[:invalid] = np.nan
+        if slack_samples > 0:
+            shift = min(slack_samples, window)
+            window_values = np.roll(window_values, -shift)
+            window_values[-shift:] = np.nan
+        return window_values
+
+    def _time_axis_domain(self) -> tuple[float, float]:
+        if self._time_axis.size > 0:
+            return float(self._time_axis[0]), float(self._time_axis[-1])
+        return 0.0, self._max_seconds
+
     # ------------------------------------------------------------------ backend hooks
     def _set_line_data(self, key: SampleKey, times: Sequence[float], values: Sequence[float]) -> None:
         line = self._lines.get(key)
@@ -1124,113 +1231,6 @@ def create_signal_plot_widget(
             )
         widget = SignalPlotWidgetPyQtGraph(parent=parent, max_seconds=max_seconds)
     return widget
-
-    # --------------------------------------------------------------- base correction API
-    def enable_base_correction(self, enabled: bool) -> None:
-        """Enable or disable baseline subtraction."""
-        self._base_correction_enabled = bool(enabled)
-
-    def reset_calibration(self) -> None:
-        """Clear all stored baseline offsets."""
-        self._baseline_offsets.clear()
-
-    def calibrate_from_buffer(self) -> None:
-        """
-        Compute per-channel baseline from the most recent time window.
-
-        For each (sensor_id, channel) we take the mean over the same sliding
-        window that is used for plotting (self._max_seconds).
-        """
-        if not self._buffers:
-            return
-
-        latest_times = [
-            ts
-            for buf in self._buffers.values()
-            if len(buf) > 0 and (ts := buf.latest_timestamp_ns()) is not None
-        ]
-        if not latest_times:
-            return
-
-        window_ns = int(self._max_seconds * NS_PER_SECOND)
-        latest_ns = max(latest_times)
-        cutoff_ns = max(0, latest_ns - window_ns)
-
-        new_offsets: Dict[SampleKey, float] = {}
-        for key, buf in self._buffers.items():
-            if not buf:
-                continue
-            _, values = buf.get_window(cutoff_ns, latest_ns)
-            if values.size == 0:
-                continue
-            new_offsets[key] = float(values.mean())
-
-        self._baseline_offsets = new_offsets
-
-    # --------------------------------------------------------------- internals
-    def _append_point(self, sensor_id: int, channel: str, t_ns: int, value: float) -> None:
-        key = self._make_key(sensor_id, channel)
-        buf = self._ensure_buffer(key)
-        buf.append(t_ns, value)
-        self._append_plot_value(key, value)
-        if self._latest_timestamp_ns is None or t_ns > self._latest_timestamp_ns:
-            self._latest_timestamp_ns = t_ns
-
-    def _append_plot_value(self, key: SampleKey, value: float) -> None:
-        """Append a sample to the rolling buffer used for live rendering."""
-        window = self._plot_window_samples
-        if window <= 0:
-            return
-        buf = self._ensure_plot_buffer(key)
-        write_count = self._plot_write_counts.get(key, 0)
-        idx = write_count % window
-        buf[idx] = float(value)
-        self._plot_write_counts[key] = write_count + 1
-
-    def _ensure_plot_buffer(self, key: SampleKey) -> np.ndarray:
-        buf = self._plot_buffers.get(key)
-        if buf is not None and buf.shape[0] == self._plot_window_samples:
-            return buf
-        new_buf = np.full(self._plot_window_samples, np.nan, dtype=np.float64)
-        self._plot_buffers[key] = new_buf
-        self._plot_write_counts[key] = 0
-        return new_buf
-
-    def _display_slack_samples(self) -> int:
-        if self._display_slack_ns <= 0:
-            return 0
-        slack_seconds = self._display_slack_ns / float(NS_PER_SECOND)
-        samples = int(round(slack_seconds * self._nominal_sample_rate_hz))
-        if samples <= 0:
-            return 0
-        return min(samples, self._plot_window_samples)
-
-    def _get_plot_window(self, key: SampleKey, slack_samples: int) -> np.ndarray:
-        buf = self._plot_buffers.get(key)
-        if buf is None:
-            return np.empty(0, dtype=np.float64)
-        window = self._plot_window_samples
-        if window <= 0:
-            return np.empty(0, dtype=np.float64)
-        write_count = self._plot_write_counts.get(key, 0)
-        if write_count <= 0:
-            return np.empty(0, dtype=np.float64)
-        idx = write_count % window
-        window_values = np.roll(buf, -idx).copy()
-        if write_count < window:
-            invalid = window - int(write_count)
-            if invalid > 0:
-                window_values[:invalid] = np.nan
-        if slack_samples > 0:
-            shift = min(slack_samples, window)
-            window_values = np.roll(window_values, -shift)
-            window_values[-shift:] = np.nan
-        return window_values
-
-    def _time_axis_domain(self) -> tuple[float, float]:
-        if self._time_axis.size > 0:
-            return float(self._time_axis[0]), float(self._time_axis[-1])
-        return 0.0, self._max_seconds
 
 
 class SignalsTab(QWidget):
