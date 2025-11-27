@@ -137,7 +137,7 @@ class SignalPlotWidgetBase(QWidget):
 
     def _create_buffer_store(self) -> Dict[SampleKey, TimeSeriesBuffer]:
         return initialize_buffers_for_channels(
-            sensor_ids=(0, 1, 2, 3),
+            sensor_ids=(0, 1, 2),
             channels=("ax", "ay", "az", "gx", "gy", "gz"),
             window_seconds=self._max_seconds,
             max_rate_hz=self._max_rate_hz,
@@ -916,8 +916,7 @@ class SignalPlotWidgetPyQtGraph(SignalPlotWidgetBase):
                     base_label = f"{base_label} [{unit}]"
 
                 if col_idx == 0:
-                    prefix = "Live" if sid == 0 else f"S{sid}"
-                    plot.setLabel("left", f"{prefix}\n{base_label}")
+                    plot.setLabel("left", f"S{sid}\n{base_label}")
                 else:
                     plot.setLabel("left", base_label)
 
@@ -1140,8 +1139,7 @@ class SignalPlotWidgetMatplotlib(SignalPlotWidgetBase):
             base_label = f"{base_label} [{unit}]"
 
         if col_idx == 0:
-            prefix = "Live" if sensor_id == 0 else f"S{sensor_id}"
-            ax.set_ylabel(f"{prefix}\n{base_label}")
+            ax.set_ylabel(f"S{sensor_id}\n{base_label}")
         else:
             ax.set_ylabel(base_label)
 
@@ -1869,7 +1867,7 @@ class SignalsTab(QWidget):
         self._channel_checkboxes.clear()
 
         # Use view preset:
-        #   - "default3" => AX, AY, GZ (3 columns)
+        #   - "default3" => AX, AY, AZ (3 columns)
         #   - "all6"     => AX, AY, AZ, GX, GY, GZ (6 columns)
         view_mode = (
             self.view_mode_combo.currentData()
@@ -1877,7 +1875,7 @@ class SignalsTab(QWidget):
             else "all6"
         )
         if view_mode == "default3":
-            channels = ["ax", "ay", "gz"]
+            channels = ["ax", "ay", "az"]
         else:
             channels = ["ax", "ay", "az", "gx", "gy", "gz"]
 
