@@ -1,3 +1,5 @@
+"""Signals tab and live plotting widgets for SensePi."""
+
 from __future__ import annotations
 
 import logging
