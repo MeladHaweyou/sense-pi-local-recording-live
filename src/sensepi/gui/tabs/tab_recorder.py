@@ -247,7 +247,7 @@ class RecorderTab(QWidget):
         # Hidden start/stop buttons (driven programmatically by MainWindow)
         button_box = QGroupBox(self)
         button_box.setVisible(False)
-        btn_row = QHBoxLayout(button_box)
+        btn_row = QHBoxLayout()
         self.start_btn = QPushButton("Start streaming", button_box)
         self.stop_btn = QPushButton("Stop", button_box)
         self.stop_btn.setEnabled(False)

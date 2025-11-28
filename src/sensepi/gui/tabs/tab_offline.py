@@ -43,7 +43,7 @@ class OfflineTab(QWidget):
 
         self._canvas: FigureCanvasQTAgg | None = None
 
-        layout = QVBoxLayout(self)
+        layout = QVBoxLayout()
 
         top_row = QHBoxLayout()
         top_row.addWidget(QLabel("Recent logs:"))

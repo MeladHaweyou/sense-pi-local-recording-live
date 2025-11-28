@@ -9,6 +9,7 @@ from typing import Tuple
 
 import matplotlib as mpl
 
+from PySide6.QtCore import QLoggingCategory
 from PySide6.QtWidgets import QApplication, QMainWindow
 
 from .benchmark import BenchmarkDriver, BenchmarkOptions
@@ -143,6 +144,10 @@ def create_app(
     qt_args = argv if argv is not None else sys.argv
     configure_matplotlib_for_realtime()
     app = QApplication.instance() or QApplication(qt_args)
+
+    # Suppress noisy QObject::connect warnings from QStyleHints and similar internals
+    QLoggingCategory.setFilterRules("qt.core.qobject.connect=false")
+
     window = MainWindow(app_config=app_config)
     return app, window
 
