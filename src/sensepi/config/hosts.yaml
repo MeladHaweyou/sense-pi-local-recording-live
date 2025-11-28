@@ -2,10 +2,10 @@
 # Update the host/user/password/path values to match your environment.
 # Using "~/..." is supported and expands to each user's home directory.
 pis:
-  - name: lab-pi
-    host: raspberrypi.local
-    user: pi
-    password: "change-me"
+  - name: Pi06
+    host: 192.168.0.6
+    user: verwalter
+    password: "!66442200"
     base_path: "~/sensor"
     data_dir: "~/logs"
     pi_config_path: "~/sensor/pi_config.yaml"
