@@ -1390,7 +1390,7 @@ class SignalsTab(QWidget):
 
         # Top controls ---------------------------------------------------------
         top_row_group = QGroupBox(self)
-        top_row = QHBoxLayout(top_row_group)
+        top_row = QHBoxLayout()
         top_row.setSpacing(12)
 
         sensor_layout = QHBoxLayout()
