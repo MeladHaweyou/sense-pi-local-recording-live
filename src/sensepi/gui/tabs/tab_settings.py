@@ -41,6 +41,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
     QComboBox,
+    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -61,6 +62,7 @@ from ...config.app_config import (
     SensorDefaults,
     build_pi_config_for_host,
 )
+from ...config.sampling import RECORDING_MODES, SamplingConfig
 from ...remote.ssh_client import SSHClient
 
 
@@ -164,13 +166,25 @@ class SettingsTab(QWidget):
         sensors_group = QGroupBox("Sensor defaults", self)
         sensors_layout = QVBoxLayout(sensors_group)
 
+        # Sampling (single source of truth)
+        sampling_group = QGroupBox("Sampling", sensors_group)
+        sampling_form = QFormLayout(sampling_group)
+
+        self.device_rate_spin = QDoubleSpinBox(sampling_group)
+        self.device_rate_spin.setRange(1.0, 4000.0)
+        self.device_rate_spin.setDecimals(1)
+        self.device_rate_spin.setValue(200.0)
+
+        self.mode_combo = QComboBox(sampling_group)
+        for key, mode in RECORDING_MODES.items():
+            self.mode_combo.addItem(mode.label, userData=key)
+
+        sampling_form.addRow("Device rate [Hz]:", self.device_rate_spin)
+        sampling_form.addRow("Mode:", self.mode_combo)
+
         # MPU6050 defaults
         mpu_group = QGroupBox("MPU6050", sensors_group)
         mpu_form = QFormLayout(mpu_group)
-
-        self.mpu_rate = QSpinBox(mpu_group)
-        self.mpu_rate.setRange(1, 4000)
-        self.mpu_rate.setValue(200)
 
         self.mpu_channels = QComboBox(mpu_group)
         # Same choices as the logger
@@ -182,11 +196,11 @@ class SettingsTab(QWidget):
 
         self.mpu_include_temp = QCheckBox("Include on-die temperature", mpu_group)
 
-        mpu_form.addRow("Sample rate [Hz]:", self.mpu_rate)
         mpu_form.addRow("Channels:", self.mpu_channels)
         mpu_form.addRow("DLPF:", self.mpu_dlpf)
         mpu_form.addRow("", self.mpu_include_temp)
 
+        sensors_layout.addWidget(sampling_group)
         sensors_layout.addWidget(mpu_group)
 
         self.btn_save_sensors = QPushButton("Save sensors.yaml", sensors_group)
@@ -424,7 +438,10 @@ class SettingsTab(QWidget):
             return
 
         host_cfg = self._host_inventory.to_host_config(host_dict)
-        app_cfg = AppConfig(sensor_defaults=self.sensor_defaults())
+        sampling_cfg = self._sensor_defaults.load_sampling_config(self._sensors)
+        app_cfg = AppConfig(
+            sensor_defaults=self.sensor_defaults(), sampling_config=sampling_cfg
+        )
         pi_cfg = build_pi_config_for_host(host_cfg, app_cfg)
 
         buf = io.StringIO()
@@ -478,10 +495,16 @@ class SettingsTab(QWidget):
     # Sensor defaults helpers
     # ------------------------------------------------------------------
     def _load_sensor_widgets_from_model(self) -> None:
-        mpu_cfg = dict(self._sensors.get("mpu6050", {}) or {})
+        sampling_cfg = SamplingConfig.from_mapping(self._sensors)
+        self.device_rate_spin.setValue(float(sampling_cfg.device_rate_hz))
+        idx_mode = self.mode_combo.findData(sampling_cfg.mode_key)
+        if idx_mode < 0:
+            idx_mode = self.mode_combo.findData("high_fidelity")
+        self.mode_combo.setCurrentIndex(max(0, idx_mode))
 
-        # MPU6050
-        self.mpu_rate.setValue(int(mpu_cfg.get("sample_rate_hz", 200)))
+        sensors = self._sensors.get("sensors", {}) if isinstance(self._sensors, dict) else {}
+        mpu_cfg = dict(sensors.get("mpu6050", {}) or {})
+
         mpu_ch = str(mpu_cfg.get("channels", "default"))
         idx = self.mpu_channels.findText(mpu_ch)
         if idx < 0:
@@ -495,17 +518,29 @@ class SettingsTab(QWidget):
     def _on_save_sensors_clicked(self) -> None:
         sensors = dict(self._sensors)  # preserve unknown keys / sensor types
 
-        mpu_cfg = dict(sensors.get("mpu6050", {}) or {})
+        sampling_cfg = SamplingConfig(
+            device_rate_hz=float(self.device_rate_spin.value()),
+            mode_key=str(self.mode_combo.currentData()),
+        )
+
+        sensor_block = dict(sensors.get("sensors", {}) or {})
+        mpu_cfg = dict(sensor_block.get("mpu6050", {}) or {})
         mpu_cfg.update(
             {
-                "sample_rate_hz": int(self.mpu_rate.value()),
+                "sample_rate_hz": sampling_cfg.device_rate_hz,
                 "channels": str(self.mpu_channels.currentText()),
                 "dlpf": int(self.mpu_dlpf.value()),
                 "include_temperature": bool(self.mpu_include_temp.isChecked()),
             }
         )
-        sensors["mpu6050"] = mpu_cfg
+        sensor_block["mpu6050"] = mpu_cfg
+        sensors["sampling"] = {
+            "device_rate_hz": sampling_cfg.device_rate_hz,
+            "mode": sampling_cfg.mode_key,
+        }
+        sensors["sensors"] = sensor_block
         sensors.pop("adxl203_ads1115", None)
+        sensors.pop("mpu6050", None)
 
         try:
             self._sensor_defaults.save(sensors)
