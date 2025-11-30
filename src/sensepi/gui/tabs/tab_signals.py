@@ -1624,22 +1624,14 @@ class SignalsTab(QWidget):
         self._refresh_mode_hint()
 
     def current_acquisition_settings(self) -> AcquisitionSettings:
-        """Return the current sampling / refresh settings."""
-        settings = self._acquisition_widget.settings()
-        recorder = self._recorder_tab
-        if recorder is not None:
-            recording = self.recording_check.isChecked()
-            fallback_every = int(settings.stream_every)
-            stream_every = recorder.compute_stream_every(
-                settings.sample_rate_hz,
-                recording=recording,
-                fallback_every=fallback_every,
-            )
-            settings.stream_every = stream_every
-            self._acquisition_widget.display_effective_stream_rate(
-                settings.effective_stream_rate_hz
-            )
-        return settings
+        """Return the current sampling / refresh settings.
+
+        The SamplingConfig inside AcquisitionSettings is now the single
+        source of truth for device rate and stream decimation. The
+        Recorder tab will derive --stream-every from it, so we don't
+        need to tweak anything here.
+        """
+        return self._acquisition_widget.settings()
 
     def session_name(self) -> str:
         """Return the normalized session label provided by the user."""
