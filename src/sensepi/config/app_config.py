@@ -10,6 +10,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import yaml
 
+from .pi_logger_config import PiLoggerConfig
+from .sampling import SamplingConfig
+
 
 DEFAULT_BASE_PATH = Path("~/sensor")
 DEFAULT_DATA_DIR = Path("~/logs")
@@ -147,6 +150,7 @@ class AppConfig:
     plot_performance: PlotPerformanceConfig = field(
         default_factory=PlotPerformanceConfig
     )
+    sampling_config: SamplingConfig | None = None
 
     def normalized_signal_backend(self) -> str:
         """Return the canonical backend identifier (``pyqtgraph`` or ``matplotlib``)."""
@@ -163,24 +167,57 @@ class SensorDefaults:
     """
     Helper for loading/saving sensor defaults (sensors.yaml).
 
-    The structure mirrors the YAML file:
+    The authoritative sampling configuration is stored under a top-level
+    ``sampling`` key and mirrored into per-sensor entries for readability.
+
+    sampling:
+      device_rate_hz: 150
+      mode: high_fidelity
 
     sensors:
       mpu6050:
-        sample_rate_hz: 200
         channels: "default"
         dlpf: 3
         include_temperature: false
+        sample_rate_hz: 150  # mirror of sampling.device_rate_hz
     """
 
     sensors_file: Path = AppPaths().config_dir / "sensors.yaml"
 
+    def _normalize(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        normalized = dict(data) if isinstance(data, dict) else {}
+
+        sampling_cfg = SamplingConfig.from_mapping(normalized)
+        sampling_block = {
+            "device_rate_hz": sampling_cfg.device_rate_hz,
+            "mode": sampling_cfg.mode_key,
+        }
+
+        sensors_block = normalized.get("sensors")
+        if not isinstance(sensors_block, dict):
+            sensors_block = {}
+
+        mpu_cfg = dict(sensors_block.get("mpu6050", {}) or {})
+        mpu_cfg["sample_rate_hz"] = sampling_cfg.device_rate_hz
+        sensors_block["mpu6050"] = mpu_cfg
+
+        normalized["sampling"] = sampling_block
+        normalized["sensors"] = sensors_block
+        normalized.pop("mpu6050", None)
+        return normalized
+
     def load(self) -> Dict[str, Any]:
         """Load and return the full sensors.yaml mapping (or ``{}`` if missing)."""
         if not self.sensors_file.exists():
-            return {}
+            return self._normalize({})
         with self.sensors_file.open("r", encoding="utf-8") as fh:
-            return yaml.safe_load(fh) or {}
+            loaded = yaml.safe_load(fh) or {}
+        return self._normalize(loaded)
+
+    def load_sampling_config(self, data: Dict[str, Any] | None = None) -> SamplingConfig:
+        if data is None:
+            data = self.load()
+        return SamplingConfig.from_mapping(data)
 
     def save(self, data: Dict[str, Any]) -> None:
         """
@@ -189,10 +226,11 @@ class SensorDefaults:
         Callers are expected to start from :meth:`load` so that unknown keys
         are preserved.
         """
+        normalized = self._normalize(data)
         self.sensors_file.parent.mkdir(parents=True, exist_ok=True)
         with self.sensors_file.open("w", encoding="utf-8") as fh:
             yaml.safe_dump(
-                data,
+                normalized,
                 fh,
                 default_flow_style=False,
                 sort_keys=False,
@@ -216,7 +254,10 @@ class SensorDefaults:
             *overrides* replaces the default read from :mod:`sensors.yaml`.
         """
         config = self.load()
-        base = dict(config.get("mpu6050", {}) or {})
+        sampling_cfg = SamplingConfig.from_mapping(config)
+        sensors = config.get("sensors") or {}
+        base = dict(sensors.get("mpu6050", {}) or {})
+        base["sample_rate_hz"] = sampling_cfg.device_rate_hz
         if overrides:
             for key, value in overrides.items():
                 if value is not None:
@@ -382,16 +423,36 @@ def build_pi_config_for_host(host_cfg: HostConfig, app_cfg: AppConfig) -> Dict[s
     Currently this mirrors only the MPU6050 logger configuration.
     """
     sensors = app_cfg.sensor_defaults or {}
+    sampling_cfg = app_cfg.sampling_config or SamplingConfig.from_mapping(sensors)
+    decimation = sampling_cfg.compute_decimation()
+    pi_cfg = PiLoggerConfig.from_sampling(sampling_cfg)
 
-    mpu_defaults = dict(sensors.get("mpu6050", {}) or {})
+    sensor_defaults = sensors.get("sensors") or {}
+    mpu_defaults = dict(sensor_defaults.get("mpu6050", {}) or {})
+    sensors_list = mpu_defaults.get("sensors", [1, 2, 3])
+    if isinstance(sensors_list, str):
+        sensors_list = [s.strip() for s in sensors_list.split(",") if s.strip()]
+
     mpu_cfg = {
         "output_dir": str(host_cfg.data_dir / "mpu"),
-        "sample_rate_hz": int(mpu_defaults.get("sample_rate_hz", 200)),
+        "sample_rate_hz": int(pi_cfg.device_rate_hz),
+        "record_decimate": int(pi_cfg.record_decimate),
+        "stream_every": int(pi_cfg.stream_decimate),
+        "record_rate_hz": float(decimation["record_rate_hz"]),
+        "stream_rate_hz": float(decimation["stream_rate_hz"]),
         "channels": str(mpu_defaults.get("channels", "default")),
         "dlpf": int(mpu_defaults.get("dlpf", 3)),
         "include_temperature": bool(mpu_defaults.get("include_temperature", False)),
-        "sensors": [1, 2, 3],
+        "sensors": sensors_list,
     }
 
-    return {"mpu6050": mpu_cfg}
+    return {
+        "generated": "GENERATED FILE - DO NOT EDIT BY HAND",
+        "device_rate_hz": float(pi_cfg.device_rate_hz),
+        "record_decimate": int(pi_cfg.record_decimate),
+        "stream_decimate": int(pi_cfg.stream_decimate),
+        "record_rate_hz": float(decimation["record_rate_hz"]),
+        "stream_rate_hz": float(decimation["stream_rate_hz"]),
+        "mpu6050": mpu_cfg,
+    }
 

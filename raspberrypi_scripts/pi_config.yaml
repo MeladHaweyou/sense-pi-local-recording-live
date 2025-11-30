@@ -1,7 +1,15 @@
+# GENERATED FILE - DO NOT EDIT BY HAND
+device_rate_hz: 200
+record_decimate: 4
+stream_decimate: 8
+record_rate_hz: 50.0
+stream_rate_hz: 25.0
 mpu6050:
-  # Update output_dir to wherever you store logs on the Pi.
-  # "~" expands to the home folder of the pi user.
   output_dir: ~/logs/mpu
-  sample_rate_hz: 100
+  sample_rate_hz: 200
+  record_decimate: 4
+  stream_every: 8
+  record_rate_hz: 50.0
+  stream_rate_hz: 25.0
   sensors: [1, 2, 3]
   include_temperature: false

@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -28,6 +27,8 @@ from PySide6.QtWidgets import (
 from ..widgets import AcquisitionSettings, CollapsibleSection
 from ...analysis.rate import RateController
 from ...config.app_config import HostConfig, HostInventory, SensorDefaults
+from ...config.pi_logger_config import PiLoggerConfig, build_logger_args
+from ...config.sampling import GuiSamplingDisplay, SamplingConfig
 from ...core.live_stream import select_parser
 from ...data import BufferConfig, StreamingDataBuffer
 from ...remote.pi_recorder import PiRecorder
@@ -75,6 +76,7 @@ class RecorderTab(QWidget):
         super().__init__(parent)
         self._host_inventory = host_inventory or HostInventory()
         self._sensor_defaults = SensorDefaults()
+        self._sampling_config = self._sensor_defaults.load_sampling_config()
 
         self._hosts: Dict[str, Dict[str, object]] = {}
         self._pi_recorder: Optional[PiRecorder] = None
@@ -90,10 +92,11 @@ class RecorderTab(QWidget):
         self._ingest_max_latency_ms = 100
         self._ingest_had_error = False
         self._last_session_name: str = ""
+        decimation = self._sampling_config.compute_decimation()
         self._data_buffer = StreamingDataBuffer(
             BufferConfig(
                 max_seconds=6.0,
-                sample_rate_hz=self._get_default_mpu_sample_rate(),
+                sample_rate_hz=decimation["stream_rate_hz"],
             )
         )
         self._active_stream: Iterable[str] | None = None
@@ -101,7 +104,7 @@ class RecorderTab(QWidget):
 
         self._build_ui()
         self._load_hosts()
-        self._update_recording_rate_from_defaults()
+        self._refresh_sampling_labels()
 
         self.error_reported.connect(self._show_error)
         self.rate_updated.connect(self._on_rate_updated)
@@ -135,15 +138,6 @@ class RecorderTab(QWidget):
         self.mpu_enable_chk.setChecked(True)
         mpu_layout.addWidget(self.mpu_enable_chk)
 
-        # Recording/sample rate is read from sensors.yaml and shown read-only
-        mpu_layout.addWidget(QLabel("Recording rate [Hz]:", self.mpu_group))
-        self.mpu_recording_rate_label = QLabel("—", self.mpu_group)
-        self.mpu_recording_rate_label.setToolTip(
-            "Sample rate configured in Settings → Sensor defaults. "
-            "This is the rate used for recording on the Pi."
-        )
-        mpu_layout.addWidget(self.mpu_recording_rate_label)
-
         mpu_layout.addWidget(QLabel("Sensors:", self.mpu_group))
         self.mpu_sensors_edit = QLineEdit("1,2,3", self.mpu_group)
         self.mpu_sensors_edit.setToolTip("Comma-separated sensor IDs (1..3)")
@@ -167,44 +161,18 @@ class RecorderTab(QWidget):
         self.mpu_temp_chk.setChecked(False)
         mpu_layout.addWidget(self.mpu_temp_chk)
 
-        stream_row = QHBoxLayout()
-        stream_row.addWidget(QLabel("Target GUI stream [Hz]:", self.mpu_group))
-        self.mpu_target_stream_rate = QDoubleSpinBox(self.mpu_group)
-        self.mpu_target_stream_rate.setRange(1.0, 200.0)
-        self.mpu_target_stream_rate.setDecimals(1)
+        rate_form = QFormLayout()
+        self.device_rate_label = QLabel("—", self.mpu_group)
+        self.record_rate_label = QLabel("—", self.mpu_group)
+        self.stream_rate_label = QLabel("—", self.mpu_group)
+        self.mode_label = QLabel("—", self.mpu_group)
 
-        self.mpu_target_stream_rate.setSingleStep(0.5)
-        self.mpu_target_stream_rate.setValue(25.0)
-        self.mpu_target_stream_rate.setToolTip(
-            "Desired rate of samples arriving in the GUI (after decimation). "
-            "The logger's --stream-every is derived from this value."
-        )
-        stream_row.addWidget(self.mpu_target_stream_rate)
+        rate_form.addRow("Device rate [Hz]:", self.device_rate_label)
+        rate_form.addRow("Recording rate [Hz]:", self.record_rate_label)
+        rate_form.addRow("GUI stream [Hz]:", self.stream_rate_label)
+        rate_form.addRow("Mode:", self.mode_label)
 
-        self.mpu_manual_stream_every_chk = QCheckBox(
-            "Manual stream every", self.mpu_group
-        )
-        self.mpu_manual_stream_every_chk.setToolTip(
-            "Enable to override the derived decimation and pass an explicit "
-            "--stream-every N to the Pi logger."
-        )
-        stream_row.addWidget(self.mpu_manual_stream_every_chk)
-
-        self.mpu_stream_every_spin = QSpinBox(self.mpu_group)
-        self.mpu_stream_every_spin.setRange(1, 1000)
-        self.mpu_stream_every_spin.setSingleStep(1)
-        self.mpu_stream_every_spin.setValue(5)
-        self.mpu_stream_every_spin.setEnabled(False)
-        self.mpu_stream_every_spin.setToolTip(
-            "Number of samples skipped between streamed points. Only used when "
-            "'Manual stream every' is enabled."
-        )
-        self.mpu_manual_stream_every_chk.toggled.connect(
-            self.mpu_stream_every_spin.setEnabled
-        )
-        stream_row.addWidget(self.mpu_stream_every_spin)
-        stream_row.addStretch(1)
-        mpu_layout.addLayout(stream_row)
+        mpu_layout.addLayout(rate_form)
 
         duration_row = QHBoxLayout()
         self.mpu_limit_duration_chk = QCheckBox(
@@ -362,18 +330,14 @@ class RecorderTab(QWidget):
         """Return the last session label requested by the user."""
         return self._last_session_name
 
-    def _get_default_mpu_sample_rate(self) -> float:
-        """Return the MPU6050 sample rate from sensors.yaml (Hz)."""
+    def _load_sampling_config(self) -> SamplingConfig:
         try:
             config = self._sensor_defaults.load()
+            sampling = SamplingConfig.from_mapping(config)
         except Exception:
-            return 200.0
-        mpu_cfg = dict(config.get("mpu6050", {}) or {})
-        rate = mpu_cfg.get("sample_rate_hz", 200)
-        try:
-            return float(rate)
-        except (TypeError, ValueError):
-            return 200.0
+            sampling = SamplingConfig(device_rate_hz=200.0)
+        self._sampling_config = sampling
+        return sampling
 
     def _get_default_mpu_dlpf(self) -> int | None:
         """Return the MPU6050 DLPF setting from sensors.yaml."""
@@ -381,155 +345,45 @@ class RecorderTab(QWidget):
             config = self._sensor_defaults.load()
         except Exception:
             return 3
-        mpu_cfg = dict(config.get("mpu6050", {}) or {})
+        sensors = config.get("sensors", {}) if isinstance(config, dict) else {}
+        mpu_cfg = dict(sensors.get("mpu6050", {}) or {})
         dlpf = mpu_cfg.get("dlpf")
         try:
             return int(dlpf)
         except (TypeError, ValueError):
             return None
 
-    def _target_stream_rate_hz(self) -> float:
-        widget = getattr(self, "mpu_target_stream_rate", None)
-        if widget is None:
-            return 0.0
-        try:
-            return float(widget.value())
-        except (TypeError, ValueError):
-            return 0.0
+    def _current_sampling(self) -> SamplingConfig:
+        if not isinstance(self._sampling_config, SamplingConfig):
+            return self._load_sampling_config()
+        return self._sampling_config
 
-    def target_stream_rate_hz(self) -> float:
-        """Expose the current GUI target stream rate for other tabs."""
-        return float(self._target_stream_rate_hz())
-
-    def _manual_stream_every_enabled(self) -> bool:
-        chk = getattr(self, "mpu_manual_stream_every_chk", None)
-        if chk is None:
-            return False
-        return chk.isChecked()
-
-    def _manual_stream_every_value(self) -> int:
-        spin = getattr(self, "mpu_stream_every_spin", None)
-        if spin is None:
-            return 1
-        try:
-            return max(1, int(spin.value()))
-        except (TypeError, ValueError):
-            return 1
-
-    def compute_stream_every(
-        self,
-        sample_rate_hz: float | None,
-        *,
-        recording: bool | None = None,
-        fallback_every: int | None = None,
-    ) -> int:
-        """
-        Return the decimation factor (--stream-every) derived from the target GUI rate.
-
-        ``sample_rate_hz`` is the Pi recording rate. When manual override is enabled,
-        that value is ignored and the explicit spin-box value is returned instead.
-        """
-
-        rate = 0.0
-        if sample_rate_hz is not None:
+    def _refresh_sampling_labels(self) -> None:
+        sampling = self._current_sampling()
+        display = GuiSamplingDisplay.from_sampling(sampling)
+        self.device_rate_label.setText(f"{display.device_rate_hz:.1f} Hz")
+        self.record_rate_label.setText(f"{display.record_rate_hz:.1f} Hz")
+        self.stream_rate_label.setText(f"{display.stream_rate_hz:.1f} Hz")
+        self.mode_label.setText(display.mode_label)
+        if hasattr(self._data_buffer, "config"):
             try:
-                rate = max(0.0, float(sample_rate_hz))
-            except (TypeError, ValueError):
-                rate = 0.0
-
-        if self._manual_stream_every_enabled():
-            stream_every = self._manual_stream_every_value()
-        else:
-            target = self._target_stream_rate_hz()
-            stream_every = 1
-            if rate > 0.0 and target > 0.0:
-                stream_every = max(1, int(round(rate / target)))
-            elif fallback_every is not None:
-                try:
-                    stream_every = max(1, int(fallback_every))
-                except (TypeError, ValueError):
-                    stream_every = 1
-
-        if recording is None:
-            recording = self._recording_mode
-        if recording:
-            # Keep GUI load manageable when recording at high rates.
-            stream_every = max(stream_every, 5)
-        return stream_every
+                self._data_buffer.config.sample_rate_hz = display.stream_rate_hz
+            except Exception:
+                pass
 
     def request_coarser_streaming(self) -> None:
-        """
-        Respond to adaptive tuning by reducing the GUI stream rate target.
-
-        Changes are applied to the spin boxes only; the next stream start will
-        inherit the more conservative settings.
-        """
-        changed = self._adjust_stream_every(coarser=True)
-        self._nudge_target_stream_rate(scale=0.8)
-        if changed:
-            spin = getattr(self, "mpu_stream_every_spin", None)
-            value = spin.value() if spin is not None else "?"
-            logger.info(
-                "RecorderTab: requested coarser GUI stream (stream_every now %s)",
-                value,
-            )
+        """Adaptive tuning hook (no-op with unified sampling)."""
+        logger.info("RecorderTab: sampling decimation is derived from mode; ignoring request")
 
     def request_finer_streaming(self) -> None:
-        """
-        Allow the adaptive controller to cautiously raise the GUI stream rate.
-        """
-        changed = self._adjust_stream_every(coarser=False)
-        self._nudge_target_stream_rate(scale=1.1)
-        if changed:
-            spin = getattr(self, "mpu_stream_every_spin", None)
-            value = spin.value() if spin is not None else "?"
-            logger.info(
-                "RecorderTab: requested finer GUI stream (stream_every now %s)",
-                value,
-            )
-
-    def _adjust_stream_every(self, *, coarser: bool) -> bool:
-        spin = getattr(self, "mpu_stream_every_spin", None)
-        if spin is None:
-            return False
-        try:
-            current = max(1, int(spin.value()))
-        except (TypeError, ValueError):
-            return False
-        if coarser:
-            new_value = min(spin.maximum(), max(current + 1, current * 2))
-        else:
-            new_value = max(spin.minimum(), max(1, current // 2))
-        if new_value == current:
-            return False
-        spin.setValue(int(new_value))
-        return True
-
-    def _nudge_target_stream_rate(self, *, scale: float) -> bool:
-        widget = getattr(self, "mpu_target_stream_rate", None)
-        if widget is None:
-            return False
-        try:
-            current = float(widget.value())
-        except (TypeError, ValueError):
-            return False
-        minimum = float(widget.minimum()) if hasattr(widget, "minimum") else 1.0
-        maximum = float(widget.maximum()) if hasattr(widget, "maximum") else max(1.0, current)
-        new_value = max(minimum, min(maximum, current * scale))
-        if abs(new_value - current) < 0.05:
-            return False
-        widget.setValue(float(new_value))
-        return True
-
-    def _update_recording_rate_from_defaults(self) -> None:
-        rate = self._get_default_mpu_sample_rate()
-        if hasattr(self, "mpu_recording_rate_label"):
-            self.mpu_recording_rate_label.setText(f"{rate:.0f} Hz")
+        """Adaptive tuning hook (no-op with unified sampling)."""
+        logger.info("RecorderTab: sampling decimation is derived from mode; ignoring request")
 
     def current_mpu_gui_config(self) -> MpuGuiConfig:
+        sampling = self._current_sampling()
         return MpuGuiConfig(
             enabled=self.mpu_enable_chk.isChecked(),
-            rate_hz=self._get_default_mpu_sample_rate(),
+            rate_hz=sampling.device_rate_hz,
             sensors=self.mpu_sensors_edit.text().strip() or "1,2,3",
             channels=self.mpu_channels_combo.currentData(),
             include_temp=self.mpu_temp_chk.isChecked(),
@@ -547,56 +401,43 @@ class RecorderTab(QWidget):
     ) -> list[str]:
         """Construct CLI flags passed to ``mpu6050_multi_logger.py``.
 
-        The logger always samples/records on the Pi at the configured
-        ``--sample-rate-hz`` even if the GUI only consumes every N-th sample
-        defined by ``--stream-every``. This helper keeps those pieces in sync
-        so recording mode still captures every sample on-disk while the GUI
-        receives a decimated stream that is less likely to overwhelm Qt.
+        The logger always uses :class:`SamplingConfig` as the single source of
+        truth. Decimation for recording and streaming is derived from the
+        selected recording mode; no other code path computes ``--stream-every``.
         """
 
-        args: list[str] = []
-
-        rate = self._get_default_mpu_sample_rate()
+        sampling = self._current_sampling()
         if acquisition is not None and acquisition.sample_rate_hz > 0:
-            rate = float(acquisition.sample_rate_hz)
-        if rate > 0:
-            args += ["--sample-rate-hz", f"{int(rate)}"]
+            sampling = SamplingConfig(
+                device_rate_hz=float(acquisition.sample_rate_hz),
+                mode_key=sampling.mode_key,
+            )
 
+        extra: dict[str, object] = {}
         sensors = self.mpu_sensors_edit.text().strip()
         if sensors:
-            args += ["--sensors", sensors]
+            extra["sensors"] = sensors
 
         channels = self.mpu_channels_combo.currentData() or "default"
-        args += ["--channels", channels]
-
-        if self.mpu_temp_chk.isChecked():
-            args.append("--temp")
+        extra["channels"] = channels
 
         dlpf = self._get_default_mpu_dlpf()
         if dlpf is not None:
-            args += ["--dlpf", str(dlpf)]
+            extra["dlpf"] = dlpf
 
-        fallback_stream_every: int | None = None
-        if acquisition is not None:
-            try:
-                fallback_stream_every = int(acquisition.stream_every)
-            except (TypeError, ValueError):
-                fallback_stream_every = None
-        stream_every = self.compute_stream_every(
-            rate,
-            fallback_every=fallback_stream_every,
-        )
-        args += ["--stream-every", str(stream_every)]
+        if self.mpu_temp_chk.isChecked():
+            extra["temp"] = True
 
         if self.mpu_limit_duration_chk.isChecked():
             duration_s = float(self.mpu_duration_spin.value())
             if duration_s > 0:
-                args += ["--duration", f"{duration_s:.3f}"]
+                extra["duration"] = f"{duration_s:.3f}"
 
         if session_name:
-            args += ["--session-name", session_name]
+            extra["session_name"] = session_name
 
-        return args
+        pi_cfg = PiLoggerConfig.from_sampling(sampling, **extra)
+        return build_logger_args(pi_cfg)
 
     # --------------------------------------------------------------- slots
     @Slot()
@@ -858,20 +699,14 @@ class RecorderTab(QWidget):
     @Slot(dict)
     def on_sensors_updated(self, sensors: dict) -> None:
         """
-        Slot connected from SettingsTab.sensorsUpdated to keep the
-        'Recording rate' label in sync with sensors.yaml.
+        Slot connected from SettingsTab.sensorsUpdated to keep sampling labels
+        in sync with sensors.yaml.
         """
-        mpu_cfg = dict(sensors.get("mpu6050", {}) or {})
-        rate = mpu_cfg.get("sample_rate_hz")
-        if rate is None:
-            self._update_recording_rate_from_defaults()
-            return
         try:
-            rate_f = float(rate)
-        except (TypeError, ValueError):
-            self._update_recording_rate_from_defaults()
+            self._sampling_config = SamplingConfig.from_mapping(sensors)
+        except Exception:
             return
-        self.mpu_recording_rate_label.setText(f"{rate_f:.0f} Hz")
+        self._refresh_sampling_labels()
 
     @Slot(list)
     def on_hosts_updated(self, host_list: list[dict]) -> None:
