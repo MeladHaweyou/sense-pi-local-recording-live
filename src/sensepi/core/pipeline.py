@@ -47,7 +47,11 @@ def _call_writer(writer: SampleBlockWriter | Callable[[np.ndarray, np.ndarray], 
 
 
 def _offer_queue(queue: Queue, item: object) -> None:
-    """Best-effort put that drops the oldest payload when the queue is full."""
+    """Best-effort put used for GUI-facing queues.
+
+    When the queue is full we drop the oldest item and keep the newest one
+    instead, which keeps the UI responsive under back-pressure.
+    """
     try:
         queue.put_nowait(item)
     except Full:
@@ -122,10 +126,14 @@ class Streamer(SampleSink):
         if values.size == 0 or times.size == 0:
             return
         start_time = float(times[0])
+        # Convert the high-rate sensor stream into a lighter, decimated stream
+        # before shipping it across the network or into the GUI queue.
         t_dec, y_mean, _, _ = self._decimator.process_block(values, start_time=start_time)
         if t_dec.size == 0:
             return
         payload = (t_dec, y_mean)
+        # The same decimated payload can be sent immediately over the transport
+        # and/or handed to a queue that another thread (e.g. Qt) will drain.
         if self.transport is not None:
             self.transport(t_dec, y_mean)
         if self.queue is not None:
@@ -134,7 +142,7 @@ class Streamer(SampleSink):
 
 @dataclass(slots=True)
 class PlotUpdate:
-    """Container with decimated plot data."""
+    """Decimated plot data (mean/envelope/spikes) for the Signals tab."""
 
     timestamps: np.ndarray
     mean: np.ndarray
@@ -175,6 +183,8 @@ class Plotter(SampleSink):
         times = np.asarray(t, dtype=np.float64).reshape(-1)
         if values.size == 0 or times.size == 0:
             return
+        # Second decimation stage: compress the raw stream into a small
+        # mean/envelope representation that the GUI can draw every refresh.
         t_dec, y_mean, y_min, y_max = self._decimator.process_block(values, start_time=float(times[0]))
         if t_dec.size == 0:
             return
@@ -239,6 +249,8 @@ class Pipeline:
         values = np.asarray(x).reshape(-1)
         if times.size != values.size:
             raise ValueError("t and x must have the same number of elements.")
+        # Fan out the same block of samples to each sink; each sink can apply
+        # its own decimation or buffering policy (recording, streaming, plotting).
         self.recorder.handle_samples(times, values)
         self.streamer.handle_samples(times, values)
         self.plotter.handle_samples(times, values)

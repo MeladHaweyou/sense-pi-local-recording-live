@@ -37,7 +37,7 @@ class RingBuffer(Generic[T]):
         return self._size
 
     def __getitem__(self, index: int) -> T:
-        """Support buf[i] and buf[-1] indexing over the *logical* contents."""
+        """Support buf[i] and buf[-1] indexing over the logical contents (0 = oldest)."""
         size = self._size
         if size == 0:
             raise IndexError("RingBuffer is empty")

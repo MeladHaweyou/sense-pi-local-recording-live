@@ -13,8 +13,10 @@ from ..tools.debug import debug_enabled
 
 
 class SensorIngestWorker(QObject):
-    """
-    QObject-based worker that pulls data from a PiRecorder stream and batches samples.
+    """QObject-based worker that pulls data from a PiRecorder stream and batches samples.
+
+    It is meant to live in its own QThread: lines are parsed in the worker
+    thread and emitted as small batches to the GUI via the samples_batch signal.
     """
 
     samples_batch = Signal(list)  # list[MpuSample]
@@ -82,6 +84,8 @@ class SensorIngestWorker(QObject):
 
                 now = time.monotonic()
                 latency_elapsed = (now - last_emit) * 1000.0
+                # Emit a batch either when we have enough samples or when the
+                # oldest one has been waiting longer than max_latency_ms.
                 should_emit = len(buffer) >= self._batch_size
                 if not should_emit and self._max_latency_ms > 0.0:
                     should_emit = latency_elapsed >= self._max_latency_ms

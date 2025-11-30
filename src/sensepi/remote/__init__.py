@@ -1,4 +1,9 @@
-"""Remote (SSH) helpers for controlling Raspberry Pi loggers."""
+"""Remote communication helpers for controlling Raspberry Pi loggers.
+
+Classes such as :class:`SSHClient` and :class:`PiRecorder` establish SSH/SFTP
+connections, start sensor scripts on the Pi, and stream stdout/stderr back to
+the desktop application.
+"""
 
 from .ssh_client import Host, SSHClient, SSHConfig
 from .pi_recorder import PiRecorder

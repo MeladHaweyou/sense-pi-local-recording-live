@@ -52,13 +52,10 @@ class StreamingDataBuffer:
 
     # ------------------------------------------------------------------ ingest
     def add_samples(self, samples: Iterable[MpuSample]) -> None:
-        """
-        Append samples to their sensor-specific buffers.
+        """Append samples to per-sensor deques, enforcing a sliding time window.
 
-        Parameters
-        ----------
-        samples:
-            Iterable of :class:`MpuSample` objects provided by the ingest worker.
+        Each sensor_id gets its own ring-like deque; `_truncate` keeps the
+        buffer size bounded so recent data is available without unbounded growth.
         """
         for sample in samples:
             if sample is None:
@@ -79,8 +76,10 @@ class StreamingDataBuffer:
         seconds: float | None = None,
         max_samples: int | None = None,
     ) -> List[MpuSample]:
-        """
-        Return recent samples for ``sensor_id``.
+        """Return recent samples for ``sensor_id`` ordered by time.
+
+        The optional ``seconds`` limit trims older samples using their
+        timestamps, while ``max_samples`` caps how many points are returned.
 
         Parameters
         ----------

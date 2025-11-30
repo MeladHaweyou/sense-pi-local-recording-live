@@ -33,8 +33,10 @@ ChannelSample = Tuple[Number, Number]
 
 
 class ChannelBuffer:
-    """
-    Thread-safe wrapper around :class:`RingBuffer` that stores (t, value) tuples.
+    """Ring buffer plus lock for one channel of streaming data.
+
+    The RLock allows a producer thread to append samples while consumer
+    threads take snapshots without corrupting the underlying RingBuffer.
     """
 
     def __init__(self, capacity: int = DEFAULT_RINGBUFFER_CAPACITY) -> None:
@@ -47,7 +49,7 @@ class ChannelBuffer:
             self._buffer.append((float(timestamp), float(value)))
 
     def snapshot(self) -> List[ChannelSample]:
-        """Return a copy of the buffered samples."""
+        """Return a thread-safe copy of the logical contents for read-only use."""
         with self._lock:
             return list(self._buffer)
 
@@ -64,8 +66,10 @@ class ChannelBuffer:
 
 
 class ChannelBufferStore:
-    """
-    Registry that manages channel buffers keyed by (sensor_id, channel_name).
+    """Mapping of (sensor_id, channel) -> ChannelBuffer used by the stream reader.
+
+    A single writer thread appends samples, while readers take snapshots
+    for plotting or analysis without blocking the ingest loop.
     """
 
     def __init__(self, capacity: int = DEFAULT_RINGBUFFER_CAPACITY) -> None:
@@ -80,6 +84,8 @@ class ChannelBufferStore:
     def get_or_create(self, sensor_id: SensorId, channel: ChannelName) -> ChannelBuffer:
         key = (sensor_id, channel)
         with self._lock:
+            # Lazily create per-channel buffers so only channels that actually
+            # appear in the stream consume memory.
             buf = self._buffers.get(key)
             if buf is None:
                 buf = ChannelBuffer(self._capacity)
@@ -106,8 +112,10 @@ def reader_loop(
     *,
     stop_event: Optional[threading.Event] = None,
 ) -> None:
-    """
-    Read JSON lines from *stream* and append numeric samples to *buffers*.
+    """Read JSONL records from a line-oriented stream and fill channel buffers.
+
+    This is intended to run in a background thread: it stops when the
+    input stream is exhausted or when an optional ``stop_event`` is set.
     """
     for raw_line in stream:
         if stop_event is not None and stop_event.is_set():

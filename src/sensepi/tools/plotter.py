@@ -1,22 +1,13 @@
 #!/usr/bin/env python3
-"""
-Simple CLI plotter for SensePi CSV/JSONL logs.
+"""Helpers for decimating/smoothing SensePi time-series data for plotting.
 
-This script is intended to be launched either directly from the command line
-or via ``LocalPlotRunner`` in ``sensepi.tools.local_plot_runner``. It uses Matplotlib's
-standard interactive window (no PySide6 integration) to display either:
-
-  * a static replay of a log file (``--mode replay``), or
-  * a "live" view that periodically reloads the log file (``--mode follow``).
-
-By default, if no ``--file`` is provided, the script will look for the newest
-``*.csv`` or ``*.jsonl`` file under:
-
-  * ``data/raw/``
-  * ``logs/``
-  * the repository root
-
-and use that as the source.
+The Offline/Recordings GUI tab imports this module directly so it can reuse
+the same NumPy-based downsampling routines that power the standalone CLI
+plotter. When executed as a script (see ``LocalPlotRunner``), it opens a
+Matplotlib window that can either replay a log once (``--mode replay``) or
+periodically reload a log for a faux-live view (``--mode follow``). If
+``--file`` is omitted the newest ``*.csv``/``*.jsonl`` under ``data/raw/``,
+``logs/``, or the project root is selected automatically.
 """
 
 from __future__ import annotations
@@ -397,6 +388,46 @@ def build_plot_for_file(path: Path, sensor_type: str = "auto"):
 
     fig, axes, lines, _t = setup_figure(path, sensor_type, data, columns, meta)
     return fig, axes, lines
+
+
+class Plotter:
+    """Prepare decimated/smoothed data for visualisation.
+
+    This class is used by the offline viewer to downsample long time-series
+    logs while preserving their overall shape and extrema.
+    """
+
+    def __init__(self, sensor_type: str = "auto") -> None:
+        self.sensor_type = sensor_type
+
+    def build_figure(
+        self,
+        path: Path,
+        sensor_type: Optional[str] = None,
+    ):
+        """
+        Return the ``(fig, axes, lines)`` tuple for ``path``.
+
+        ``sensor_type`` can override the default detected value for a single
+        call.
+        """
+        resolved = sensor_type or self.sensor_type
+        return build_plot_for_file(path, sensor_type=resolved)
+
+    def replay(self, path: Path, sensor_type: Optional[str] = None) -> None:
+        """Render ``path`` once in Matplotlib."""
+        resolved = sensor_type or self.sensor_type
+        plot_replay(path, resolved)
+
+    def follow(
+        self,
+        path: Path,
+        interval_s: float = 0.5,
+        sensor_type: Optional[str] = None,
+    ) -> None:
+        """Continuously reload ``path`` and update the plot."""
+        resolved = sensor_type or self.sensor_type
+        plot_follow(path, resolved, interval_s)
 
 
 # --------------------------------------------------------------------------- # plotting modes

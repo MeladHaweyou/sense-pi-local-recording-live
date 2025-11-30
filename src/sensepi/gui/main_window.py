@@ -50,16 +50,13 @@ class MainWindow(QMainWindow):
         self.offline_tab = OfflineTab(app_paths, self.recorder_tab)
         self.logs_tab = LogsTab(app_paths)
 
-        # Move the Connect/Recorder controls into the Signals tab
-        self.signals_tab.attach_recorder_controls(self.recorder_tab)
-
-        # Only expose Signals/FFT/Settings/Offline as main tabs
-        # (RecorderTab is now used as a hidden backend controller)
-        self._tabs.addTab(self.signals_tab, "Signals")
-        self._tabs.addTab(self.fft_tab, "FFT")
-        self._tabs.addTab(self.settings_tab, "Settings")
-        self._tabs.addTab(self.offline_tab, "Offline")
-        self._tabs.addTab(self.logs_tab, "Logs")
+        # Order tabs by the typical workflow from device setup through analysis.
+        self._tabs.addTab(self.recorder_tab, self.tr("Device"))
+        self._tabs.addTab(self.settings_tab, self.tr("Sensors && Rates"))
+        self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
+        self._tabs.addTab(self.fft_tab, self.tr("Spectrum"))
+        self._tabs.addTab(self.offline_tab, self.tr("Recordings"))
+        self._tabs.addTab(self.logs_tab, self.tr("App Logs"))
 
         container = QWidget()
         layout = QVBoxLayout(container)
@@ -88,6 +85,9 @@ class MainWindow(QMainWindow):
         self.recorder_tab.recording_stopped.connect(
             self.fft_tab.on_stream_stopped
         )
+        self.recorder_tab.recording_stopped.connect(
+            self._on_recording_stopped
+        )
 
         self.signals_tab.start_stream_requested.connect(
             self._on_start_stream_requested
@@ -114,8 +114,8 @@ class MainWindow(QMainWindow):
 
     def _on_start_stream_requested(self, recording: bool) -> None:
         """
-        Called when the user presses Start in the Signals tab.
-        Delegates to RecorderTab using the current Connect-tab settings.
+        Called when the user presses Start in the Live Signals tab.
+        Delegates to RecorderTab using the current Device tab settings.
         """
         try:
             acquisition = self.signals_tab.current_acquisition_settings()
@@ -148,6 +148,41 @@ class MainWindow(QMainWindow):
             self.recorder_tab.stop_live_stream()
         except Exception as exc:
             self.recorder_tab.report_error(f"Failed to stop stream: {exc!r}")
+
+    def _on_recording_stopped(self) -> None:
+        """
+        Called whenever a recording run finishes.
+        Hints that offline sync is now the next step.
+        """
+        status = self.statusBar()
+
+        remote_dir = None
+        try:
+            remote_dir = self.recorder_tab.current_remote_data_dir()
+        except AttributeError:
+            remote_dir = None
+
+        if remote_dir:
+            dest_text = (
+                remote_dir.as_posix()
+                if hasattr(remote_dir, "as_posix")
+                else str(remote_dir)
+            )
+            msg = (
+                f"Recording stopped. Logs saved to {dest_text} on the Pi. "
+                "Open the Recordings tab to sync and replay this session."
+            )
+        else:
+            msg = (
+                "Recording stopped. Open the Recordings tab to sync logs from "
+                "the Pi and replay previous sessions."
+            )
+
+        status.showMessage(msg, 8000)
+
+        idx = self._tabs.indexOf(self.offline_tab)
+        if idx >= 0:
+            self._tabs.setCurrentIndex(idx)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         try:

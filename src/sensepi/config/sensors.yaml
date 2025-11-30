@@ -9,4 +9,3 @@ sensors:
     channels: default
     dlpf: 3
     include_temperature: false
-    sample_rate_hz: 200

@@ -21,7 +21,9 @@ class PipelineHandles:
     """Return value from :func:`build_pipeline` containing ready-to-use pieces."""
 
     pipeline: Pipeline
+    # Queue drained by the networking / Qt layer for live streaming (optional).
     stream_queue: Queue[StreamPayload] | None = None
+    # Queue drained by the plotting layer to update live plots (optional).
     plot_queue: Queue[PlotUpdate] | None = None
 
 
@@ -33,8 +35,10 @@ def build_pipeline(
     stream_queue: Queue[StreamPayload] | None = None,
     plot_queue: Queue[PlotUpdate] | None = None,
 ) -> PipelineHandles:
-    """
-    Build a :class:`Pipeline` that fans out raw samples to the configured sinks.
+    """Construct a :class:`Pipeline` that fans out raw samples to the configured sinks.
+
+    Recording sees the full device sample rate, while streaming and plotting
+    use decimated views to keep network and GUI load manageable.
 
     Parameters
     ----------

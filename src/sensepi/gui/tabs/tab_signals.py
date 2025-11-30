@@ -1806,8 +1806,8 @@ class SignalsTab(QWidget):
         """Update the GUI-side stream rate shown in the Signals tab.
 
         ``hz`` reflects the effective rate at which samples arrive in the GUI
-        after any Pi-side stream decimation (``mpu6050 --stream-every``). The
-        Recorder tab emits this signal whenever it refreshes its rate estimate.
+        after any Pi-side stream decimation (for example, ``mpu6050 --stream-every N``).
+        The Recorder tab emits this signal whenever it refreshes its rate estimate.
         """
         if sensor_type != "mpu6050":
             return
@@ -2000,6 +2000,8 @@ class SignalsTab(QWidget):
     @Slot()
     def update_plot(self) -> None:
         """Timer slot that refreshes the SignalPlotWidget."""
+        # First update the stream status (waiting / stalled / streaming),
+        # then ask the plotting backend to redraw the latest buffered data.
         debug_on = debug_enabled()
         if ENABLE_PLOT_PERF_METRICS:
             self._record_timer_tick()
@@ -2147,6 +2149,8 @@ class SignalsTab(QWidget):
             self._ingest_buffer_data()
             return
 
+        # Pull as many samples as are currently queued by RecorderTab; this keeps
+        # ingest work in short bursts driven by the GUI timer instead of per-sample.
         drained: list[object] = []
         try:
             while True:
@@ -2423,9 +2427,11 @@ class SignalsTab(QWidget):
             label.setText(f"Plot refresh: -- Hz{suffix}")
 
     def _refresh_timer_state(self) -> None:
-        """Start or stop the plot timer depending on stream activity."""
+        """Start/stop the redraw timer based on live or synthetic stream activity."""
         if not hasattr(self, "_timer"):
             return
+        # Only tick the GUI timer while we have real or synthetic data;
+        # pausing it avoids wasting CPU when no stream is active.
         should_run = self._stream_active or self._synthetic_active
         if should_run:
             if not self._timer.isActive():
