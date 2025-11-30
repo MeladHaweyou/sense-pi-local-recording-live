@@ -136,8 +136,9 @@ class SignalPlotWidgetBase(QWidget):
         self._max_lines_per_subplot: int | None = None
 
     def _create_buffer_store(self) -> Dict[SampleKey, TimeSeriesBuffer]:
+        # Only physical sensors 1, 2, 3 exist. Using 0 here created a phantom S0 row.
         return initialize_buffers_for_channels(
-            sensor_ids=(0, 1, 2),
+            sensor_ids=(1, 2, 3),
             channels=("ax", "ay", "az", "gx", "gy", "gz"),
             window_seconds=self._max_seconds,
             max_rate_hz=self._max_rate_hz,
@@ -916,7 +917,8 @@ class SignalPlotWidgetPyQtGraph(SignalPlotWidgetBase):
                     base_label = f"{base_label} [{unit}]"
 
                 if col_idx == 0:
-                    plot.setLabel("left", f"S{sid}\n{base_label}")
+                    # Label rows as S0, S1, S2... regardless of underlying sensor_id
+                    plot.setLabel("left", f"S{row_idx}\n{base_label}")
                 else:
                     plot.setLabel("left", base_label)
 
@@ -1139,7 +1141,7 @@ class SignalPlotWidgetMatplotlib(SignalPlotWidgetBase):
             base_label = f"{base_label} [{unit}]"
 
         if col_idx == 0:
-            ax.set_ylabel(f"S{sensor_id}\n{base_label}")
+            ax.set_ylabel(f"S{row_idx}\n{base_label}")
         else:
             ax.set_ylabel(base_label)
 
@@ -1404,6 +1406,12 @@ class SignalsTab(QWidget):
         self.view_mode_combo = QComboBox(top_row_group)
         self.view_mode_combo.addItem(
             "AX / AY / GZ (9 charts)", userData="default3"
+        )
+        self.view_mode_combo.addItem(
+            "Accel only (AX / AY / AZ)", userData="acc3"
+        )
+        self.view_mode_combo.addItem(
+            "Gyro only (GX / GY / GZ)", userData="gyro3"
         )
         self.view_mode_combo.addItem(
             "All axes (18 charts)", userData="all6"
@@ -1867,7 +1875,9 @@ class SignalsTab(QWidget):
         self._channel_checkboxes.clear()
 
         # Use view preset:
-        #   - "default3" => AX, AY, AZ (3 columns)
+        #   - "default3" => AX, AY, GZ (3 columns; matches Pi --channels default)
+        #   - "acc3"     => AX, AY, AZ (accelerometer only)
+        #   - "gyro3"    => GX, GY, GZ (gyro only)
         #   - "all6"     => AX, AY, AZ, GX, GY, GZ (6 columns)
         view_mode = (
             self.view_mode_combo.currentData()
@@ -1875,7 +1885,11 @@ class SignalsTab(QWidget):
             else "all6"
         )
         if view_mode == "default3":
+            channels = ["ax", "ay", "gz"]
+        elif view_mode == "acc3":
             channels = ["ax", "ay", "az"]
+        elif view_mode == "gyro3":
+            channels = ["gx", "gy", "gz"]
         else:
             channels = ["ax", "ay", "az", "gx", "gy", "gz"]
 
