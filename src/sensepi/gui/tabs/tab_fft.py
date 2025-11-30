@@ -181,6 +181,8 @@ class FftTab(QWidget):
         window_s: float,
         data_buffer: StreamingDataBuffer | None = None,
     ) -> tuple[Sequence[float], Sequence[float]]:
+        # Prefer reusing the time-windowed data held by SignalsTab; if that
+        # is unavailable, fall back to querying the shared StreamingDataBuffer.
         sensor_id, channel = key
         window = self._window_from_signals_tab(sensor_id, channel, window_s)
         if window is not None:

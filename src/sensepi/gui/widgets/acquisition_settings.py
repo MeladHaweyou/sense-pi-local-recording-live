@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from PySide6.QtCore import Qt, Signal, QSignalBlocker
-from PySide6.QtGui import QIntValidator
 from PySide6.QtWidgets import (
     QComboBox,
+    QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -13,33 +13,36 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ...config.sampling import GuiSamplingDisplay, RECORDING_MODES, SamplingConfig
 
-DEFAULT_SAMPLE_RATE_HZ = 500
-DEFAULT_STREAM_EVERY = 5
+
+DEFAULT_DEVICE_RATE_HZ = 200.0
 DEFAULT_SIGNALS_REFRESH_MS = 50
 DEFAULT_FFT_REFRESH_MS = 750
+DEFAULT_MODE_KEY = "high_fidelity"
 
 
 @dataclass
 class AcquisitionSettings:
-    sample_rate_hz: int = DEFAULT_SAMPLE_RATE_HZ
-    stream_every: int = DEFAULT_STREAM_EVERY
+    sampling: SamplingConfig = field(
+        default_factory=lambda: SamplingConfig(
+            device_rate_hz=DEFAULT_DEVICE_RATE_HZ,
+            mode_key=DEFAULT_MODE_KEY,
+        )
+    )
     signals_mode: str = "fixed"  # "fixed" or "adaptive"
     signals_refresh_ms: int = DEFAULT_SIGNALS_REFRESH_MS
     fft_refresh_ms: int = DEFAULT_FFT_REFRESH_MS
 
     @property
     def effective_stream_rate_hz(self) -> float:
-        every = max(1, int(self.stream_every))
-        if self.sample_rate_hz <= 0:
-            return 0.0
-        return float(self.sample_rate_hz) / every
+        display = GuiSamplingDisplay.from_sampling(self.sampling)
+        return float(display.stream_rate_hz)
 
     def as_dict(self) -> dict:
         """Convenience helper for serialization/testing."""
         return {
-            "sample_rate_hz": int(self.sample_rate_hz),
-            "stream_every": int(self.stream_every),
+            "sampling": self.sampling.to_mapping()["sampling"],
             "signals_mode": str(self.signals_mode),
             "signals_refresh_ms": int(self.signals_refresh_ms),
             "fft_refresh_ms": int(self.fft_refresh_ms),
@@ -52,37 +55,42 @@ class AcquisitionSettingsWidget(QWidget):
     signalsModeChanged = Signal(str)
     signalsRefreshChanged = Signal(int)
     fftRefreshChanged = Signal(int)
-
-    SAMPLE_RATE_CHOICES = (100, 200, 500, 1000)
+    samplingChanged = Signal(object)  # emits SamplingConfig
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
+        self._sampling_config = SamplingConfig(
+            device_rate_hz=DEFAULT_DEVICE_RATE_HZ,
+            mode_key=DEFAULT_MODE_KEY,
+        )
+
         form = QFormLayout(self)
         form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
 
-        # Sample rate selector (combo with presets + editable field)
-        self.sample_rate_combo = QComboBox(self)
-        self.sample_rate_combo.setEditable(True)
-        validator = QIntValidator(1, 4000, self.sample_rate_combo)
-        self.sample_rate_combo.lineEdit().setValidator(validator)
-        for rate in self.SAMPLE_RATE_CHOICES:
-            self.sample_rate_combo.addItem(f"{rate} Hz", rate)
-        self.sample_rate_combo.setCurrentText(str(DEFAULT_SAMPLE_RATE_HZ))
-        self.sample_rate_combo.lineEdit().setAlignment(Qt.AlignRight)
+        # Device sampling controls
+        self.device_rate_spin = QDoubleSpinBox(self)
+        self.device_rate_spin.setRange(1.0, 4000.0)
+        self.device_rate_spin.setDecimals(1)
+        self.device_rate_spin.setSingleStep(1.0)
+        self.device_rate_spin.setValue(float(self._sampling_config.device_rate_hz))
+        form.addRow("Device rate [Hz]:", self.device_rate_spin)
 
-        form.addRow("Sample rate (Hz):", self.sample_rate_combo)
+        self.mode_combo = QComboBox(self)
+        for key, mode in RECORDING_MODES.items():
+            self.mode_combo.addItem(mode.label, key)
+        idx = self.mode_combo.findData(self._sampling_config.mode_key)
+        if idx >= 0:
+            self.mode_combo.setCurrentIndex(idx)
+        form.addRow("Mode:", self.mode_combo)
 
-        # Stream decimation (every Nth sample)
-        self.stream_every_spin = QSpinBox(self)
-        self.stream_every_spin.setRange(1, 100)
-        self.stream_every_spin.setValue(DEFAULT_STREAM_EVERY)
-        form.addRow("Stream every Nth sample:", self.stream_every_spin)
+        self._record_rate_label = QLabel("—", self)
+        self._record_rate_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        form.addRow("Recording rate [Hz]:", self._record_rate_label)
 
-        # Derived stream rate label
-        self._stream_rate_label = QLabel(self)
+        self._stream_rate_label = QLabel("—", self)
         self._stream_rate_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        form.addRow("Effective stream rate:", self._stream_rate_label)
+        form.addRow("GUI stream [Hz]:", self._stream_rate_label)
 
         # Signals refresh mode + interval
         mode_row = QHBoxLayout()
@@ -115,21 +123,20 @@ class AcquisitionSettingsWidget(QWidget):
         )
 
         # Wiring
-        self.sample_rate_combo.currentTextChanged.connect(self._update_stream_rate_label)
-        self.stream_every_spin.valueChanged.connect(self._update_stream_rate_label)
+        self.device_rate_spin.valueChanged.connect(self._on_sampling_control_changed)
+        self.mode_combo.currentIndexChanged.connect(self._on_sampling_control_changed)
         self.signals_mode_combo.currentIndexChanged.connect(self._on_mode_changed)
 
-        self._update_stream_rate_label()
+        self._update_sampling_labels()
         self._on_mode_changed()
 
     # ------------------------------------------------------------------ helpers
     def settings(self) -> AcquisitionSettings:
-        sample_rate = self._parse_sample_rate()
-        stream_every = int(self.stream_every_spin.value())
+        sampling = self._build_sampling_config()
+        self._sampling_config = sampling
         mode = self.signals_mode_combo.currentData() or "fixed"
         return AcquisitionSettings(
-            sample_rate_hz=sample_rate,
-            stream_every=stream_every,
+            sampling=sampling,
             signals_mode=str(mode),
             signals_refresh_ms=int(self.signals_refresh_spin.value()),
             fft_refresh_ms=int(self.fft_refresh_spin.value()),
@@ -137,31 +144,58 @@ class AcquisitionSettingsWidget(QWidget):
 
     def set_settings(self, settings: AcquisitionSettings) -> None:
         """Load settings into the widget."""
-        self.sample_rate_combo.setCurrentText(str(int(settings.sample_rate_hz)))
-        self.stream_every_spin.setValue(max(1, int(settings.stream_every)))
-        mode = settings.signals_mode if settings.signals_mode in {"fixed", "adaptive"} else "fixed"
+        self.set_sampling_config(settings.sampling)
+        mode = (
+            settings.signals_mode
+            if settings.signals_mode in {"fixed", "adaptive"}
+            else "fixed"
+        )
         idx = self.signals_mode_combo.findData(mode)
         if idx >= 0:
             self.signals_mode_combo.setCurrentIndex(idx)
         self.signals_refresh_spin.setValue(int(settings.signals_refresh_ms))
         self.fft_refresh_spin.setValue(int(settings.fft_refresh_ms))
-        self._update_stream_rate_label()
         self._on_mode_changed()
 
-    def _parse_sample_rate(self) -> int:
-        data = self.sample_rate_combo.currentData()
-        if isinstance(data, (int, float)):
-            return int(data)
-        text = self.sample_rate_combo.currentText().strip()
-        try:
-            return max(1, int(float(text)))
-        except ValueError:
-            return DEFAULT_SAMPLE_RATE_HZ
+    def set_sampling_config(self, sampling: SamplingConfig) -> None:
+        """Update the sampling controls from an external config."""
+        sampling = SamplingConfig(
+            device_rate_hz=float(sampling.device_rate_hz),
+            mode_key=str(sampling.mode_key),
+        )
+        self._sampling_config = sampling
+        with QSignalBlocker(self.device_rate_spin):
+            self.device_rate_spin.setValue(float(sampling.device_rate_hz))
+        idx = self.mode_combo.findData(sampling.mode_key)
+        if idx < 0:
+            idx = self.mode_combo.findData(DEFAULT_MODE_KEY)
+        if idx < 0:
+            idx = 0
+        with QSignalBlocker(self.mode_combo):
+            self.mode_combo.setCurrentIndex(idx)
+        self._update_sampling_labels()
 
-    def _update_stream_rate_label(self) -> None:
-        settings = self.settings()
-        effective = settings.effective_stream_rate_hz
-        self._stream_rate_label.setText(f"{effective:.1f} Hz")
+    def _build_sampling_config(self) -> SamplingConfig:
+        try:
+            rate = float(self.device_rate_spin.value())
+        except (TypeError, ValueError):
+            rate = DEFAULT_DEVICE_RATE_HZ
+        idx = self.mode_combo.currentIndex()
+        mode_key = str(self.mode_combo.itemData(idx) or DEFAULT_MODE_KEY)
+        if mode_key not in RECORDING_MODES:
+            mode_key = DEFAULT_MODE_KEY
+        return SamplingConfig(device_rate_hz=rate, mode_key=mode_key)
+
+    def _on_sampling_control_changed(self, *_args) -> None:
+        sampling = self._build_sampling_config()
+        self._sampling_config = sampling
+        self._update_sampling_labels()
+        self.samplingChanged.emit(sampling)
+
+    def _update_sampling_labels(self) -> None:
+        display = GuiSamplingDisplay.from_sampling(self._sampling_config)
+        self._record_rate_label.setText(f"{display.record_rate_hz:.1f} Hz")
+        self._stream_rate_label.setText(f"{display.stream_rate_hz:.1f} Hz")
 
     def _on_mode_changed(self) -> None:
         mode = self.signals_mode_combo.currentData()
@@ -185,11 +219,3 @@ class AcquisitionSettingsWidget(QWidget):
         """Update the FFT refresh spin box without emitting change signals."""
         blocker = QSignalBlocker(self.fft_refresh_spin)
         self.fft_refresh_spin.setValue(int(interval_ms))
-
-    def display_effective_stream_rate(self, rate_hz: float) -> None:
-        """Allow external widgets to keep the derived stream-rate label in sync."""
-        try:
-            value = float(rate_hz)
-        except (TypeError, ValueError):
-            value = 0.0
-        self._stream_rate_label.setText(f"{value:.1f} Hz")

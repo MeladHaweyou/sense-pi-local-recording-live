@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 from .sampling import SamplingConfig
@@ -9,20 +10,80 @@ from .sampling import SamplingConfig
 
 @dataclass
 class PiLoggerConfig:
+    """
+    Concrete configuration for the Pi logger derived from SamplingConfig.
+    """
+
     device_rate_hz: float
     record_decimate: int
     stream_decimate: int
-    extra: Dict[str, Any] | None = None
+    record_rate_hz: float
+    stream_rate_hz: float
+    sections: Dict[str, Any] | None = None
+    logger_script: str = "mpu6050_multi_logger.py"
+    extra_cli: Dict[str, Any] | None = None
 
     @classmethod
     def from_sampling(cls, sampling: SamplingConfig, **kwargs: Any) -> "PiLoggerConfig":
+        """
+        Construct a PiLoggerConfig from the SamplingConfig source of truth.
+        """
+
         decimation = sampling.compute_decimation()
         return cls(
-            device_rate_hz=sampling.device_rate_hz,
-            record_decimate=decimation["record_decimate"],
-            stream_decimate=decimation["stream_decimate"],
-            extra=kwargs or None,
+            device_rate_hz=float(sampling.device_rate_hz),
+            record_decimate=int(decimation["record_decimate"]),
+            stream_decimate=int(decimation["stream_decimate"]),
+            record_rate_hz=float(decimation["record_rate_hz"]),
+            stream_rate_hz=float(decimation["stream_rate_hz"]),
+            **kwargs,
         )
+
+    # ------------------------------------------------------------------ serialization
+    def to_pi_config_dict(self) -> Dict[str, Any]:
+        """
+        Convert into a mapping suitable for YAML serialization.
+        """
+
+        data: Dict[str, Any] = {
+            "device_rate_hz": float(self.device_rate_hz),
+            "record_decimate": int(self.record_decimate),
+            "stream_decimate": int(self.stream_decimate),
+            "record_rate_hz": float(self.record_rate_hz),
+            "stream_rate_hz": float(self.stream_rate_hz),
+        }
+        extra_sections = self.sections or {}
+        for key, value in extra_sections.items():
+            data[key] = value
+        return data
+
+    def render_pi_config_yaml(self) -> str:
+        """
+        Return the generated pi_config.yaml text with the DO NOT EDIT header.
+        """
+
+        from textwrap import dedent
+
+        import yaml
+
+        header = dedent(
+            """
+            # GENERATED FILE - DO NOT EDIT BY HAND
+            # This file is derived from SamplingConfig and PiLoggerConfig.
+            """
+        ).strip("\n")
+        body = yaml.safe_dump(self.to_pi_config_dict(), sort_keys=False)
+        return header + "\n\n" + body
+
+    def write_pi_config_yaml(self, path: Path) -> None:
+        """
+        Write the generated configuration to *path*.
+        """
+
+        path = Path(path)
+        if path.parent and not path.parent.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(self.render_pi_config_yaml())
 
 
 def _format_extra_flags(extra: Dict[str, Any] | None) -> List[str]:
@@ -47,19 +108,18 @@ def build_logger_args(pi_cfg: PiLoggerConfig) -> List[str]:
         "--sample-rate-hz",
         f"{pi_cfg.device_rate_hz:.0f}",
         "--stream-every",
-        str(pi_cfg.stream_decimate),
+        str(int(pi_cfg.stream_decimate)),
     ]
 
-    args.extend(_format_extra_flags(pi_cfg.extra))
+    args.extend(_format_extra_flags(pi_cfg.extra_cli))
     return args
 
 
-def build_logger_command(pi_cfg: PiLoggerConfig) -> str:
+def build_logger_command(pi_cfg: PiLoggerConfig) -> List[str]:
     """
-    Build the command line for ``mpu6050_multi_logger.py`` using ``PiLoggerConfig``.
-
-    Do NOT reconstruct sample rate or decimation elsewhere – only use ``pi_cfg``.
+    Construct the command used to start the Pi logger process.
     """
 
-    parts: Iterable[str] = ["python -u mpu6050_multi_logger.py", *build_logger_args(pi_cfg)]
-    return " ".join(parts)
+    parts: List[str] = ["python3", "-u", pi_cfg.logger_script]
+    parts.extend(build_logger_args(pi_cfg))
+    return parts

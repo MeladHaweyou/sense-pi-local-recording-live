@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import queue
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,7 +28,11 @@ from PySide6.QtWidgets import (
 from ..widgets import AcquisitionSettings, CollapsibleSection
 from ...analysis.rate import RateController
 from ...config.app_config import HostConfig, HostInventory, SensorDefaults
-from ...config.pi_logger_config import PiLoggerConfig, build_logger_args
+from ...config.pi_logger_config import (
+    PiLoggerConfig,
+    build_logger_args,
+    build_logger_command,
+)
 from ...config.sampling import GuiSamplingDisplay, SamplingConfig
 from ...core.live_stream import select_parser
 from ...data import BufferConfig, StreamingDataBuffer
@@ -64,6 +69,7 @@ class RecorderTab(QWidget):
     streaming_stopped = Signal()
     error_reported = Signal(str)
     rate_updated = Signal(str, float)
+    sampling_config_changed = Signal(object)
     recording_started = Signal()
     recording_stopped = Signal()
     recording_error = Signal(str)
@@ -358,6 +364,29 @@ class RecorderTab(QWidget):
             return self._load_sampling_config()
         return self._sampling_config
 
+    def sampling_config(self) -> SamplingConfig:
+        """Return the current SamplingConfig used by the recorder UI."""
+        return self._current_sampling()
+
+    def set_sampling_config(self, sampling: SamplingConfig) -> None:
+        """Replace the active SamplingConfig and refresh dependent labels."""
+        self._apply_sampling_config(sampling, notify=True)
+
+    def _apply_sampling_config(self, sampling: SamplingConfig, *, notify: bool = True) -> None:
+        previous = self._current_sampling()
+        normalized = SamplingConfig(
+            device_rate_hz=float(sampling.device_rate_hz),
+            mode_key=str(sampling.mode_key),
+        )
+        changed = (
+            not math.isclose(previous.device_rate_hz, normalized.device_rate_hz, rel_tol=1e-6, abs_tol=1e-6)
+            or previous.mode_key != normalized.mode_key
+        )
+        self._sampling_config = normalized
+        self._refresh_sampling_labels()
+        if notify and changed:
+            self.sampling_config_changed.emit(normalized)
+
     def _refresh_sampling_labels(self) -> None:
         sampling = self._current_sampling()
         display = GuiSamplingDisplay.from_sampling(sampling)
@@ -370,6 +399,49 @@ class RecorderTab(QWidget):
                 self._data_buffer.config.sample_rate_hz = display.stream_rate_hz
             except Exception:
                 pass
+
+    def target_stream_rate_hz(self) -> float:
+        """Return the expected GUI stream rate derived from SamplingConfig."""
+        display = GuiSamplingDisplay.from_sampling(self._current_sampling())
+        return float(display.stream_rate_hz)
+
+    def compute_stream_every(
+        self,
+        sample_rate_hz: float | None = None,
+        *,
+        fallback_every: int | None = None,
+        **_legacy_kwargs: object,
+    ) -> int:
+        """
+        Compatibility shim for older code that expects RecorderTab.compute_stream_every().
+
+        Modern code should call :meth:`SamplingConfig.compute_decimation` directly, but
+        this keeps historical call sites working by routing everything through the
+        shared SamplingConfig state.
+        """
+        # Swallow legacy keyword arguments such as "recording".
+        if _legacy_kwargs:
+            _legacy_kwargs.pop("recording", None)
+
+        sampling = getattr(self, "_sampling_config", None)
+        if isinstance(sampling, SamplingConfig):
+            try:
+                decimation = sampling.compute_decimation()
+                stream_every = int(decimation.get("stream_decimate", 0))
+            except Exception:
+                stream_every = 0
+            else:
+                stream_every = max(stream_every, 1)
+            if stream_every >= 1:
+                return stream_every
+
+        if fallback_every is not None and fallback_every >= 1:
+            return int(fallback_every)
+
+        if sample_rate_hz and sample_rate_hz > 0:
+            return max(1, int(round(float(sample_rate_hz) / 25.0)))
+
+        return 1
 
     def request_coarser_streaming(self) -> None:
         """Adaptive tuning hook (no-op with unified sampling)."""
@@ -393,13 +465,14 @@ class RecorderTab(QWidget):
             else 0.0,
         )
 
-    def _build_mpu_extra_args(
+    def _build_pi_logger_config(
         self,
         acquisition: AcquisitionSettings | None = None,
         *,
         session_name: str | None = None,
-    ) -> list[str]:
-        """Construct CLI flags passed to ``mpu6050_multi_logger.py``.
+    ) -> PiLoggerConfig:
+        """
+        Construct the PiLoggerConfig passed down to ``mpu6050_multi_logger.py``.
 
         The logger always uses :class:`SamplingConfig` as the single source of
         truth. Decimation for recording and streaming is derived from the
@@ -407,11 +480,8 @@ class RecorderTab(QWidget):
         """
 
         sampling = self._current_sampling()
-        if acquisition is not None and acquisition.sample_rate_hz > 0:
-            sampling = SamplingConfig(
-                device_rate_hz=float(acquisition.sample_rate_hz),
-                mode_key=sampling.mode_key,
-            )
+        if acquisition is not None:
+            sampling = acquisition.sampling
 
         extra: dict[str, object] = {}
         sensors = self.mpu_sensors_edit.text().strip()
@@ -436,8 +506,7 @@ class RecorderTab(QWidget):
         if session_name:
             extra["session_name"] = session_name
 
-        pi_cfg = PiLoggerConfig.from_sampling(sampling, **extra)
-        return build_logger_args(pi_cfg)
+        return PiLoggerConfig.from_sampling(sampling, extra_cli=extra)
 
     # --------------------------------------------------------------- slots
     @Slot()
@@ -468,6 +537,9 @@ class RecorderTab(QWidget):
         normalized_session = (session_name or "").strip()
         self._last_session_name = normalized_session
 
+        if acquisition is not None:
+            self._apply_sampling_config(acquisition.sampling, notify=True)
+
         mpu_cfg = self.current_mpu_gui_config()
 
         if not mpu_cfg.enabled:
@@ -478,10 +550,16 @@ class RecorderTab(QWidget):
         if self._ingest_worker is not None:
             raise RuntimeError("MPU6050 streaming is already running.")
 
-        mpu_args_list = self._build_mpu_extra_args(
+        pi_logger_cfg = self._build_pi_logger_config(
             acquisition, session_name=normalized_session or None
         )
-        mpu_extra_args = " ".join(shlex.quote(a) for a in mpu_args_list)
+        logger_cmd = build_logger_command(pi_logger_cfg)
+        logger.debug("mpu6050 command: %s", shlex.join(logger_cmd))
+        if len(logger_cmd) > 3:
+            cli_tokens = logger_cmd[3:]
+        else:
+            cli_tokens = build_logger_args(pi_logger_cfg)
+        mpu_extra_args = " ".join(shlex.quote(a) for a in cli_tokens)
 
         self._start_stream(recorder, sensor_type="mpu6050", extra_args=mpu_extra_args)
 
@@ -491,7 +569,7 @@ class RecorderTab(QWidget):
         wait: bool = False,
         wait_timeout_ms: int | None = 5000,
     ) -> None:
-        """Called by MainWindow when the Signals tab requests stop."""
+        """Called by MainWindow when the Live Signals tab requests stop."""
 
         thread = self._ingest_thread
         self._stop_stream()
@@ -613,6 +691,8 @@ class RecorderTab(QWidget):
             return
 
         self._data_buffer.add_samples(samples)
+        # Store the batch in the shared StreamingDataBuffer (for Signals/FFT)
+        # and also push individual samples into the GUI queue for live plots.
 
         rc = self._rate_controllers.get("mpu6050")
         updated_rate = False
@@ -703,10 +783,10 @@ class RecorderTab(QWidget):
         in sync with sensors.yaml.
         """
         try:
-            self._sampling_config = SamplingConfig.from_mapping(sensors)
+            sampling = SamplingConfig.from_mapping(sensors)
         except Exception:
             return
-        self._refresh_sampling_labels()
+        self.set_sampling_config(sampling)
 
     @Slot(list)
     def on_hosts_updated(self, host_list: list[dict]) -> None:

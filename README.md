@@ -2,6 +2,8 @@
 
 This repository hosts a desktop application for managing Raspberry Pi–based sensor loggers alongside the scripts that run directly on the Pi. The PC/WSL side provides a PySide6 GUI for recording, live viewing, and analyzing data, while the Pi side supplies lightweight logger scripts for specific sensors. The desktop app focuses on inspecting logs from the MPU6050 logger.
 
+New to the project? See [docs/LEARNING_PATH.md](docs/LEARNING_PATH.md) for a milestone-based walkthrough aimed at students.
+
 ## Architecture & Roles
 
 - **Desktop GUI (PC/WSL)**
@@ -90,6 +92,95 @@ The desktop app connects to each Raspberry Pi using a username and password.
 Populate `src/sensepi/config/hosts.yaml` (or the Settings tab) with the host,
 port, username, and password for each Pi. SSH key authentication and agent
 forwarding are not supported in this version.
+
+## Download logs from the Pi
+
+A common SensePi workflow is:
+
+1. **Configure your Raspberry Pi host**  
+   Open the **Settings** tab and make sure your Pi appears under *Raspberry Pi hosts* with a working `host`, `user`, `base_path`, and `data_dir`. Use **Sync config to Pi** to push the current sampling defaults whenever you change sensors or rates.
+
+2. **Start a recording from the Signals tab**  
+   Go to the **Signals** tab, pick your Pi host, choose a sample rate, and tick the **Recording** checkbox. Optionally provide a *Session name* to label the run, then click **Start**. Hint text beneath the buttons confirms exactly which directory on the Pi the CSV/JSONL files will land in.
+
+3. **Stop the recording**  
+   Press **Stop** when you have captured enough data. The status bar repeats the path of the logs on the Pi and reminds you to visit the **Offline logs** tab to sync them.
+
+4. **Download logs to your desktop**  
+   Switch to the **Offline logs** tab. Click **Sync logs from Pi** to pull any new `.csv` or `.jsonl` files from that host’s `data_dir` into your local `data/raw` folder. If you want a shortcut that also opens the newest file, use **Sync & open latest** instead.
+
+5. **Inspect the recording offline**  
+Use the *Offline log files* list to double-click a file, or let **Sync & open latest** select it automatically. The embedded Matplotlib viewer renders the data with the same conventions as the live **Signals** tab so you can inspect the captured session without staying connected to the Pi.
+
+## Log Conventions (where your data lives)
+
+SensePi keeps all of your raw logs as plain files, both on the Pi and on your computer. Knowing where they live – and what the filenames mean – makes it much easier to grab the right run later.
+
+### On the Raspberry Pi
+
+By default the Pi creates the following folders:
+
+- `~/logs` – root directory for all recordings on the device
+- `~/logs/mpu` – files produced by the MPU6050 IMU logger
+
+When you start a recording you can supply an optional **session name** (for example, `Trial1`). If you do, the logger writes that run into a dedicated folder:
+
+- `~/logs/mpu/Trial1/` – all files for that session
+
+Leaving the session field blank keeps the files directly under `~/logs/mpu`. Either way you will see one data file per physical sensor (e.g., `S1`, `S2`) plus a small metadata file.
+
+### On the PC (after syncing)
+
+Clicking **Sync logs from Pi** in the Offline tab pulls every new `.csv` or `.jsonl` file from the Pi into the desktop project’s data folder:
+
+- `data/raw` – root directory for downloaded logs
+
+If the run had a session name, that folder is recreated locally:
+
+- `data/raw/trial1/` – the session folder after being slugified (lowercase, spaces to hyphens)
+
+If no session name was supplied, the GUI groups logs by host and sensor type instead so devices never clobber one another:
+
+- `data/raw/mypi/mpu/` – files recorded on a Pi host named `mypi`
+
+Everything remains normal files on disk, so you can back them up, version them, or open them in other tools.
+
+### File name pattern
+
+Data files use the following pattern:
+
+```
+[<session>_]<sensorPrefix>_S<sensorID>_<timestamp>.<ext>
+```
+
+Examples:
+
+- `Trial1_mpu_S1_2025-11-30_04-53-33.csv`
+- `mpu_S2_2025-11-30_04-53-33.jsonl`
+
+Where:
+
+- `<session>` is your session name, turned into a filesystem-safe slug (lowercase, hyphenated). If you left the field blank, this part disappears.
+- `<sensorPrefix>` is a short code for the logger. For the IMU it is `mpu`.
+- `S<sensorID>` is the sensor index on the logger (S1, S2, ...).
+- `<timestamp>` is the recording start time in UTC formatted as `YYYY-MM-DD_HH-MM-SS`.
+- `<ext>` is the file format: `.csv` or `.jsonl`.
+
+Each data file is paired with a metadata sidecar whose name ends in `.meta.json`, for example:
+
+- `Trial1_mpu_S1_2025-11-30_04-53-33.csv.meta.json`
+
+The metadata records the sample rate, which axes were enabled, and other run settings. The Offline tab uses it to plot data correctly, so keep it beside the data file when copying or renaming logs.
+
+### Sample rate and decimation
+
+The MPU6050 can be sampled very quickly (hundreds of Hertz), but SensePi purposely **decimates** those samples for recording and streaming so files stay small and the live plots stay responsive. You will see three related rates in configs and metadata:
+
+- **Device rate** – how fast the sensor is polled on the Pi itself (for example, 200 Hz).
+- **Record rate** – how often samples are written to the CSV/JSONL file (for example, keeping every 4th device sample → 50 Hz in the log).
+- **Stream rate** – how often samples are forwarded live over SSH to the GUI (for example, every 8th device sample → 25 Hz on the live plot).
+
+Because of decimation the stored CSV may contain fewer samples per second than the raw device rate, which is an intentional tradeoff for smaller files and smoother UI updates. Inspect `sensors.yaml`, `pi_config.yaml`, or the `.meta.json` file for a given run to see the exact rates that were used.
 
 ## Configuration paths
 

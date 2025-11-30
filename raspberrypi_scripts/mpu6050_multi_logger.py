@@ -81,7 +81,6 @@ import csv
 import json
 import os
 import queue
-import re
 import signal
 import socket
 import sys
@@ -93,6 +92,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from pi_logger_common import load_config
+from sensepi.config.log_paths import (
+    LOG_SUBDIR_MPU,
+    build_log_file_paths,
+    build_pi_session_dir,
+    slugify_session_name,
+)
 
 try:
     from smbus2 import SMBus
@@ -219,6 +224,10 @@ class AsyncWriter:
     - Defaults to flush_every=2000 rows, flush_seconds=2.0 seconds
     - Periodic flush doesn't fsync by default (can be enabled)
     - Final fsync is always performed at stop()
+
+    One AsyncWriter instance runs in a background thread per sensor. The main
+    sampling loop only enqueues rows into a queue, so slow disks cannot stall
+    time-critical sensor reads.
     """
     def __init__(self, filepath: Path, fmt: str, header: List[str],
                  flush_every: int = 2000, flush_seconds: float = 2.0,
@@ -253,6 +262,8 @@ class AsyncWriter:
         while True:
             item = self._q.get()
             if item is None:
+                # None is a sentinel pushed by stop(): flush any pending rows
+                # and exit the writer thread cleanly.
                 break
             if self.fmt == "csv":
                 self._writer.writerow(item)
@@ -339,24 +350,16 @@ def scan_buses() -> None:
 
 
 def monotonic_controller(rate_hz: float):
-    """Generator yielding next target monotonic_ns tick for drift‑corrected scheduling."""
+    """Yield target monotonic_ns timestamps for a fixed sampling rate.
+
+    Each step adds a fixed period to the *previous target* time, which keeps the
+    long-term rate stable and avoids drift from small sleep() errors.
+    """
     period = int(1e9 / rate_hz)
     next_t = time.monotonic_ns()
     while True:
         next_t += period
         yield next_t
-
-
-def slugify_session_name(value: str, limit: int = 80) -> str:
-    """Return a filesystem-friendly session label."""
-    text = (value or "").strip()
-    if not text:
-        return ""
-    text = re.sub(r"[^A-Za-z0-9._-]+", "-", text)
-    text = text.strip("-_.")
-    if limit > 0:
-        text = text[:limit]
-    return text
 
 
 def main():
@@ -578,7 +581,8 @@ def main():
     args.rate = resolved_rate
     args.sample_rate_hz = resolved_rate
     session_name = (args.session_name or "").strip()
-    session_slug = slugify_session_name(session_name)
+    session_slug = slugify_session_name(session_name) if session_name else ""
+    session_name_for_paths = session_name or None
 
     # Clamp requested rate to practical 4..1000 Hz with DLPF enabled (datasheet)
     req_rate = max(4.0, min(float(resolved_rate), 1000.0))
@@ -624,7 +628,17 @@ def main():
 
     # File writers per sensor
     base_out_dir = Path(args.out).expanduser().resolve()
-    out_dir = base_out_dir / session_slug if session_slug else base_out_dir
+    helper_base_dir = base_out_dir
+    helper_sensor_prefix = LOG_SUBDIR_MPU
+    if base_out_dir.name != LOG_SUBDIR_MPU:
+        helper_sensor_prefix = ""
+    else:
+        helper_base_dir = base_out_dir.parent
+    out_dir = build_pi_session_dir(
+        sensor_prefix=helper_sensor_prefix,
+        session_name=session_name_for_paths,
+        base_dir=helper_base_dir,
+    )
     try:
         out_dir.mkdir(parents=True, exist_ok=True)
     except Exception as exc:
@@ -709,12 +723,16 @@ def main():
     hostname = socket.gethostname()
     start_iso = datetime.utcnow().isoformat() + "Z"
     start_mono_ns = time.monotonic_ns()
+    start_dt = datetime.now()
+    format_ext = "csv" if args.format == "csv" else "jsonl"
 
     # Initialize sensors
     for sid in enabled:
         bus_id = mapping[sid].bus
         addr = mapping[sid].addr
         try:
+            # Each sensor is initialised in its own try/except block so that a
+            # single failing device or I2C bus does not abort the entire run.
             if bus_id not in bus_handles:
                 bus_handles[bus_id] = SMBus(bus_id)
             dev = MPU6050(bus_handles[bus_id], addr)
@@ -730,19 +748,21 @@ def main():
             # Prepare writer only if recording is enabled
             if not args.no_record:
                 try:
-                    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                    suffix = f"S{sid}"
-                    ext = "csv" if args.format == "csv" else "jsonl"
-                    prefix = args.prefix
-                    if session_slug:
-                        prefix = f"{session_slug}_{prefix}"
-                    fpath = out_dir / f"{prefix}_{suffix}_{timestamp}.{ext}"
+                    paths = build_log_file_paths(
+                        sensor_prefix=args.prefix,
+                        session_name=session_name_for_paths,
+                        sensor_id=sid,
+                        start_dt=start_dt,
+                        format_ext=format_ext,
+                        out_dir=out_dir,
+                    )
                     writer = AsyncWriter(
-                        fpath, args.format, header,
+                        paths.data_path, args.format, header,
                         flush_every=args.flush_every,
                         flush_seconds=args.flush_seconds,
                         fsync_each_flush=args.fsync_each_flush
                     )
+                    writer.meta_path = paths.meta_path
                     writer.start()
                     gyro_bw, acc_bw = DLPF_BW.get(args.dlpf, (None, None))
                     meta = {
@@ -838,6 +858,9 @@ def main():
             / meta_header["pi_stream_decimation"]
         )
 
+        # Advertise the Pi-side stream configuration as an initial JSON header so
+        # the desktop GUI knows the device rate and how many samples are skipped
+        # by --stream-every when estimating the live stream rate.
         # Emit once on stdout before any samples
         print(json.dumps(meta_header), file=sys.stdout, flush=True)
 
@@ -863,6 +886,9 @@ def main():
         n = 0
         warn_every = 50
         while True:
+            # Sleep until the next *target* tick from monotonic_controller so the
+            # loop tracks the requested sample rate, counting overruns instead of
+            # silently drifting when iterations run late.
             now_ns = time.monotonic_ns()
             sleep_ns = target_next - now_ns
             if sleep_ns > 0:

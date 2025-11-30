@@ -64,3 +64,7 @@ Connect `RecorderTab.sample_received` to `handle_sample`, keep the redraw timer 
 
 - `docs/AI_AGENT_NOTES.md` (this file) summarizes the multi-rate architecture, buffer flow, and performance constraints.
 - After reading it, future AI agents should know to respect the decoupled acquisition/streaming/plotting design, reuse the signal/buffer pipeline, and keep integrations small and well reasoned.
+
+## 7. Log conventions quick reference
+
+For any work that touches file paths, syncing, or naming rules, start with **README.md → Log Conventions**. It documents exactly where the Pi and desktop store logs, how session names affect directory layout, the filename schema, and how decimation is recorded in the `.meta.json` sidecars.

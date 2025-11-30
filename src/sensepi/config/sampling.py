@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional
 
 
 @dataclass(frozen=True)
@@ -49,10 +49,8 @@ class SamplingConfig:
 
     @property
     def mode(self) -> RecordingMode:
-        try:
-            return RECORDING_MODES[self.mode_key]
-        except KeyError as exc:
-            raise ValueError(f"Unknown recording mode: {self.mode_key!r}") from exc
+        """Return the resolved recording mode (defaults to high_fidelity)."""
+        return RECORDING_MODES.get(self.mode_key, RECORDING_MODES["high_fidelity"])
 
     def compute_decimation(self) -> dict:
         """
@@ -83,22 +81,32 @@ class SamplingConfig:
     @classmethod
     def from_mapping(
         cls,
-        mapping: Mapping[str, object],
+        mapping: Mapping[str, Any] | None,
         *,
         default_device_rate: float = 200.0,
         default_mode: str = "high_fidelity",
     ) -> "SamplingConfig":
-        sampling = mapping.get("sampling") if isinstance(mapping, Mapping) else None
+        """
+        Construct a SamplingConfig from a mapping such as sensors.yaml.
+
+        Supported shape::
+
+            sampling:
+              device_rate_hz: 200
+              mode: high_fidelity
+        """
+        sampling_block = mapping.get("sampling") if isinstance(mapping, Mapping) else None
         device_rate = default_device_rate
         mode_key = default_mode
 
-        if isinstance(sampling, Mapping):
-            device_rate = sampling.get("device_rate_hz", device_rate)  # type: ignore[arg-type]
-            mode_key = sampling.get("mode", mode_key)  # type: ignore[arg-type]
+        if isinstance(sampling_block, Mapping):
+            device_rate = sampling_block.get("device_rate_hz", device_rate)  # type: ignore[arg-type]
+            mode_key = sampling_block.get("mode", mode_key)  # type: ignore[arg-type]
 
-        # legacy fallback: look for a per-sensor sample rate
+        # legacy fallback: look for a per-sensor sample rate if the sampling block is
+        # missing. This smooths upgrades from the old sensors.yaml structure.
         sensors = mapping.get("sensors") if isinstance(mapping, Mapping) else None
-        if isinstance(sensors, Mapping) and not isinstance(sampling, Mapping):
+        if isinstance(sensors, Mapping) and not isinstance(sampling_block, Mapping):
             mpu_cfg = sensors.get("mpu6050") if isinstance(sensors.get("mpu6050"), Mapping) else None
             if isinstance(mpu_cfg, Mapping):
                 device_rate = mpu_cfg.get("sample_rate_hz", device_rate)  # type: ignore[arg-type]
@@ -109,7 +117,20 @@ class SamplingConfig:
             rate = float(default_device_rate)
 
         mode_key_str = str(mode_key or default_mode)
+        if mode_key_str not in RECORDING_MODES:
+            mode_key_str = default_mode
         return cls(device_rate_hz=rate, mode_key=mode_key_str)
+
+    def to_mapping(self) -> dict:
+        """
+        Serialize the sampling config back into a mapping suitable for YAML.
+        """
+        return {
+            "sampling": {
+                "device_rate_hz": float(self.device_rate_hz),
+                "mode": self.mode.key,
+            }
+        }
 
 
 @dataclass

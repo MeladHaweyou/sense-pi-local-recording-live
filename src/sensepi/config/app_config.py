@@ -18,6 +18,56 @@ DEFAULT_BASE_PATH = Path("~/sensor")
 DEFAULT_DATA_DIR = Path("~/logs")
 
 
+def load_sensor_defaults(path: Path) -> tuple[Dict[str, Any], SamplingConfig]:
+    """Load ``sensors.yaml`` content and the corresponding SamplingConfig."""
+
+    path = Path(path)
+    if path.exists():
+        with path.open("r", encoding="utf-8") as fh:
+            raw = yaml.safe_load(fh) or {}
+    else:
+        raw = {}
+
+    if not isinstance(raw, dict):
+        raw = {}
+
+    sampling = SamplingConfig.from_mapping(raw)
+    return raw, sampling
+
+
+def save_sensor_defaults(path: Path, raw: Mapping[str, Any], sampling: SamplingConfig) -> None:
+    """Persist ``sensors.yaml`` while keeping ``sampling`` authoritative."""
+
+    path = Path(path)
+    data = dict(raw or {})
+    data.update(sampling.to_mapping())
+
+    sensors_block = data.get("sensors")
+    if isinstance(sensors_block, Mapping):
+        cleaned_sensors: Dict[str, Any] = {}
+        for key, cfg in sensors_block.items():
+            if isinstance(cfg, Mapping):
+                sensor_cfg = dict(cfg)
+                sensor_cfg.pop("sample_rate_hz", None)
+                cleaned_sensors[str(key)] = sensor_cfg
+            else:
+                cleaned_sensors[str(key)] = cfg
+        data["sensors"] = cleaned_sensors
+    elif sensors_block is None:
+        data["sensors"] = {}
+
+    if path.parent and not path.parent.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", encoding="utf-8") as fh:
+        yaml.safe_dump(
+            data,
+            fh,
+            default_flow_style=False,
+            sort_keys=False,
+        )
+
+
 @dataclass
 class AppPaths:
     """
@@ -150,7 +200,9 @@ class AppConfig:
     plot_performance: PlotPerformanceConfig = field(
         default_factory=PlotPerformanceConfig
     )
-    sampling_config: SamplingConfig | None = None
+    sampling_config: SamplingConfig = field(
+        default_factory=lambda: SamplingConfig(device_rate_hz=200.0)
+    )
 
     def normalized_signal_backend(self) -> str:
         """Return the canonical backend identifier (``pyqtgraph`` or ``matplotlib``)."""
@@ -167,56 +219,48 @@ class SensorDefaults:
     """
     Helper for loading/saving sensor defaults (sensors.yaml).
 
-    The authoritative sampling configuration is stored under a top-level
-    ``sampling`` key and mirrored into per-sensor entries for readability.
-
-    sampling:
-      device_rate_hz: 150
-      mode: high_fidelity
-
-    sensors:
-      mpu6050:
-        channels: "default"
-        dlpf: 3
-        include_temperature: false
-        sample_rate_hz: 150  # mirror of sampling.device_rate_hz
+    The authoritative sampling configuration lives under the top-level
+    ``sampling`` key. Per-sensor entries inherit their rates from that
+    block and no longer carry ``sample_rate_hz`` fields, removing any
+    ambiguity about the source of truth.
     """
 
     sensors_file: Path = AppPaths().config_dir / "sensors.yaml"
 
-    def _normalize(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize(
+        self,
+        data: Dict[str, Any],
+        sampling: SamplingConfig | None = None,
+    ) -> Dict[str, Any]:
         normalized = dict(data) if isinstance(data, dict) else {}
 
-        sampling_cfg = SamplingConfig.from_mapping(normalized)
-        sampling_block = {
-            "device_rate_hz": sampling_cfg.device_rate_hz,
-            "mode": sampling_cfg.mode_key,
-        }
+        sampling_cfg = sampling or SamplingConfig.from_mapping(normalized)
+        sampling_block = sampling_cfg.to_mapping()["sampling"]
 
         sensors_block = normalized.get("sensors")
-        if not isinstance(sensors_block, dict):
-            sensors_block = {}
-
-        mpu_cfg = dict(sensors_block.get("mpu6050", {}) or {})
-        mpu_cfg["sample_rate_hz"] = sampling_cfg.device_rate_hz
-        sensors_block["mpu6050"] = mpu_cfg
-
+        cleaned_sensors: Dict[str, Any] = {}
+        if isinstance(sensors_block, Mapping):
+            for key, cfg in sensors_block.items():
+                if isinstance(cfg, Mapping):
+                    sensor_cfg = dict(cfg)
+                    sensor_cfg.pop("sample_rate_hz", None)
+                    cleaned_sensors[str(key)] = sensor_cfg
+                else:
+                    cleaned_sensors[str(key)] = cfg
         normalized["sampling"] = sampling_block
-        normalized["sensors"] = sensors_block
+        normalized["sensors"] = cleaned_sensors
         normalized.pop("mpu6050", None)
         return normalized
 
     def load(self) -> Dict[str, Any]:
         """Load and return the full sensors.yaml mapping (or ``{}`` if missing)."""
-        if not self.sensors_file.exists():
-            return self._normalize({})
-        with self.sensors_file.open("r", encoding="utf-8") as fh:
-            loaded = yaml.safe_load(fh) or {}
-        return self._normalize(loaded)
+        raw, sampling = load_sensor_defaults(self.sensors_file)
+        return self._normalize(raw, sampling)
 
     def load_sampling_config(self, data: Dict[str, Any] | None = None) -> SamplingConfig:
         if data is None:
-            data = self.load()
+            _, sampling = load_sensor_defaults(self.sensors_file)
+            return sampling
         return SamplingConfig.from_mapping(data)
 
     def save(self, data: Dict[str, Any]) -> None:
@@ -226,15 +270,9 @@ class SensorDefaults:
         Callers are expected to start from :meth:`load` so that unknown keys
         are preserved.
         """
-        normalized = self._normalize(data)
-        self.sensors_file.parent.mkdir(parents=True, exist_ok=True)
-        with self.sensors_file.open("w", encoding="utf-8") as fh:
-            yaml.safe_dump(
-                normalized,
-                fh,
-                default_flow_style=False,
-                sort_keys=False,
-            )
+        sampling_cfg = SamplingConfig.from_mapping(data)
+        normalized = self._normalize(data, sampling_cfg)
+        save_sensor_defaults(self.sensors_file, normalized, sampling_cfg)
 
     # ------------------------------------------------------------------
     # Convenience helpers for RecorderTab / other callers
@@ -416,15 +454,16 @@ def build_mpu6050_cli_args(config: Mapping[str, Any]) -> List[str]:
 
     return args
 
-def build_pi_config_for_host(host_cfg: HostConfig, app_cfg: AppConfig) -> Dict[str, Any]:
+def build_pi_config_for_host(host_cfg: HostConfig, app_cfg: AppConfig) -> PiLoggerConfig:
     """
-    Build the YAML structure that will be written to pi_config.yaml for a host.
+    Build the :class:`PiLoggerConfig` that will be written to ``pi_config.yaml``.
 
     Currently this mirrors only the MPU6050 logger configuration.
     """
     sensors = app_cfg.sensor_defaults or {}
-    sampling_cfg = app_cfg.sampling_config or SamplingConfig.from_mapping(sensors)
-    decimation = sampling_cfg.compute_decimation()
+    sampling_cfg = app_cfg.sampling_config
+    if not isinstance(sampling_cfg, SamplingConfig):
+        sampling_cfg = SamplingConfig.from_mapping(sensors)
     pi_cfg = PiLoggerConfig.from_sampling(sampling_cfg)
 
     sensor_defaults = sensors.get("sensors") or {}
@@ -438,21 +477,17 @@ def build_pi_config_for_host(host_cfg: HostConfig, app_cfg: AppConfig) -> Dict[s
         "sample_rate_hz": int(pi_cfg.device_rate_hz),
         "record_decimate": int(pi_cfg.record_decimate),
         "stream_every": int(pi_cfg.stream_decimate),
-        "record_rate_hz": float(decimation["record_rate_hz"]),
-        "stream_rate_hz": float(decimation["stream_rate_hz"]),
+        "record_rate_hz": float(pi_cfg.record_rate_hz),
+        "stream_rate_hz": float(pi_cfg.stream_rate_hz),
         "channels": str(mpu_defaults.get("channels", "default")),
         "dlpf": int(mpu_defaults.get("dlpf", 3)),
         "include_temperature": bool(mpu_defaults.get("include_temperature", False)),
         "sensors": sensors_list,
     }
 
-    return {
+    pi_cfg.sections = {
         "generated": "GENERATED FILE - DO NOT EDIT BY HAND",
-        "device_rate_hz": float(pi_cfg.device_rate_hz),
-        "record_decimate": int(pi_cfg.record_decimate),
-        "stream_decimate": int(pi_cfg.stream_decimate),
-        "record_rate_hz": float(decimation["record_rate_hz"]),
-        "stream_rate_hz": float(decimation["stream_rate_hz"]),
         "mpu6050": mpu_cfg,
     }
+    return pi_cfg
 

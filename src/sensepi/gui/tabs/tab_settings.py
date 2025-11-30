@@ -32,10 +32,8 @@ Example usage in RecorderTab (pseudo-code)::
 
 from __future__ import annotations
 
-import io
 from typing import Any, Dict, List, Optional
 
-import yaml
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -438,15 +436,13 @@ class SettingsTab(QWidget):
             return
 
         host_cfg = self._host_inventory.to_host_config(host_dict)
-        sampling_cfg = self._sensor_defaults.load_sampling_config(self._sensors)
+        sensor_defaults, sampling_cfg = self._build_sensor_defaults_payload()
         app_cfg = AppConfig(
-            sensor_defaults=self.sensor_defaults(), sampling_config=sampling_cfg
+            sensor_defaults=sensor_defaults,
+            sampling_config=sampling_cfg,
         )
         pi_cfg = build_pi_config_for_host(host_cfg, app_cfg)
-
-        buf = io.StringIO()
-        yaml.safe_dump(pi_cfg, buf, sort_keys=False)
-        contents = buf.getvalue()
+        contents = pi_cfg.render_pi_config_yaml()
 
         remote_host = self._host_inventory.to_remote_host(host_dict)
         client = SSHClient(remote_host)
@@ -514,33 +510,38 @@ class SettingsTab(QWidget):
         self.mpu_dlpf.setValue(int(mpu_cfg.get("dlpf", 3)))
         self.mpu_include_temp.setChecked(bool(mpu_cfg.get("include_temperature", False)))
 
-    @Slot()
-    def _on_save_sensors_clicked(self) -> None:
-        sensors = dict(self._sensors)  # preserve unknown keys / sensor types
-
-        sampling_cfg = SamplingConfig(
+    def _current_sampling_from_widgets(self) -> SamplingConfig:
+        mode_key = self.mode_combo.currentData()
+        return SamplingConfig(
             device_rate_hz=float(self.device_rate_spin.value()),
-            mode_key=str(self.mode_combo.currentData()),
+            mode_key=str(mode_key or "high_fidelity"),
         )
 
-        sensor_block = dict(sensors.get("sensors", {}) or {})
-        mpu_cfg = dict(sensor_block.get("mpu6050", {}) or {})
+    def _build_sensor_defaults_payload(self) -> tuple[Dict[str, Any], SamplingConfig]:
+        sensors_model = dict(self._sensors) if isinstance(self._sensors, dict) else {}
+        sampling_cfg = self._current_sampling_from_widgets()
+
+        sensors_block = dict(sensors_model.get("sensors", {}) or {})
+        mpu_cfg = dict(sensors_block.get("mpu6050", {}) or {})
         mpu_cfg.update(
             {
-                "sample_rate_hz": sampling_cfg.device_rate_hz,
                 "channels": str(self.mpu_channels.currentText()),
                 "dlpf": int(self.mpu_dlpf.value()),
                 "include_temperature": bool(self.mpu_include_temp.isChecked()),
             }
         )
-        sensor_block["mpu6050"] = mpu_cfg
-        sensors["sampling"] = {
-            "device_rate_hz": sampling_cfg.device_rate_hz,
-            "mode": sampling_cfg.mode_key,
-        }
-        sensors["sensors"] = sensor_block
-        sensors.pop("adxl203_ads1115", None)
-        sensors.pop("mpu6050", None)
+        mpu_cfg.pop("sample_rate_hz", None)
+        sensors_block["mpu6050"] = mpu_cfg
+
+        sensors_model["sampling"] = sampling_cfg.to_mapping()["sampling"]
+        sensors_model["sensors"] = sensors_block
+        sensors_model.pop("mpu6050", None)
+        sensors_model.pop("adxl203_ads1115", None)
+        return sensors_model, sampling_cfg
+
+    @Slot()
+    def _on_save_sensors_clicked(self) -> None:
+        sensors, _ = self._build_sensor_defaults_payload()
 
         try:
             self._sensor_defaults.save(sensors)
@@ -548,7 +549,7 @@ class SettingsTab(QWidget):
             QMessageBox.critical(self, "Save error", f"Failed to write sensors.yaml:\n{exc}")
             return
 
-        self._sensors = sensors
+        self._sensors = self._sensor_defaults.load()
         QMessageBox.information(self, "Saved", "Sensor defaults saved to sensors.yaml.")
         self.sensorsUpdated.emit(dict(self._sensors))
 
@@ -576,7 +577,8 @@ class SettingsTab(QWidget):
 
     def sensor_defaults(self) -> Dict[str, Any]:
         """Return the full sensor-defaults mapping."""
-        return dict(self._sensors)
+        sensors, _ = self._build_sensor_defaults_payload()
+        return dict(sensors)
 
 
 """
