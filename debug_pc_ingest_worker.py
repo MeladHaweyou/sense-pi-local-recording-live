@@ -22,10 +22,13 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from collections.abc import Iterator
+from dataclasses import dataclass
+import json
 from pathlib import Path
 import sys
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from PySide6.QtCore import QCoreApplication, QObject, QThread, QTimer, Slot  # type: ignore
 
@@ -40,6 +43,72 @@ from sensepi.remote.pi_recorder import PiRecorder  # type: ignore
 from sensepi.remote.sensor_ingest_worker import SensorIngestWorker  # type: ignore
 from sensepi.core.live_stream import select_parser  # type: ignore
 from sensepi.sensors.mpu6050 import MpuSample  # type: ignore
+
+
+@dataclass
+class PiStreamConfig:
+    pi_device_sample_rate_hz: Optional[float] = None
+    pi_stream_decimation: Optional[int] = None
+    pi_stream_rate_hz: Optional[float] = None
+    sensor_ids: list[int] | None = None
+
+    @classmethod
+    def from_meta_json(cls, obj: dict) -> "PiStreamConfig":
+        return cls(
+            pi_device_sample_rate_hz=float(obj.get("pi_device_sample_rate_hz"))
+            if obj.get("pi_device_sample_rate_hz") is not None
+            else None,
+            pi_stream_decimation=int(obj.get("pi_stream_decimation"))
+            if obj.get("pi_stream_decimation") is not None
+            else None,
+            pi_stream_rate_hz=float(obj.get("pi_stream_rate_hz"))
+            if obj.get("pi_stream_rate_hz") is not None
+            else None,
+            sensor_ids=[int(s) for s in obj.get("sensor_ids", [])],
+        )
+
+
+def extract_pi_meta_and_wrap_stream(
+    raw_stream: Iterator[str],
+) -> tuple[PiStreamConfig | None, Iterator[str]]:
+    """
+    Consume any initial JSON meta header lines and return a cleaned
+    stream iterator that yields only sample lines.
+    """
+
+    buffer: list[str] = []
+    pi_cfg: PiStreamConfig | None = None
+
+    # Try to read at most a few lines as potential meta headers
+    for _ in range(3):
+        try:
+            line = next(raw_stream)
+        except StopIteration:
+            break
+        if not line:
+            continue
+        # Try to parse JSON; ignore failures
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            buffer.append(line)
+            break
+
+        if isinstance(obj, dict) and obj.get("meta") == "mpu6050_stream_config":
+            pi_cfg = PiStreamConfig.from_meta_json(obj)
+            # do NOT put this line back into buffer
+            continue
+        else:
+            buffer.append(line)
+            break
+
+    def _iter() -> Iterator[str]:
+        for b in buffer:
+            yield b
+        for line in raw_stream:
+            yield line
+
+    return pi_cfg, _iter()
 
 
 def pick_host(inv: HostInventory, name: str | None) -> Dict[str, Any]:
@@ -90,12 +159,14 @@ class IngestDebug(QObject):
         recorder: PiRecorder,
         stream,
         seconds: float,
+        pi_cfg: PiStreamConfig | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._recorder = recorder
         self._stream = stream
         self._seconds = float(seconds)
+        self._pi_cfg = pi_cfg
         if self._seconds < 0:
             self._seconds = 0.0
 
@@ -175,16 +246,54 @@ class IngestDebug(QObject):
         elif self._seconds > 0:
             elapsed = self._seconds
 
+        print("\n=== Ingest summary (Pi vs PC) ===")
+
+        # Pi config
+        if self._pi_cfg and (
+            self._pi_cfg.pi_device_sample_rate_hz is not None
+            or self._pi_cfg.pi_stream_rate_hz is not None
+        ):
+            print("Pi config:")
+            if self._pi_cfg.pi_device_sample_rate_hz is not None:
+                print(
+                    "  pi_device_sample_rate_hz = "
+                    f"{self._pi_cfg.pi_device_sample_rate_hz:.1f}"
+                )
+            if self._pi_cfg.pi_stream_decimation is not None:
+                print(
+                    "  pi_stream_decimation     = "
+                    f"{self._pi_cfg.pi_stream_decimation}"
+                )
+            if self._pi_cfg.pi_stream_rate_hz is not None:
+                print(
+                    "  pi_stream_rate_hz        = "
+                    f"{self._pi_cfg.pi_stream_rate_hz:.1f}"
+                )
+        else:
+            print("Pi config: (unknown in this run)")
+
+        # PC ingest
+        print("\nPC ingest:")
+        pc_rates: list[float] = []
         for sid in sorted(self._counts.keys()):
             count = self._counts[sid]
+            line = f"  sensor_id={sid}: {count} samples"
             if elapsed and elapsed > 0:
                 approx_rate = count / elapsed
-                print(
-                    f"  sensor_id={sid}: {count} samples "
-                    f"(~{approx_rate:.1f} Hz effective stream rate)"
-                )
-            else:
-                print(f"  sensor_id={sid}: {count} samples")
+                pc_rates.append(approx_rate)
+                line += f" → pc_effective_rate_hz ≈ {approx_rate:.1f}"
+            print(line)
+
+        if pc_rates and self._pi_cfg and self._pi_cfg.pi_stream_rate_hz:
+            avg_pc_rate = sum(pc_rates) / len(pc_rates)
+            loss_pct = 100.0 * (1.0 - (avg_pc_rate / self._pi_cfg.pi_stream_rate_hz))
+            print("\nComparison:")
+            print(
+                "  expected_pc_rate_hz (from Pi) "
+                f"≈ {self._pi_cfg.pi_stream_rate_hz:.1f}"
+            )
+            print(f"  measured_pc_rate_hz           ≈ {avg_pc_rate:.1f}")
+            print(f"  loss_vs_pi_stream             ≈ {loss_pct:.1f}%")
 
 
 def main() -> None:
@@ -235,7 +344,14 @@ def main() -> None:
         on_stderr=on_stderr,
     )
 
-    dbg = IngestDebug(recorder=rec, stream=stream, seconds=args.seconds)
+    pi_cfg, stream = extract_pi_meta_and_wrap_stream(stream)
+
+    dbg = IngestDebug(
+        recorder=rec,
+        stream=stream,
+        seconds=args.seconds,
+        pi_cfg=pi_cfg,
+    )
     QTimer.singleShot(0, dbg.start)
 
     app.exec()
