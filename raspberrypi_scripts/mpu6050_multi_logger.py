@@ -772,6 +772,11 @@ def main():
                         "stream_fields": list(stream_fields),
                         "version": 3
                     }
+                    meta["pi_device_sample_rate_hz"] = meta["device_rate_hz"]
+                    meta["pi_stream_decimation"] = meta["stream_every"]
+                    meta["pi_stream_rate_hz"] = (
+                        meta["pi_device_sample_rate_hz"] / meta["pi_stream_decimation"]
+                    )
                     writer.write_metadata(meta)
                     writers[sid] = writer
                     bw_str = f"DLPF={args.dlpf} (gyro≈{gyro_bw}Hz, accel≈{acc_bw}Hz)" if gyro_bw else f"DLPF={args.dlpf}"
@@ -798,13 +803,43 @@ def main():
         return 2
 
     if args.stream_stdout:
+        # args.stream_every already has a default of 1
+        pi_stream_decimation = int(args.stream_every or 1)
+
         for sid in sorted(devices.keys()):
-            rate = actual_rates.get(sid, req_rate)
+            # Actual per-sensor rate if available, otherwise fall back to requested
+            pi_device_sample_rate_hz = float(actual_rates.get(sid, req_rate))
+            pi_stream_rate_hz = pi_device_sample_rate_hz / pi_stream_decimation
+
             print(
-                f"[INFO] streaming: sensor={sid} rate={rate:.1f}Hz "
-                f"stream_every={args.stream_every} stream_fields={stream_fields}",
+                "[INFO][PI] streaming: "
+                f"sensor={sid} "
+                f"pi_device_sample_rate_hz={pi_device_sample_rate_hz:.1f} "
+                f"pi_stream_decimation={pi_stream_decimation} "
+                f"pi_stream_rate_hz={pi_stream_rate_hz:.1f} "
+                f"stream_fields={stream_fields}",
                 file=sys.stderr,
             )
+
+        # Build a single meta header line for the whole run
+        avg_device_rate = (
+            sum(actual_rates.values()) / len(actual_rates)
+            if actual_rates
+            else float(req_rate)
+        )
+        meta_header = {
+            "meta": "mpu6050_stream_config",
+            "sensor_ids": sorted(int(sid) for sid in devices.keys()),
+            "pi_device_sample_rate_hz": float(avg_device_rate),
+            "pi_stream_decimation": pi_stream_decimation,
+        }
+        meta_header["pi_stream_rate_hz"] = (
+            meta_header["pi_device_sample_rate_hz"]
+            / meta_header["pi_stream_decimation"]
+        )
+
+        # Emit once on stdout before any samples
+        print(json.dumps(meta_header), file=sys.stdout, flush=True)
 
     # Sampling control
     controller = monotonic_controller(req_rate)
