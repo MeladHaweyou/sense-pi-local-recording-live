@@ -20,7 +20,17 @@ from ...config.app_config import AppPaths
 
 
 class LogsTab(QWidget):
-    """Simple viewer for application log files stored under AppPaths.logs."""
+    """
+    Application log viewer for troubleshooting the desktop GUI.
+
+    Responsibilities:
+    - Enumerate log files under :class:`AppPaths.logs` and present them for quick
+      inspection.
+    - Provide a tail/follow mode to watch runtime output while other tabs are
+      driving live streams or syncing recordings.
+    - Focused purely on diagnostics; it does not participate in data flow
+      between recorder, signals, or FFT tabs.
+    """
 
     _MAX_READ_BYTES = 250_000
 

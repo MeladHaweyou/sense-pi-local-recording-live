@@ -50,7 +50,17 @@ logger = logging.getLogger(__name__)
 
 
 class FftTab(QWidget):
-    """FFT tab that reuses the shared streaming buffer via RecorderTab."""
+    """
+    Live spectrum/FFT view for the streaming MPU6050 channels.
+
+    Responsibilities:
+    - Pull sliding windows of samples from the shared
+      :class:`StreamingDataBuffer` (owned by :class:`RecorderTab`).
+    - Render frequency-domain plots that complement :class:`SignalsTab`'s time
+      series, using matching sensor/channel layouts.
+    - Track stream rate updates and refresh interval hints emitted by the
+      signals tab so spectral analysis follows live data pacing.
+    """
 
     def __init__(
         self,
