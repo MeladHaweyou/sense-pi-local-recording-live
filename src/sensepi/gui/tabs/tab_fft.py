@@ -150,6 +150,8 @@ class FftTab(QWidget):
         layout.addWidget(self._canvas)
         layout.addWidget(self._status_label)
 
+        # NOTE: This timer drives the legacy FFT refresh cadence. Align with the
+        # new acquisition config in the upcoming GUI refactor before changing it.
         # Timer to recompute FFT periodically
         self._timer = QTimer(self)
         default_fft_interval = self._clamp_fft_interval(

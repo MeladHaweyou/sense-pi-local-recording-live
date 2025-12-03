@@ -12,7 +12,6 @@ from PySide6.QtCore import Signal, Slot, QTimer, Qt, QSignalBlocker
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -896,7 +895,6 @@ class SignalPlotWidgetPyQtGraph(SignalPlotWidgetBase):
         self._plots.clear()
 
         nrows = len(sensor_ids)
-        ncols = len(visible_channels)
         xmin, xmax = self._time_axis_domain()
 
         for row_idx, sid in enumerate(sensor_ids):
@@ -1350,6 +1348,8 @@ class SignalsTab(QWidget):
         )
         self._acquisition_widget.set_fft_refresh_interval(default_fft_interval)
         self._plot.set_display_slack_ns(DEFAULT_DISPLAY_SLACK_NS)
+        # NOTE: This block implements the existing perf HUD. It will be revisited
+        # in the new GUI refactor. Avoid changing behavior here until then.
         self._perf_hud_label = QLabel(self._plot)
         self._perf_hud_label.setText("")
         self._perf_hud_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
@@ -1581,6 +1581,9 @@ class SignalsTab(QWidget):
 
         self._rebuild_channel_checkboxes()
 
+        # NOTE: Legacy sample ingestion and redraw timers are decoupled to
+        # respect the current buffer management behavior. Revisit during the
+        # new GUI refactor.
         # periodic sample ingestion (decoupled from redraw refresh)
         self._ingest_timer = QTimer(self)
         self._ingest_timer.setInterval(20)
