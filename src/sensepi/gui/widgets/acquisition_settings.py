@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 
 from PySide6.QtCore import Qt, Signal, QSignalBlocker
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
@@ -39,6 +40,8 @@ class AcquisitionSettings:
     signals_mode: str = "fixed"  # "fixed" or "adaptive"
     signals_refresh_ms: int = DEFAULT_SIGNALS_REFRESH_MS
     fft_refresh_ms: int = DEFAULT_FFT_REFRESH_MS
+    # NEW: GUI-only flag, not yet wired to backend
+    record_only: bool = False
 
     @property
     def effective_stream_rate_hz(self) -> float:
@@ -52,6 +55,7 @@ class AcquisitionSettings:
             "signals_mode": str(self.signals_mode),
             "signals_refresh_ms": int(self.signals_refresh_ms),
             "fft_refresh_ms": int(self.fft_refresh_ms),
+            "record_only": bool(self.record_only),
         }
 
 
@@ -62,6 +66,7 @@ class AcquisitionSettingsWidget(QWidget):
     signalsRefreshChanged = Signal(int)
     fftRefreshChanged = Signal(int)
     samplingChanged = Signal(object)  # emits SamplingConfig
+    recordOnlyChanged = Signal(bool)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -128,6 +133,11 @@ class AcquisitionSettingsWidget(QWidget):
             self._on_fft_refresh_value_changed
         )
 
+        self.record_only_check = QCheckBox("Record only (no live streaming)", self)
+        self.record_only_check.setChecked(False)
+        form.addRow(self.record_only_check)
+        self.record_only_check.stateChanged.connect(self._on_record_only_changed)
+
         # Wiring
         self.device_rate_spin.valueChanged.connect(self._on_sampling_control_changed)
         self.mode_combo.currentIndexChanged.connect(self._on_sampling_control_changed)
@@ -141,11 +151,13 @@ class AcquisitionSettingsWidget(QWidget):
         sampling = self._build_sampling_config()
         self._sampling_config = sampling
         mode = self.signals_mode_combo.currentData() or "fixed"
+        record_only = self.record_only_check.isChecked()
         return AcquisitionSettings(
             sampling=sampling,
             signals_mode=str(mode),
             signals_refresh_ms=int(self.signals_refresh_spin.value()),
             fft_refresh_ms=int(self.fft_refresh_spin.value()),
+            record_only=bool(record_only),
         )
 
     def set_settings(self, settings: AcquisitionSettings) -> None:
@@ -161,7 +173,12 @@ class AcquisitionSettingsWidget(QWidget):
             self.signals_mode_combo.setCurrentIndex(idx)
         self.signals_refresh_spin.setValue(int(settings.signals_refresh_ms))
         self.fft_refresh_spin.setValue(int(settings.fft_refresh_ms))
+        # NEW: reflect record-only flag
+        self.record_only_check.setChecked(bool(getattr(settings, "record_only", False)))
         self._on_mode_changed()
+
+    def _on_record_only_changed(self, state: int) -> None:
+        self.recordOnlyChanged.emit(state == Qt.Checked)
 
     def set_sampling_config(self, sampling: SamplingConfig) -> None:
         """Update the sampling controls from an external config."""
@@ -209,6 +226,14 @@ class AcquisitionSettingsWidget(QWidget):
         self.signals_refresh_spin.setEnabled(is_fixed)
         normalized = str(mode or "fixed")
         self.signalsModeChanged.emit(normalized)
+
+    # Convenience helper for later phases
+    def current_stream_rate_hz(self) -> float:
+        """
+        Return the effective stream rate [Hz] shown in the GUI.
+        """
+        settings = self.settings()
+        return float(settings.effective_stream_rate_hz)
 
     def _on_signals_refresh_value_changed(self, value: int) -> None:
         self.signalsRefreshChanged.emit(int(value))

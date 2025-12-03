@@ -34,6 +34,7 @@ from ..widgets import (
     AcquisitionSettingsWidget,
     CollapsibleSection,
 )
+from ..config.acquisition_state import GuiAcquisitionConfig, SensorSelectionConfig
 from ...config.app_config import AppConfig, PlotPerformanceConfig
 from ...config.constants import ENABLE_PLOT_PERF_METRICS
 from ...core.timeseries_buffer import (
@@ -1262,6 +1263,7 @@ class SignalsTab(QWidget):
     start_stream_requested = Signal(bool)  # bool = recording mode
     stop_stream_requested = Signal()
     fft_refresh_interval_changed = Signal(int)
+    acquisitionConfigChanged = Signal(GuiAcquisitionConfig)
 
     def __init__(
         self,
@@ -1311,6 +1313,8 @@ class SignalsTab(QWidget):
         self._data_buffer: StreamingDataBuffer | None = None
         self._buffer_cursors: Dict[int | str, float] = {}
         self._synthetic_active = False
+        self._current_sensor_selection = SensorSelectionConfig()
+        self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
         if recorder_tab is not None:
             try:
                 self.set_data_buffer(recorder_tab.data_buffer())
@@ -1331,6 +1335,9 @@ class SignalsTab(QWidget):
         self._mpu_section: CollapsibleSection | None = None
         self._acquisition_section: CollapsibleSection | None = None
         self._acquisition_widget = AcquisitionSettingsWidget(self)
+        self._acquisition_widget.samplingChanged.connect(
+            self._on_acquisition_widget_changed
+        )
         self._acquisition_widget.signalsModeChanged.connect(
             self._on_acquisition_mode_changed
         )
@@ -1340,6 +1347,18 @@ class SignalsTab(QWidget):
         self._acquisition_widget.fftRefreshChanged.connect(
             self._emit_fft_refresh_interval_changed
         )
+        self._acquisition_widget.recordOnlyChanged.connect(
+            self._on_acquisition_widget_changed
+        )
+        self._acquisition_widget.signalsModeChanged.connect(
+            self._on_acquisition_widget_changed
+        )
+        self._acquisition_widget.signalsRefreshChanged.connect(
+            self._on_acquisition_widget_changed
+        )
+        self._acquisition_widget.fftRefreshChanged.connect(
+            self._on_acquisition_widget_changed
+        )
         self._acquisition_widget.set_signals_refresh_interval(self.refresh_interval_ms)
         fft_spin_min = int(self._acquisition_widget.fft_refresh_spin.minimum())
         default_fft_interval = max(
@@ -1347,6 +1366,7 @@ class SignalsTab(QWidget):
             int(self._plot_perf_config.fft_refresh_interval_ms()),
         )
         self._acquisition_widget.set_fft_refresh_interval(default_fft_interval)
+        self._rebuild_gui_acquisition_config()
         self._plot.set_display_slack_ns(DEFAULT_DISPLAY_SLACK_NS)
         # NOTE: This block implements the existing perf HUD. It will be revisited
         # in the new GUI refactor. Avoid changing behavior here until then.
@@ -1647,6 +1667,41 @@ class SignalsTab(QWidget):
         if not hasattr(self, "_session_name_edit"):
             return ""
         return self._session_name_edit.text().strip()
+
+    def set_sensor_selection(self, selection: SensorSelectionConfig) -> None:
+        """
+        Called by MainWindow when the Device/Sensors tab changes selection.
+        For now we just store it and rebuild the GuiAcquisitionConfig.
+        """
+
+        self._current_sensor_selection = selection
+        self._rebuild_gui_acquisition_config()
+
+    def current_acquisition_config(self) -> GuiAcquisitionConfig:
+        """
+        High-level GUI acquisition config. This is what backend wiring will use in later phases.
+        """
+
+        if self._current_gui_acquisition_config is None:
+            self._rebuild_gui_acquisition_config()
+        assert self._current_gui_acquisition_config is not None
+        return self._current_gui_acquisition_config
+
+    def _on_acquisition_widget_changed(self, *_args) -> None:
+        self._rebuild_gui_acquisition_config()
+
+    def _rebuild_gui_acquisition_config(self) -> None:
+        acq = self._acquisition_widget.settings()
+        stream_rate = acq.effective_stream_rate_hz
+        gui_cfg = GuiAcquisitionConfig(
+            sampling=acq.sampling,
+            stream_rate_hz=float(stream_rate),
+            record_only=bool(getattr(acq, "record_only", False)),
+            sensor_selection=self._current_sensor_selection,
+        )
+        self._current_gui_acquisition_config = gui_cfg
+        print("[SignalsTab] GuiAcquisitionConfig:", gui_cfg.summary())
+        self.acquisitionConfigChanged.emit(gui_cfg)
 
     def set_data_buffer(
         self, data_buffer: Optional[StreamingDataBuffer]
