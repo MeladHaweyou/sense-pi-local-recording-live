@@ -38,3 +38,9 @@
 - Top-level CLI/debug utilities: `debug_*.py`, `live_plot.py`, `run_live_plot.py`, `profile_benchmark.py`, `decimation.py`, `envelope_plot.py`, `ssh_client.py`, `pi_recorder.py`.
 - AI helper/prompts and automation: `combined.py`, `run_codex_prompts.py`, `codex-prompts/`, `combine.bat`, `logs.txt`.
 - Raspberry Pi helper scripts under `raspberrypi_scripts/` not directly invoked by the desktop GUI.
+
+## Removed AI helper artifacts
+
+- Deleted `combine.bat`, `combined.py`, `logs.txt` from the repo root.
+  These were one-off helper artifacts for generating a combined code view
+  and are not part of the maintained project source.
