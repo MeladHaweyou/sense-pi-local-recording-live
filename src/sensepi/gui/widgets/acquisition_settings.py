@@ -24,6 +24,12 @@ DEFAULT_MODE_KEY = "high_fidelity"
 
 @dataclass
 class AcquisitionSettings:
+    """Container for live acquisition knobs shared across tabs.
+
+    This keeps the SamplingConfig (device/record/stream rates) paired with GUI
+    refresh hints so :class:`SignalsTab` and :class:`FftTab` can stay in sync
+    without modifying the underlying logger behaviour during the design phase.
+    """
     sampling: SamplingConfig = field(
         default_factory=lambda: SamplingConfig(
             device_rate_hz=DEFAULT_DEVICE_RATE_HZ,
