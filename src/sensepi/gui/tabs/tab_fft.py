@@ -26,6 +26,7 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
 from ...analysis import filters
+from ..config.acquisition_state import GuiAcquisitionConfig, SensorSelectionConfig
 from ...config.app_config import AppConfig, PlotPerformanceConfig
 from ...core.ringbuffer import RingBuffer
 from ...data import StreamingDataBuffer
@@ -74,6 +75,8 @@ class FftTab(QWidget):
         self._recorder_tab = recorder_tab
         self._signals_tab: SignalsTab | None = signals_tab
         self._app_config: AppConfig = app_config or AppConfig()
+        self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
+        self._current_sensor_selection = SensorSelectionConfig()
         plot_perf = getattr(self._app_config, "plot_performance", None)
         if not isinstance(plot_perf, PlotPerformanceConfig):
             plot_perf = PlotPerformanceConfig()
@@ -171,6 +174,22 @@ class FftTab(QWidget):
         self.lowpass_cutoff.valueChanged.connect(self._on_controls_changed)
         self._update_fft_timer_interval()
         self._draw_waiting()
+
+    def apply_gui_acquisition_config(self, cfg: GuiAcquisitionConfig) -> None:
+        self._current_gui_acquisition_config = cfg
+        self._stream_rate_hz = float(cfg.stream_rate_hz)
+
+    def set_sensor_selection(self, cfg: SensorSelectionConfig) -> None:
+        self._current_sensor_selection = cfg
+
+    def set_record_only_mode(self, enabled: bool) -> None:
+        enabled = bool(enabled)
+        if enabled:
+            self._timer.stop()
+            self._set_status("Record-only mode: live spectrum disabled.")
+        else:
+            if self._refresh_interval_ms > 0:
+                self._timer.start(self._refresh_interval_ms)
 
     def _make_key(self, sensor_id: int, channel: str) -> SampleKey:
         return int(sensor_id), str(channel)

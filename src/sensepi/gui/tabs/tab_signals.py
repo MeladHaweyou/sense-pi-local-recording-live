@@ -1677,6 +1677,26 @@ class SignalsTab(QWidget):
         self._current_sensor_selection = selection
         self._rebuild_gui_acquisition_config()
 
+    def apply_gui_acquisition_config(self, cfg: GuiAcquisitionConfig) -> None:
+        """
+        Called from MainWindow when a new config is about to be used
+        for streaming/recording.
+        """
+
+        self._current_gui_acquisition_config = cfg
+        try:
+            self._sampling_rate_hz = float(cfg.sampling.device_rate_hz)
+        except (TypeError, ValueError):
+            self._sampling_rate_hz = None
+        if self._sampling_rate_hz:
+            self._plot.set_nominal_sample_rate(self._sampling_rate_hz)
+        self._apply_refresh_settings()
+        try:
+            self.update_stream_rate("mpu6050", float(cfg.stream_rate_hz))
+        except Exception:
+            pass
+        self._refresh_mode_hint()
+
     def current_acquisition_config(self) -> GuiAcquisitionConfig:
         """
         High-level GUI acquisition config. This is what backend wiring will use in later phases.
@@ -1689,6 +1709,27 @@ class SignalsTab(QWidget):
 
     def _on_acquisition_widget_changed(self, *_args) -> None:
         self._rebuild_gui_acquisition_config()
+
+    def set_record_only_mode(self, enabled: bool) -> None:
+        """
+        Enable/disable 'record only (no streaming)' behavior for the live plot.
+
+        When enabled:
+        - Stop the GUI refresh timer.
+        - Show a status message indicating live streaming is disabled.
+        """
+
+        enabled = bool(enabled)
+        if enabled:
+            self._stream_active = False
+            if hasattr(self, "_timer"):
+                self._timer.stop()
+            self._set_status_text(
+                "Record-only mode: live streaming disabled.", source="manual"
+            )
+        else:
+            self._refresh_timer_state()
+            self._refresh_mode_hint()
 
     def _rebuild_gui_acquisition_config(self) -> None:
         acq = self._acquisition_widget.settings()
