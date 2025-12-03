@@ -1,4 +1,9 @@
-"""Compatibility shim for the PyQtGraph SignalPlotWidget implementation."""
+"""Compatibility shim for the PyQtGraph SignalPlotWidget implementation.
+
+New code should import :class:`SignalPlotWidget` from ``tab_signals.py`` (or a
+future widgets module). This alias remains solely to keep the historic
+``pg_signal_plot_widget`` import path alive for older code.
+"""
 
 from __future__ import annotations
 
