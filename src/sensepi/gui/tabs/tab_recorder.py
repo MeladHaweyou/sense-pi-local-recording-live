@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..config.acquisition_state import SensorSelectionConfig
+from ..config.acquisition_state import GuiAcquisitionConfig, SensorSelectionConfig
 from ..widgets import AcquisitionSettings, CollapsibleSection
 from ...analysis.rate import RateController
 from ...config.app_config import HostConfig, HostInventory, SensorDefaults
@@ -116,6 +116,7 @@ class RecorderTab(QWidget):
         self._active_stream: Iterable[str] | None = None
         self._sample_queue: queue.Queue[object] = queue.Queue(maxsize=10_000)
         self._current_sensor_selection = SensorSelectionConfig()
+        self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
 
         self._build_ui()
         self._load_hosts()
@@ -567,6 +568,49 @@ class RecorderTab(QWidget):
 
         return PiLoggerConfig.from_sampling(sampling, extra_cli=extra)
 
+    def apply_sensor_selection(self, cfg: SensorSelectionConfig) -> None:
+        """
+        Reflect the logical sensor/channel selection into the RecorderTab UI
+        so existing code that reads mpu_sensors_edit and mpu_channels_combo
+        continues to work.
+        """
+
+        self._current_sensor_selection = cfg
+
+        sensors_text = ",".join(str(s) for s in cfg.active_sensors)
+        try:
+            self.mpu_sensors_edit.setText(sensors_text)
+        except AttributeError:
+            pass
+
+        channels = set(cfg.active_channels)
+        key = "default"
+        if channels == {"ax", "ay", "az"}:
+            key = "accel_only"
+        elif channels == {"gx", "gy", "gz"}:
+            key = "gyro_only"
+        elif channels == {"ax", "ay", "az", "gx", "gy", "gz"}:
+            key = "both"
+
+        try:
+            idx = self.mpu_channels_combo.findData(key)
+            if idx < 0:
+                fallback = {"accel_only": "acc", "gyro_only": "gyro", "both": "both"}
+                idx = self.mpu_channels_combo.findData(fallback.get(key, key))
+            if idx >= 0:
+                self.mpu_channels_combo.setCurrentIndex(idx)
+        except AttributeError:
+            pass
+
+    def apply_gui_acquisition_config(self, cfg: GuiAcquisitionConfig) -> None:
+        """
+        Cache the high-level GUI config. For now we only use it for logging
+        and to drive _apply_sampling_config.
+        """
+
+        self._current_gui_acquisition_config = cfg
+        self._apply_sampling_config(cfg.sampling)
+
     # --------------------------------------------------------------- slots
     @Slot()
     def _on_start_clicked(self) -> None:
@@ -592,6 +636,12 @@ class RecorderTab(QWidget):
         Uses the current GUI configuration and forwards `recording` down to
         the Pi logger.
         """
+        gui_cfg = self._current_gui_acquisition_config
+        if gui_cfg is not None:
+            logger.info(
+                "Starting live stream with GUI config: %s",
+                gui_cfg.summary(),
+            )
         self._recording_mode = bool(recording)
         normalized_session = (session_name or "").strip()
         self._last_session_name = normalized_session
