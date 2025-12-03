@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..config.acquisition_state import SensorSelectionConfig
 from ..widgets import AcquisitionSettings, CollapsibleSection
 from ...analysis.rate import RateController
 from ...config.app_config import HostConfig, HostInventory, SensorDefaults
@@ -78,6 +79,7 @@ class RecorderTab(QWidget):
     sampling_config_changed = Signal(object)
     recording_started = Signal()
     recording_stopped = Signal()
+    sensorSelectionChanged = Signal(SensorSelectionConfig)
     recording_error = Signal(str)
 
     def __init__(
@@ -113,6 +115,7 @@ class RecorderTab(QWidget):
         )
         self._active_stream: Iterable[str] | None = None
         self._sample_queue: queue.Queue[object] = queue.Queue(maxsize=10_000)
+        self._current_sensor_selection = SensorSelectionConfig()
 
         self._build_ui()
         self._load_hosts()
@@ -239,6 +242,15 @@ class RecorderTab(QWidget):
         # Signal wiring
         self.start_btn.clicked.connect(self._on_start_clicked)
         self.stop_btn.clicked.connect(self._on_stop_clicked)
+        self.mpu_sensors_edit.textChanged.connect(
+            self._emit_sensor_selection_changed
+        )
+        self.mpu_channels_combo.currentIndexChanged.connect(
+            self._emit_sensor_selection_changed
+        )
+
+        # Initialize cached sensor selection
+        self._emit_sensor_selection_changed()
 
     def _load_hosts(self) -> None:
         """Populate the host combo from config/hosts.yaml."""
@@ -315,6 +327,47 @@ class RecorderTab(QWidget):
         self._pi_recorder = recorder
         self.host_status_label.setText(f"Connected to {host.name}")
         return recorder
+
+    def current_sensor_selection(self) -> SensorSelectionConfig:
+        """
+        Parse the sensor list + channel combo into a SensorSelectionConfig.
+        """
+
+        text = self.mpu_sensors_edit.text().strip()
+        if not text:
+            active_sensors: list[int] = []
+        else:
+            active_sensors = []
+            for part in text.split(","):
+                part = part.strip()
+                if not part:
+                    continue
+                try:
+                    active_sensors.append(int(part))
+                except ValueError:
+                    continue
+
+        key = str(self.mpu_channels_combo.currentData() or "default")
+
+        if key in {"accel_only", "acc"}:
+            channels = ["ax", "ay", "az"]
+        elif key in {"gyro_only", "gyro"}:
+            channels = ["gx", "gy", "gz"]
+        elif key in {"both", "accel_gyro", "all6"}:
+            channels = ["ax", "ay", "az", "gx", "gy", "gz"]
+        else:
+            channels = ["ax", "ay", "az", "gz"]
+
+        return SensorSelectionConfig(
+            active_sensors=active_sensors,
+            active_channels=channels,
+        )
+
+    def _emit_sensor_selection_changed(self) -> None:
+        cfg = self.current_sensor_selection()
+        self._current_sensor_selection = cfg
+        self.sensorSelectionChanged.emit(cfg)
+        print("[RecorderTab] Sensor selection:", cfg.summary())
 
     def current_host_details(self) -> tuple[Host, HostConfig] | None:
         """Return the active host credentials and config if available."""
