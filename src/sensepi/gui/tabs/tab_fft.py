@@ -26,7 +26,11 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
 from ...analysis import filters
-from ..config.acquisition_state import GuiAcquisitionConfig, SensorSelectionConfig
+from ..config.acquisition_state import (
+    CalibrationOffsets,
+    GuiAcquisitionConfig,
+    SensorSelectionConfig,
+)
 from ...config.app_config import AppConfig, PlotPerformanceConfig
 from ...core.ringbuffer import RingBuffer
 from ...data import StreamingDataBuffer
@@ -75,8 +79,9 @@ class FftTab(QWidget):
         self._recorder_tab = recorder_tab
         self._signals_tab: SignalsTab | None = signals_tab
         self._app_config: AppConfig = app_config or AppConfig()
-        self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
-        self._current_sensor_selection = SensorSelectionConfig()
+        self._gui_acq_config: GuiAcquisitionConfig | None = None
+        self._sensor_selection: SensorSelectionConfig | None = None
+        self._calibration_offsets: CalibrationOffsets | None = None
         plot_perf = getattr(self._app_config, "plot_performance", None)
         if not isinstance(plot_perf, PlotPerformanceConfig):
             plot_perf = PlotPerformanceConfig()
@@ -176,11 +181,55 @@ class FftTab(QWidget):
         self._draw_waiting()
 
     def apply_gui_acquisition_config(self, cfg: GuiAcquisitionConfig) -> None:
-        self._current_gui_acquisition_config = cfg
-        self._stream_rate_hz = float(cfg.stream_rate_hz)
+        """Backward-compatible alias for :meth:`update_acquisition_config`."""
+
+        self.update_acquisition_config(cfg)
+
+    def update_acquisition_config(self, config: GuiAcquisitionConfig) -> None:
+        """
+        Receive the latest GUI acquisition configuration (sampling rate, stream rate,
+        record-only flag, calibration, etc.).
+        """
+
+        self._gui_acq_config = config
+        if config.stream_rate_hz and config.stream_rate_hz > 0.0:
+            self._stream_rate_hz = float(config.stream_rate_hz)
+            self._ensure_fft_frequency_axis(self._stream_rate_hz)
+        if config.record_only:
+            if self._timer.isActive():
+                self._timer.stop()
+            self._status_label.setText("Live FFT disabled (record-only mode).")
+        else:
+            if not self._timer.isActive():
+                self._timer.start()
+            self._request_full_refresh()
+        if getattr(config, "calibration", None) is not None:
+            try:
+                self.set_calibration_offsets(config.calibration)
+            except Exception:
+                # Defensive: avoid breaking updates if calibration payload is missing.
+                pass
 
     def set_sensor_selection(self, cfg: SensorSelectionConfig) -> None:
-        self._current_sensor_selection = cfg
+        """Backward-compatible alias for :meth:`update_sensor_selection`."""
+
+        self.update_sensor_selection(cfg)
+
+    def update_sensor_selection(self, selection: SensorSelectionConfig) -> None:
+        """
+        Receive the latest sensor/channel selection so FFT can restrict what it plots.
+        """
+
+        self._sensor_selection = selection
+        self._request_full_refresh()
+
+    def set_calibration_offsets(self, offsets: CalibrationOffsets | None) -> None:
+        """
+        Update calibration offsets used when preparing the FFT input.
+        """
+
+        self._calibration_offsets = offsets
+        self._request_full_refresh()
 
     def set_record_only_mode(self, enabled: bool) -> None:
         enabled = bool(enabled)
@@ -451,6 +500,10 @@ class FftTab(QWidget):
         data_buffer = self._active_stream_buffer()
 
         sensor_ids = self._resolve_sensor_ids(data_buffer)
+        if self._sensor_selection is not None and self._sensor_selection.active_sensors:
+            sensor_ids = [
+                sid for sid in sensor_ids if sid in self._sensor_selection.active_sensors
+            ]
         if not sensor_ids:
             self._draw_waiting()
             return
@@ -468,10 +521,15 @@ class FftTab(QWidget):
             return
 
         view_mode = self.view_mode_combo.currentData()
-        if view_mode == "default3":
-            channels = ["ax", "ay", "gz"]
+        if self._sensor_selection is not None:
+            channels = list(self._sensor_selection.active_channels)
+            if not channels:
+                channels = ["ax", "ay", "gz"]
         else:
-            channels = ["ax", "ay", "az", "gx", "gy", "gz"]
+            if view_mode == "default3":
+                channels = ["ax", "ay", "gz"]
+            else:
+                channels = ["ax", "ay", "az", "gx", "gy", "gz"]
 
         window_s = float(self.window_spin.value())
         min_samples = self._min_samples_required(window_s)
@@ -498,6 +556,14 @@ class FftTab(QWidget):
                 ):
                     self._clear_line(sensor_id, ch)
                     continue
+
+                if self._calibration_offsets is not None and self._sequence_length(values):
+                    offset = self._calibration_offsets.offset_for(sensor_id, ch)
+                    if offset != 0.0:
+                        try:
+                            values = np.asarray(values, dtype=float) - float(offset)
+                        except Exception:
+                            values = [float(v) - float(offset) for v in values]
 
                 points = list(zip(timestamps, values))
                 prepared = self._window_signal(points, window_s)

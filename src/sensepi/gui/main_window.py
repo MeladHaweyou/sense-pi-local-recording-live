@@ -9,7 +9,11 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
 
 from ..config.app_config import AppConfig, AppPaths
-from .config.acquisition_state import GuiAcquisitionConfig, SensorSelectionConfig
+from .config.acquisition_state import (
+    CalibrationOffsets,
+    GuiAcquisitionConfig,
+    SensorSelectionConfig,
+)
 from .tabs.tab_fft import FftTab
 from .tabs.tab_logs import LogsTab
 from .tabs.tab_recorder import RecorderTab
@@ -31,6 +35,7 @@ class MainWindow(QMainWindow):
 
         self._current_sensor_selection = SensorSelectionConfig()
         self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
+        self._current_calibration_offsets: CalibrationOffsets | None = None
 
         self._build_tabs()
 
@@ -73,6 +78,7 @@ class MainWindow(QMainWindow):
         self.signals_tab.acquisitionConfigChanged.connect(
             self._on_acquisition_config_changed
         )
+        self.signals_tab.calibrationChanged.connect(self._on_calibration_changed)
 
         self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
         self._tabs.addTab(self.fft_tab, self.tr("Spectrum"))
@@ -98,6 +104,7 @@ class MainWindow(QMainWindow):
             stream_rate_hz=stream_rate_hz,
             record_only=bool(getattr(acquisition, "record_only", False)),
             sensor_selection=sensor_selection,
+            calibration=self._current_calibration_offsets,
         )
         self._current_gui_acquisition_config = gui_cfg
         self._logger.info(
@@ -110,8 +117,8 @@ class MainWindow(QMainWindow):
         self.signals_tab.set_sensor_selection(gui_cfg.sensor_selection)
         self.signals_tab.apply_gui_acquisition_config(gui_cfg)
 
-        self.fft_tab.set_sensor_selection(gui_cfg.sensor_selection)
-        self.fft_tab.apply_gui_acquisition_config(gui_cfg)
+        self.fft_tab.update_sensor_selection(gui_cfg.sensor_selection)
+        self.fft_tab.update_acquisition_config(gui_cfg)
 
         self.signals_tab.set_sampling_rate_hz(float(gui_cfg.sampling.device_rate_hz))
         self.signals_tab.update_stream_rate(stream_rate_hz)
@@ -121,6 +128,9 @@ class MainWindow(QMainWindow):
 
         record_only = gui_cfg.record_only
         recording_flag = bool(recording or record_only)
+
+        if recording_flag:
+            self._log_recording_calibration("starting")
 
         self.signals_tab.set_record_only_mode(record_only)
         self.fft_tab.set_record_only_mode(record_only)
@@ -136,6 +146,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _on_stop_stream_requested(self) -> None:
+        if getattr(self.recorder_tab, "_recording_mode", False):
+            self._log_recording_calibration("stopping")
         self.recorder_tab.stop_live_stream()
 
     @Slot(SensorSelectionConfig)
@@ -143,14 +155,46 @@ class MainWindow(QMainWindow):
         self._current_sensor_selection = cfg
         print("[MainWindow] SensorSelectionConfig:", cfg.summary())
         self.signals_tab.set_sensor_selection(cfg)
-        self.fft_tab.set_sensor_selection(cfg)
+        self.fft_tab.update_sensor_selection(cfg)
 
     @Slot(GuiAcquisitionConfig)
     def _on_acquisition_config_changed(self, cfg: GuiAcquisitionConfig) -> None:
         self._current_gui_acquisition_config = cfg
+        if getattr(cfg, "calibration", None) is not None:
+            self._current_calibration_offsets = cfg.calibration
         print("[MainWindow] GuiAcquisitionConfig:", cfg.summary())
         self.signals_tab.apply_gui_acquisition_config(cfg)
         self.recorder_tab.apply_gui_acquisition_config(cfg)
-        self.fft_tab.apply_gui_acquisition_config(cfg)
+        self.fft_tab.update_acquisition_config(cfg)
         self.signals_tab.set_record_only_mode(cfg.record_only)
         self.fft_tab.set_record_only_mode(cfg.record_only)
+
+    @Slot(CalibrationOffsets)
+    def _on_calibration_changed(self, offsets: CalibrationOffsets) -> None:
+        self._current_calibration_offsets = offsets
+        self.fft_tab.set_calibration_offsets(offsets)
+
+    def _log_recording_calibration(self, action: str) -> None:
+        if not self.signals_tab.apply_calibration_to_recording():
+            return
+
+        offsets = self._current_calibration_offsets
+        if offsets is None or offsets.is_empty():
+            self._logger.info(
+                "Recording %s: calibration requested but no offsets present.", action
+            )
+            return
+
+        self._logger.info(
+            "Recording %s with calibration (%d channels) at %s: %s",
+            action,
+            len(offsets.per_sensor_channel_offset),
+            offsets.timestamp,
+            offsets.description or "no description",
+        )
+        # TODO: apply calibration offsets to recorded samples before saving.
+
+    def get_current_calibration(self) -> CalibrationOffsets | None:
+        """Return the most recent calibration collected from the Signals tab."""
+
+        return self._current_calibration_offsets

@@ -1,9 +1,36 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
+from datetime import datetime
+from typing import Dict, List, Tuple
 
 from ...config.sampling import SamplingConfig
+
+CalibrationKey = Tuple[int, str]  # (sensor_id, channel_name), e.g. (1, "ax")
+
+
+@dataclass
+class CalibrationOffsets:
+    """
+    Per-sensor, per-channel calibration offsets in physical units.
+
+    Keys are (sensor_id, channel) tuples where channel names match the
+    existing MPU6050 fields such as "ax", "ay", "az", "gx", "gy", "gz".
+    """
+
+    per_sensor_channel_offset: Dict[CalibrationKey, float] = field(
+        default_factory=dict
+    )
+    description: str | None = None
+    timestamp: datetime | None = None
+
+    def offset_for(self, sensor_id: int, channel: str) -> float:
+        """Return the stored offset, or 0.0 if none is present."""
+
+        return self.per_sensor_channel_offset.get((int(sensor_id), channel), 0.0)
+
+    def is_empty(self) -> bool:
+        return not self.per_sensor_channel_offset
 
 
 @dataclass
@@ -42,6 +69,7 @@ class GuiAcquisitionConfig:
     sensor_selection: SensorSelectionConfig = field(
         default_factory=SensorSelectionConfig
     )
+    calibration: CalibrationOffsets | None = None
 
     def summary(self) -> str:
         return (

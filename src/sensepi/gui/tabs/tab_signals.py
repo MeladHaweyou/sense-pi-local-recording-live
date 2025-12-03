@@ -6,12 +6,15 @@ import logging
 import math
 import queue
 import time
+from dataclasses import asdict
+from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, TYPE_CHECKING, cast
 
-from PySide6.QtCore import Signal, Slot, QTimer, Qt, QSignalBlocker
+from PySide6.QtCore import QSignalBlocker, QTimer, Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDoubleSpinBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -34,7 +37,11 @@ from ..widgets import (
     AcquisitionSettingsWidget,
     CollapsibleSection,
 )
-from ..config.acquisition_state import GuiAcquisitionConfig, SensorSelectionConfig
+from ..config.acquisition_state import (
+    CalibrationOffsets,
+    GuiAcquisitionConfig,
+    SensorSelectionConfig,
+)
 from ...config.app_config import AppConfig, PlotPerformanceConfig
 from ...config.constants import ENABLE_PLOT_PERF_METRICS
 from ...core.timeseries_buffer import (
@@ -724,12 +731,13 @@ class SignalPlotWidgetBase(QWidget):
         """Clear all stored baseline offsets."""
         self._baseline_offsets.clear()
 
-    def calibrate_from_buffer(self) -> None:
+    def calibrate_from_buffer(self, window_s: float | None = None) -> None:
         """
         Compute per-channel baseline from the most recent time window.
 
         For each (sensor_id, channel) we take the mean over the same sliding
-        window that is used for plotting (self._max_seconds).
+        window that is used for plotting (self._max_seconds) unless an explicit
+        ``window_s`` is provided.
         """
         if not self._buffers:
             return
@@ -742,7 +750,14 @@ class SignalPlotWidgetBase(QWidget):
         if not latest_times:
             return
 
-        window_ns = int(self._max_seconds * NS_PER_SECOND)
+        try:
+            window = float(window_s) if window_s is not None else self._max_seconds
+        except (TypeError, ValueError):
+            window = self._max_seconds
+        if window <= 0.0:
+            window = self._max_seconds
+
+        window_ns = int(window * NS_PER_SECOND)
         latest_ns = max(latest_times)
         cutoff_ns = max(0, latest_ns - window_ns)
 
@@ -1264,6 +1279,7 @@ class SignalsTab(QWidget):
     stop_stream_requested = Signal()
     fft_refresh_interval_changed = Signal(int)
     acquisitionConfigChanged = Signal(GuiAcquisitionConfig)
+    calibrationChanged = Signal(CalibrationOffsets)
 
     def __init__(
         self,
@@ -1488,6 +1504,20 @@ class SignalsTab(QWidget):
         # Base correction controls
         self.base_correction_check = QCheckBox("Base correction", top_row_group)
         self.calibrate_button = QPushButton("Calibrate", top_row_group)
+        self.reset_calibration_button = QPushButton("Reset calibration", top_row_group)
+        self.calibration_duration_spin = QDoubleSpinBox(top_row_group)
+        self.calibration_duration_spin.setRange(1.0, 60.0)
+        self.calibration_duration_spin.setValue(5.0)
+        self.calibration_duration_spin.setSuffix(" s")
+        self.calibration_duration_spin.setToolTip(
+            "Duration of baseline window used to estimate gravity/offset."
+        )
+        self.calibration_status_label = QLabel("Not calibrated", top_row_group)
+        self.calibration_status_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.apply_calibration_to_recording_check = QCheckBox(
+            "Apply calibration to recorded data", top_row_group
+        )
+        self.apply_calibration_to_recording_check.setChecked(False)
 
         # Start/stop
         self.start_button = QPushButton("Start", top_row_group)
@@ -1512,6 +1542,9 @@ class SignalsTab(QWidget):
             self._on_base_correction_toggled
         )
         self.calibrate_button.clicked.connect(self._on_calibrate_clicked)
+        self.reset_calibration_button.clicked.connect(
+            self._on_reset_calibration_clicked
+        )
         self.recording_check.stateChanged.connect(self._on_recording_toggled)
         self._session_name_edit.textChanged.connect(self._refresh_mode_hint)
 
@@ -1519,7 +1552,6 @@ class SignalsTab(QWidget):
         top_row.addWidget(QLabel("Session:", top_row_group))
         top_row.addWidget(self._session_name_edit)
         top_row.addWidget(self.base_correction_check)
-        top_row.addWidget(self.calibrate_button)
         top_row.addWidget(self.start_button)
         top_row.addWidget(self.stop_button)
         top_row.addWidget(self._stream_rate_label)
@@ -1547,6 +1579,18 @@ class SignalsTab(QWidget):
         group_layout.addLayout(hint_row)
 
         top_row_group.setLayout(group_layout)
+
+        # --- Calibration / baseline correction UI -------------------------
+        self.calibration_group = QGroupBox("Calibration (gravity / offset)")
+        calib_layout = QHBoxLayout(self.calibration_group)
+
+        calib_layout.addWidget(QLabel("Calibration duration:"))
+        calib_layout.addWidget(self.calibration_duration_spin)
+        calib_layout.addWidget(self.calibrate_button)
+        calib_layout.addWidget(self.reset_calibration_button)
+        calib_layout.addStretch(1)
+        calib_layout.addWidget(self.apply_calibration_to_recording_check)
+        calib_layout.addWidget(self.calibration_status_label)
 
         self._update_base_window_label()
         self._refresh_mode_hint()
@@ -1585,6 +1629,9 @@ class SignalsTab(QWidget):
         acquisition_section.setContentLayout(acquisition_layout)
         layout.addWidget(acquisition_section)
         self._acquisition_section = acquisition_section
+
+        # Calibration group ---------------------------------------------------
+        layout.addWidget(self.calibration_group)
 
         # Plot widget -----------------------------------------------------------
         layout.addWidget(self._plot, stretch=1)
@@ -1667,6 +1714,19 @@ class SignalsTab(QWidget):
         if not hasattr(self, "_session_name_edit"):
             return ""
         return self._session_name_edit.text().strip()
+
+    def calibrate_from_buffer(self, window_s: float | None = None) -> None:
+        self._plot.calibrate_from_buffer(window_s=window_s)
+
+    def reset_calibration(self) -> None:
+        self._plot.reset_calibration()
+
+    def apply_calibration_to_recording(self) -> bool:
+        """
+        Return True if the user wants calibration offsets applied to saved data.
+        """
+
+        return bool(self.apply_calibration_to_recording_check.isChecked())
 
     def set_sensor_selection(self, selection: SensorSelectionConfig) -> None:
         """
@@ -2724,7 +2784,36 @@ class SignalsTab(QWidget):
 
     @Slot()
     def _on_calibrate_clicked(self) -> None:
-        self._plot.calibrate_from_buffer()
+        """
+        Trigger a calibration using the last N seconds of live data.
+        """
+
+        try:
+            window_s = float(self.calibration_duration_spin.value())
+        except (TypeError, ValueError):
+            window_s = 5.0
+
+        self.calibrate_from_buffer(window_s=window_s)
+
+        offsets = CalibrationOffsets(
+            per_sensor_channel_offset=dict(getattr(self._plot, "_baseline_offsets", {})),
+            description=f"Calibrated over last {window_s:.1f} s",
+            timestamp=datetime.now(),
+        )
+
+        if offsets.is_empty():
+            self.calibration_status_label.setText("Calibration failed (no data).")
+            return
+
+        self.calibration_status_label.setText(
+            f"Calibrated at {offsets.timestamp:%Y-%m-%d %H:%M:%S}, "
+            f"{len(offsets.per_sensor_channel_offset)} channel(s)"
+        )
+
+        logger.debug("Calibration offsets updated: %s", asdict(offsets))
+
+        self.calibrationChanged.emit(offsets)
+
         if self.base_correction_check.isChecked():
             self._set_manual_status(
                 "Calibration updated (base correction applied)."
@@ -2733,6 +2822,19 @@ class SignalsTab(QWidget):
             self._set_manual_status(
                 "Calibration stored (enable 'Base correction' to apply)."
             )
+
+    @Slot()
+    def _on_reset_calibration_clicked(self) -> None:
+        """
+        Clear all calibration offsets and update UI.
+        """
+
+        self.reset_calibration()
+        getattr(self._plot, "_baseline_offsets", {}).clear()
+        self.calibration_status_label.setText("Not calibrated")
+
+        offsets = CalibrationOffsets()
+        self.calibrationChanged.emit(offsets)
 
     def attach_recorder_controls(self, recorder_tab: "RecorderTab") -> None:
         """
