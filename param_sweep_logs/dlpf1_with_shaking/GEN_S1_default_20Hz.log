@@ -1,8 +1,0 @@
-[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
-
-=== Run summary ===
-Host: SensPi6
-Started: 2025-11-29T01:47:48.287688Z
- Sensor 1: samples=300, errors=0
- Overruns: 0
-Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/20Hz
