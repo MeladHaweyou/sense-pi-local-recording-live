@@ -15,6 +15,16 @@ from .tabs.tab_signals import SignalsTab, create_signal_plot_widget
 
 
 class MainWindow(QMainWindow):
+    """
+    Central tabbed window that coordinates all SensePi GUI workflows.
+
+    Tabs are ordered to mirror the operator flow: ``RecorderTab`` (device
+    control), ``SettingsTab`` (sensor/rate defaults), ``SignalsTab`` (live
+    streaming plots), ``FftTab`` (live spectrum), ``OfflineTab`` (recorded log
+    browser), and ``LogsTab`` (application diagnostics). It brokers signals
+    between tabs so live samples flow from the recorder into the plotting tabs
+    while configuration and sync actions stay consistent across the UI.
+    """
     def __init__(self, app_config: AppConfig | None = None) -> None:
         super().__init__()
         self.setWindowTitle("SensePi Recorder")

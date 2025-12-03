@@ -65,7 +65,17 @@ from ...remote.ssh_client import SSHClient
 
 
 class SettingsTab(QWidget):
-    """GUI tab for managing Pi hosts and sensor defaults."""
+    """
+    Configuration tab for SSH hosts and default sampling values.
+
+    Responsibilities:
+    - Edit ``hosts.yaml`` and ``sensors.yaml`` so :class:`RecorderTab` can
+      launch loggers with consistent network + sampling defaults.
+    - Notify device/plotting tabs when hosts or sensor presets change, keeping
+      UI choices in sync with disk-backed configuration.
+    - Focused on setup (no live data), complementing the live-streaming
+      ``Signals`` and ``Spectrum`` tabs.
+    """
 
     # Emitted after a successful save of the corresponding YAML file
     hostsUpdated = Signal(list)   # list[dict] – entries from hosts.yaml["pis"]

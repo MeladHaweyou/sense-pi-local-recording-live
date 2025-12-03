@@ -1,4 +1,10 @@
-"""Application bootstrap for the PySide6 GUI."""
+"""Qt application entry point for the SensePi desktop GUI.
+
+This module wires up argument parsing, configures matplotlib for
+interactive use, builds the :class:`~sensepi.gui.main_window.MainWindow`, and
+starts the Qt event loop. All GUI launches—whether through ``python main.py``
+or ``python -m sensepi.gui.application``—flow through ``main()`` here.
+"""
 
 from __future__ import annotations
 

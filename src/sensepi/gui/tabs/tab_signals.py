@@ -1249,10 +1249,16 @@ def create_signal_plot_widget(
 
 class SignalsTab(QWidget):
     """
-    Tab that embeds a :class:`SignalPlotWidget` and exposes a small
-    configuration UI for selecting sensor type and channels.
+    Live time-series dashboard for streaming MPU6050 data.
 
-    Layout: one row per sensor, one column per selected channel.
+    Responsibilities:
+    - Subscribe to :class:`RecorderTab.sample_received` and maintain
+      time-series buffers for selected sensors/channels.
+    - Drive the configured :class:`SignalPlotWidget` backend for plotting and
+      expose refresh cadence controls (sampling vs. plotting rate decoupling).
+    - Request start/stop of streaming or recording runs, propagating refresh
+      hints to :class:`FftTab` so spectrum updates stay aligned.
+    - Focused on live data; offline playback remains in :class:`OfflineTab`.
     """
 
     start_stream_requested = Signal(bool)  # bool = recording mode

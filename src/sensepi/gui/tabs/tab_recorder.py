@@ -58,9 +58,15 @@ class MpuGuiConfig:
 
 class RecorderTab(QWidget):
     """
-    Recorder tab for starting/stopping Raspberry Pi loggers.
+    Device control panel for connecting to the Raspberry Pi logger.
 
-    It emits parsed sample objects to other tabs (e.g. Signals and FFT).
+    Responsibilities:
+    - Let the user pick a host, configure MPU6050 options, and start/stop
+      live streams or recordings.
+    - Emit parsed samples into the shared :class:`StreamingDataBuffer` used by
+      :class:`SignalsTab` and :class:`FftTab`.
+    - Surface live rate estimates and errors so plotting tabs can adapt their
+      refresh cadence.
     """
 
     #: Emitted for every parsed sample object (MpuSample, generic LiveSample, ...).

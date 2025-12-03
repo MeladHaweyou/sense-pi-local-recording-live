@@ -30,7 +30,17 @@ if TYPE_CHECKING:
 
 
 class OfflineTab(QWidget):
-    """Offline log viewer built on the shared plotter helpers."""
+    """
+    Recordings browser for reviewing synchronized logs outside live sessions.
+
+    Responsibilities:
+    - Sync completed runs from the Raspberry Pi via :class:`RecorderTab` host
+      configuration, list available log files, and open them locally.
+    - Use the shared plotter utilities to render historical runs without
+      affecting live streaming buffers.
+    - Serves offline analysis; live monitoring stays within ``Signals`` and
+      ``Spectrum`` tabs.
+    """
 
     def __init__(
         self,
