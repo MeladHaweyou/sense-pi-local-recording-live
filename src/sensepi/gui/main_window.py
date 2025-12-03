@@ -15,64 +15,26 @@ from .tabs.tab_signals import SignalsTab, create_signal_plot_widget
 
 
 class MainWindow(QMainWindow):
-    """
-    Central tabbed window that coordinates all SensePi GUI workflows.
+    """Main window for the SensePi GUI.
 
-    Tabs are ordered to mirror the operator flow: ``RecorderTab`` (device
-    control), ``SettingsTab`` (sensor/rate defaults), ``SignalsTab`` (live
-    streaming plots), ``FftTab`` (live spectrum), ``OfflineTab`` (recorded log
-    browser), and ``LogsTab`` (application diagnostics). It brokers signals
-    between tabs so live samples flow from the recorder into the plotting tabs
-    while configuration and sync actions stay consistent across the UI.
+    Responsibilities:
+    - Owns the high-level workflow tabs: Device, Sensors & Rates, Live Signals,
+      Spectrum, Recordings, and App Logs.
+    - Wires RecorderTab start/stop signals into live plotting (SignalsTab) and
+      spectrum (FftTab).
+    - Acts as the integration point for app-wide configuration (AppConfig,
+      AppPaths). New tabs should be registered here to participate in the
+      coordinated workflow.
     """
     def __init__(self, app_config: AppConfig | None = None) -> None:
         super().__init__()
         self.setWindowTitle("SensePi Recorder")
 
         self._app_config = app_config or AppConfig()
-
         self._tabs = QTabWidget()
 
-        app_paths = AppPaths()
+        self._build_tabs()
 
-        self.recorder_tab = RecorderTab()
-        backend = self._app_config.normalized_signal_backend()
-        plot_window_s = self._app_config.plot_performance.normalized_time_window_s()
-        plot_widget = create_signal_plot_widget(
-            parent=None,
-            backend=backend,
-            max_seconds=plot_window_s,
-        )
-        self.signals_tab = SignalsTab(
-            self.recorder_tab,
-            plot_widget=plot_widget,
-            app_config=self._app_config,
-        )
-        self.fft_tab = FftTab(
-            self.recorder_tab,
-            self.signals_tab,
-            app_config=self._app_config,
-        )
-        self.signals_tab.fft_refresh_interval_changed.connect(
-            self.fft_tab.set_refresh_interval_ms
-        )
-        self.settings_tab = SettingsTab()
-        self.offline_tab = OfflineTab(app_paths, self.recorder_tab)
-        self.logs_tab = LogsTab(app_paths)
-
-        # Order tabs by the typical workflow from device setup through analysis.
-        self._tabs.addTab(self.recorder_tab, self.tr("Device"))
-        self._tabs.addTab(self.settings_tab, self.tr("Sensors && Rates"))
-        self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
-        self._tabs.addTab(self.fft_tab, self.tr("Spectrum"))
-        self._tabs.addTab(self.offline_tab, self.tr("Recordings"))
-        self._tabs.addTab(self.logs_tab, self.tr("App Logs"))
-
-        container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.addWidget(self._tabs)
-
-        self.setCentralWidget(container)
         view_menu = self.menuBar().addMenu("&View")
         self._act_show_perf_hud = QAction("Show Performance HUD", self)
         self._act_show_perf_hud.setCheckable(True)
@@ -202,3 +164,46 @@ class MainWindow(QMainWindow):
                 f"Failed to stop stream on close: {exc!r}"
             )
         super().closeEvent(event)
+
+    def _build_tabs(self) -> None:
+        """Create and register all main workflow tabs."""
+        app_paths = AppPaths()
+
+        self.recorder_tab = RecorderTab()
+        backend = self._app_config.normalized_signal_backend()
+        plot_window_s = self._app_config.plot_performance.normalized_time_window_s()
+        plot_widget = create_signal_plot_widget(
+            parent=None,
+            backend=backend,
+            max_seconds=plot_window_s,
+        )
+        self.signals_tab = SignalsTab(
+            self.recorder_tab,
+            plot_widget=plot_widget,
+            app_config=self._app_config,
+        )
+        self.fft_tab = FftTab(
+            self.recorder_tab,
+            self.signals_tab,
+            app_config=self._app_config,
+        )
+        self.signals_tab.fft_refresh_interval_changed.connect(
+            self.fft_tab.set_refresh_interval_ms
+        )
+        self.settings_tab = SettingsTab()
+        self.offline_tab = OfflineTab(app_paths, self.recorder_tab)
+        self.logs_tab = LogsTab(app_paths)
+
+        # Order tabs by the typical workflow from device setup through analysis.
+        self._tabs.addTab(self.recorder_tab, self.tr("Device"))
+        self._tabs.addTab(self.settings_tab, self.tr("Sensors && Rates"))
+        self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
+        self._tabs.addTab(self.fft_tab, self.tr("Spectrum"))
+        self._tabs.addTab(self.offline_tab, self.tr("Recordings"))
+        self._tabs.addTab(self.logs_tab, self.tr("App Logs"))
+
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.addWidget(self._tabs)
+
+        self.setCentralWidget(container)
