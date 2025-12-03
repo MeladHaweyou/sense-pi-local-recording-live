@@ -5,15 +5,16 @@ import stat
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Optional, TYPE_CHECKING
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, Slot, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QHBoxLayout,
     QLabel,
-    QListWidget,
     QMessageBox,
     QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -42,6 +43,8 @@ class OfflineTab(QWidget):
       ``Spectrum`` tabs.
     """
 
+    recordingImported = Signal(Path)
+
     def __init__(
         self,
         app_paths: AppPaths,
@@ -49,27 +52,34 @@ class OfflineTab(QWidget):
         parent: Optional[QWidget] = None,
     ) -> None:
         super().__init__(parent)
-        self._paths = app_paths
-        self._paths.ensure()
+        self._app_paths: AppPaths = app_paths
+        self._app_paths.ensure()
         self._recorder_tab = recorder_tab
         self._plotter = Plotter()
 
+        # Holds metadata per recording row
+        self._recordings: list[dict] = []
+
         self._canvas: FigureCanvasQTAgg | None = None
 
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
 
+        # Button row
         top_row = QHBoxLayout()
         top_row.addWidget(QLabel("Offline log files:"))
-        self.btn_refresh = QPushButton("Refresh")
+        self.refresh_button = QPushButton("Refresh list")
+        self.import_button = QPushButton("Import recording…")
         self.btn_sync = QPushButton("Sync logs from Pi")
         self.btn_sync_open = QPushButton("Sync && open latest")
         self.btn_browse = QPushButton("Browse…")
-        top_row.addWidget(self.btn_refresh)
+        top_row.addWidget(self.refresh_button)
+        top_row.addWidget(self.import_button)
         top_row.addWidget(self.btn_sync)
         top_row.addWidget(self.btn_sync_open)
         top_row.addWidget(self.btn_browse)
         top_row.addStretch()
         layout.addLayout(top_row)
+
         self.help_label = QLabel(
             "Offline workflow:\n"
             "1. Record data on the Pi via the Device tab.\n"
@@ -80,8 +90,18 @@ class OfflineTab(QWidget):
         self.help_label.setWordWrap(True)
         layout.addWidget(self.help_label)
 
-        self.file_list = QListWidget(self)
-        layout.addWidget(self.file_list)
+        self.table = QTableWidget()
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(
+            ["Name", "Timestamp", "Duration", "Path"]
+        )
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        layout.addWidget(self.table)
+
+        self.preview_label = QLabel("Select a recording to see details.")
+        self.preview_label.setWordWrap(True)
+        layout.addWidget(self.preview_label)
 
         self.status_label = QLabel(
             "No logs synced yet. Sync from the Pi to download runs, then "
@@ -92,33 +112,145 @@ class OfflineTab(QWidget):
 
         self.setLayout(layout)
 
-        self.btn_refresh.clicked.connect(self._populate_files)
+        self.refresh_button.clicked.connect(self.refresh_recordings_list)
+        self.import_button.clicked.connect(self._on_import_clicked)
         self.btn_browse.clicked.connect(self._on_browse)
         self.btn_sync.clicked.connect(self._on_sync_from_pi_clicked)
         self.btn_sync_open.clicked.connect(self._on_sync_and_open_latest_clicked)
-        self.file_list.itemDoubleClicked.connect(self._on_open_selected)
+        self.table.itemSelectionChanged.connect(self._on_table_selection_changed)
+        self.table.itemDoubleClicked.connect(self._on_open_selected)
 
-        self._populate_files()
+        self.refresh_recordings_list()
 
-    def _populate_files(self, update_status: bool = True) -> int:
-        self.file_list.clear()
-        count = 0
-        for path in self._candidate_logs():
-            self.file_list.addItem(str(path))
-            count += 1
+    def _recordings_dir(self) -> Path:
+        """
+        Return the canonical directory where raw recordings live.
+        """
 
-        if update_status:
-            if count == 0:
-                self.status_label.setText(
-                    "No local logs found. Record on the Pi, then use "
-                    "'Sync logs from Pi' to download them here."
-                )
-            else:
-                self.status_label.setText(
-                    f"Found {count} log file(s). Select one to view or sync "
-                    "new logs from the Pi."
-                )
-        return count
+        return Path(self._app_paths.raw_data).expanduser().resolve()
+
+    def refresh_recordings_list(self) -> None:
+        """
+        Scan the recordings directory and populate the table.
+        """
+
+        root = self._recordings_dir()
+        root.mkdir(parents=True, exist_ok=True)
+
+        self._recordings.clear()
+        self.table.setRowCount(0)
+
+        paths_with_mtime: list[tuple[float, Path]] = []
+        for path in root.glob("*.csv"):
+            try:
+                mtime = path.stat().st_mtime
+            except FileNotFoundError:
+                continue
+            paths_with_mtime.append((mtime, path))
+
+        for _, path in sorted(paths_with_mtime, key=lambda pair: pair[0], reverse=True):
+            meta = self._build_metadata_for_file(path)
+            self._recordings.append(meta)
+
+        self.table.setRowCount(len(self._recordings))
+        for row, meta in enumerate(self._recordings):
+            self.table.setItem(row, 0, QTableWidgetItem(meta["name"]))
+            self.table.setItem(row, 1, QTableWidgetItem(meta["timestamp_str"]))
+            self.table.setItem(row, 2, QTableWidgetItem(meta.get("duration_str", "")))
+            self.table.setItem(row, 3, QTableWidgetItem(str(meta["path"])))
+
+        self.table.resizeColumnsToContents()
+
+        if self._recordings:
+            self.status_label.setText(
+                f"Found {len(self._recordings)} recording(s). Select one to preview."
+            )
+        else:
+            self.status_label.setText(
+                "No local recordings found. Import files or sync from the Pi."
+            )
+            self.preview_label.setText("Select a recording to see details.")
+
+    def _build_metadata_for_file(self, path: Path) -> dict:
+        """
+        Build a metadata dict for a recording file.
+        """
+
+        stat_result = path.stat()
+        timestamp = stat_result.st_mtime
+        from datetime import datetime
+
+        ts_dt = datetime.fromtimestamp(timestamp)
+        meta = {
+            "path": path,
+            "name": path.name,
+            "timestamp": ts_dt,
+            "timestamp_str": ts_dt.strftime("%Y-%m-%d %H:%M:%S"),
+            "duration_str": "",
+        }
+
+        return meta
+
+    def _on_import_clicked(self) -> None:
+        """
+        Let the user select external recording files and copy them into the
+        project recordings directory.
+        """
+
+        dialog = QFileDialog(self)
+        dialog.setFileMode(QFileDialog.ExistingFiles)
+        dialog.setNameFilter("CSV files (*.csv);;All files (*.*)")
+        dialog.setDirectory(str(self._recordings_dir()))
+        if not dialog.exec():
+            return
+
+        selected_paths = [Path(p) for p in dialog.selectedFiles()]
+        self.import_recordings(selected_paths)
+        self.refresh_recordings_list()
+
+    def import_recordings(self, paths: list[Path]) -> None:
+        """
+        Copy external recording files into the project recordings directory.
+
+        If a file with the same name exists, append a numeric suffix.
+        """
+
+        dest_dir = self._recordings_dir()
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        for src in paths:
+            if not src.is_file():
+                continue
+            dest = dest_dir / src.name
+            counter = 1
+            while dest.exists():
+                dest = dest_dir / f"{src.stem}_{counter}{src.suffix}"
+                counter += 1
+            data = src.read_bytes()
+            dest.write_bytes(data)
+            self.recordingImported.emit(dest)
+
+    def _on_table_selection_changed(self) -> None:
+        selected_rows = self.table.selectionModel().selectedRows()
+        if not selected_rows:
+            self.preview_label.setText("Select a recording to see details.")
+            return
+
+        row = selected_rows[0].row()
+        if row >= len(self._recordings):
+            self.preview_label.setText("Select a recording to see details.")
+            return
+
+        meta = self._recordings[row]
+        text = (
+            f"<b>{meta['name']}</b><br>"
+            f"Time: {meta['timestamp_str']}<br>"
+            f"Path: {meta['path']}<br>"
+        )
+        if meta.get("duration_str"):
+            text += f"Duration: {meta['duration_str']}<br>"
+
+        self.preview_label.setText(text)
 
     def _resolve_remote_context(self):
         recorder = getattr(self, "_recorder_tab", None)
@@ -204,7 +336,7 @@ class OfflineTab(QWidget):
 
                     local_rel = Path(*rel_after_session)
                     target_root = build_pc_session_root(
-                        raw_root=self._paths.raw_data,
+                        raw_root=self._app_paths.raw_data,
                         host_slug=slug_source,
                         session_name=session_name,
                         sensor_prefix=sensor_prefix,
@@ -260,43 +392,27 @@ class OfflineTab(QWidget):
 
         return f"Synced {total} log file(s)."
 
-    def _candidate_logs(self) -> Iterable[Path]:
-        roots = [
-            self._paths.raw_data,
-            self._paths.processed_data,
-            self._paths.logs,
-        ]
-        candidates: dict[Path, float] = {}
-        patterns = ("*.csv", "*.jsonl")
-        for root in roots:
-            if not root.exists():
-                continue
-            for pattern in patterns:
-                for path in root.glob(pattern):
-                    try:
-                        candidates[path] = path.stat().st_mtime
-                    except FileNotFoundError:
-                        continue
-        for path in sorted(candidates, key=candidates.get, reverse=True):
-            yield path
-
     @Slot()
     def _on_browse(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Select log file",
-            str(self._paths.raw_data),
+            str(self._app_paths.raw_data),
             "Logs (*.csv *.jsonl)",
         )
         if path:
             self.load_file(Path(path))
 
     @Slot()
-    def _on_open_selected(self) -> None:
-        item = self.file_list.currentItem()
-        if not item:
+    def _on_open_selected(self, *_args) -> None:
+        selected_rows = self.table.selectionModel().selectedRows()
+        if not selected_rows:
             return
-        self.load_file(Path(item.text()))
+        row = selected_rows[0].row()
+        if row >= len(self._recordings):
+            return
+        meta = self._recordings[row]
+        self.load_file(meta["path"])
 
     @Slot()
     def _on_sync_from_pi_clicked(self) -> None:
@@ -340,7 +456,7 @@ class OfflineTab(QWidget):
             )
             self.status_label.setText(f"Sync failed: {exc}")
         else:
-            self._populate_files(update_status=False)
+            self.refresh_recordings_list()
             self._highlight_new_files(new_files)
             if downloaded:
                 message = self._format_sync_message(
@@ -361,12 +477,9 @@ class OfflineTab(QWidget):
         targets = {str(path) for path in new_files}
         if not targets:
             return
-        for row in range(self.file_list.count()):
-            item = self.file_list.item(row)
-            if item is None:
-                continue
-            if item.text() in targets:
-                self.file_list.setCurrentRow(row)
+        for row, meta in enumerate(self._recordings):
+            if str(meta.get("path")) in targets:
+                self.table.selectRow(row)
                 break
 
     @Slot()
@@ -374,18 +487,14 @@ class OfflineTab(QWidget):
         """Sync logs and immediately open the newest entry."""
         self._on_sync_from_pi_clicked()
 
-        if self.file_list.count() <= 0:
+        if not self._recordings:
             return
 
-        first_item = self.file_list.item(0)
-        if first_item is None:
-            return
-
-        newest_path = Path(first_item.text())
-        self.file_list.setCurrentItem(first_item)
+        newest_meta = self._recordings[0]
+        self.table.selectRow(0)
         self._on_open_selected()
         self.status_label.setText(
-            f"Synced and opened latest log: {newest_path.name}"
+            f"Synced and opened latest log: {newest_meta['name']}"
         )
 
     def load_file(self, path: Path) -> None:

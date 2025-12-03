@@ -79,6 +79,14 @@ class MainWindow(QMainWindow):
             self._on_acquisition_config_changed
         )
         self.signals_tab.calibrationChanged.connect(self._on_calibration_changed)
+        if hasattr(self.settings_tab, "acquisitionConfigChanged"):
+            self.settings_tab.acquisitionConfigChanged.connect(
+                self.fft_tab.update_acquisition_config
+            )
+        if hasattr(self.settings_tab, "sensorSelectionChanged"):
+            self.settings_tab.sensorSelectionChanged.connect(
+                self.fft_tab.update_sensor_selection
+            )
 
         self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
         self._tabs.addTab(self.fft_tab, self.tr("Spectrum"))

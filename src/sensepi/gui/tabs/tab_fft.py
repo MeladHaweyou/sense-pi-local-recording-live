@@ -88,6 +88,10 @@ class FftTab(QWidget):
         self._plot_perf_config: PlotPerformanceConfig = plot_perf
         self._max_subplots = self._plot_perf_config.normalized_max_subplots()
         self._stream_rate_hz: float = 0.0
+        self._refresh_interval_ms: int = self._clamp_fft_interval(
+            self._plot_perf_config.fft_refresh_interval_ms()
+        )
+        self._stream_active: bool = False
         self._last_rendered_latest_ts: Optional[float] = None
         self._force_next_update: bool = True
         self._fft_axes: Dict[SampleKey, Axes] = {}
@@ -149,6 +153,18 @@ class FftTab(QWidget):
         row_lp.addStretch()
         form.addRow(row_lp)
 
+        # FFT refresh control (decoupled from window length)
+        self.fft_interval_spin = QDoubleSpinBox()
+        self.fft_interval_spin.setRange(MIN_FFT_UPDATE_MS, MAX_FFT_UPDATE_MS)
+        self.fft_interval_spin.setSingleStep(50.0)
+        self.fft_interval_spin.setDecimals(0)
+        self.fft_interval_spin.setValue(float(self._refresh_interval_ms))
+        self.fft_interval_spin.setSuffix(" ms")
+        self.fft_interval_spin.valueChanged.connect(
+            lambda ms: self.set_refresh_interval_ms(int(ms))
+        )
+        form.addRow("FFT refresh:", self.fft_interval_spin)
+
         # Status label
         self._status_label = QLabel("Waiting for data...")
 
@@ -162,10 +178,7 @@ class FftTab(QWidget):
         # new acquisition config in the upcoming GUI refactor before changing it.
         # Timer to recompute FFT periodically
         self._timer = QTimer(self)
-        default_fft_interval = self._clamp_fft_interval(
-            self._plot_perf_config.fft_refresh_interval_ms()
-        )
-        self._timer.setInterval(default_fft_interval)
+        self._timer.setInterval(self._refresh_interval_ms)
         self._timer.timeout.connect(self._on_fft_timer)
         self._debug_fft_ema_ms: float = 0.0
         self._debug_fft_last_log: float = time.perf_counter()
@@ -198,10 +211,10 @@ class FftTab(QWidget):
         if config.record_only:
             if self._timer.isActive():
                 self._timer.stop()
-            self._status_label.setText("Live FFT disabled (record-only mode).")
+            self._status_label.setText("Record-only mode: live FFT disabled.")
         else:
-            if not self._timer.isActive():
-                self._timer.start()
+            if self._stream_active and not self._timer.isActive():
+                self._timer.start(self._refresh_interval_ms)
             self._request_full_refresh()
         if getattr(config, "calibration", None) is not None:
             try:
@@ -235,10 +248,14 @@ class FftTab(QWidget):
         enabled = bool(enabled)
         if enabled:
             self._timer.stop()
-            self._set_status("Record-only mode: live spectrum disabled.")
+            self._status_label.setText("Record-only mode: live FFT disabled.")
         else:
-            if self._refresh_interval_ms > 0:
+            if self._refresh_interval_ms > 0 and self._stream_active:
                 self._timer.start(self._refresh_interval_ms)
+
+    def _is_record_only(self) -> bool:
+        cfg = getattr(self, "_gui_acq_config", None)
+        return bool(getattr(cfg, "record_only", False))
 
     def _make_key(self, sensor_id: int, channel: str) -> SampleKey:
         return int(sensor_id), str(channel)
@@ -281,8 +298,7 @@ class FftTab(QWidget):
 
     def _update_fft_timer_interval(self, *_: object) -> None:
         """Adjust the FFT refresh cadence based on the selected window length."""
-        timer = getattr(self, "_timer", None)
-        if timer is None:
+        if not hasattr(self, "_timer"):
             return
         try:
             window_s = float(self.window_spin.value())
@@ -291,12 +307,24 @@ class FftTab(QWidget):
         window_s = max(MIN_FFT_WINDOW_S, min(window_s, MAX_FFT_WINDOW_S))
         desired_period_s = window_s / 2.0
         interval_ms = int(desired_period_s * 1000.0)
-        timer.setInterval(self._clamp_fft_interval(interval_ms))
+        self.set_refresh_interval_ms(interval_ms)
 
     def set_refresh_interval_ms(self, interval_ms: int) -> None:
         """Public setter so other tabs can tune how often the FFT updates."""
         clamped = self._clamp_fft_interval(interval_ms)
+        self._refresh_interval_ms = clamped
         self._timer.setInterval(clamped)
+        spin = getattr(self, "fft_interval_spin", None)
+        if spin is not None:
+            try:
+                from PySide6.QtCore import QSignalBlocker
+
+                blocker = QSignalBlocker(spin)
+            except Exception:
+                blocker = None
+            spin.setValue(float(clamped))
+            if blocker is not None:
+                del blocker
 
     def set_max_fft_samples(self, n: int) -> None:
         """Public setter mainly for tests / tuning of the FFT sample cap."""
@@ -322,13 +350,15 @@ class FftTab(QWidget):
         self._status_label.setText("Streaming...")
         self._last_rendered_latest_ts = None
         self._request_full_refresh()
-        if not self._timer.isActive():
-            self._timer.start()
+        self._stream_active = True
+        if not self._timer.isActive() and not self._is_record_only():
+            self._timer.start(self._refresh_interval_ms)
 
     @Slot()
     def on_stream_stopped(self) -> None:
         # Keep last spectrum visible but update status.
         self._status_label.setText("Stream stopped.")
+        self._stream_active = False
         if self._timer.isActive():
             self._timer.stop()
 
@@ -497,6 +527,10 @@ class FftTab(QWidget):
         self._update_mpu6050_fft()
 
     def _update_mpu6050_fft(self) -> None:
+        if self._is_record_only():
+            self._status_label.setText("Record-only mode: live FFT disabled.")
+            return
+
         data_buffer = self._active_stream_buffer()
 
         sensor_ids = self._resolve_sensor_ids(data_buffer)
