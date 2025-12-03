@@ -1,0 +1,3473 @@
+============================= DIRECTORY OVERVIEW =============================
+Root: C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs
+Timestamp: 03/12/2025  9:55:42,50
+
+----------------------------- TREE (with files) -----------------------------
+Folder PATH listing
+Volume serial number is 46B7-CF63
+C:\PROJECTS\SENSE-PI-LOCAL-RECORDING-LIVE-MAIN\PARAM_SWEEP_LOGS
+�   combine.bat
+�   combined.py
+�   
++---dlpf1
+�       GEN_S123_default_100Hz.log
+�       GEN_S123_default_120Hz.log
+�       GEN_S123_default_140Hz.log
+�       GEN_S123_default_160Hz.log
+�       GEN_S123_default_180Hz.log
+�       GEN_S123_default_200Hz.log
+�       GEN_S123_default_20Hz.log
+�       GEN_S123_default_40Hz.log
+�       GEN_S123_default_60Hz.log
+�       GEN_S123_default_80Hz.log
+�       GEN_S1_default_100Hz.log
+�       GEN_S1_default_120Hz.log
+�       GEN_S1_default_140Hz.log
+�       GEN_S1_default_160Hz.log
+�       GEN_S1_default_180Hz.log
+�       GEN_S1_default_200Hz.log
+�       GEN_S1_default_20Hz.log
+�       GEN_S1_default_40Hz.log
+�       GEN_S1_default_60Hz.log
+�       GEN_S1_default_80Hz.log
+�       SPEC_S123_6ch_both_100Hz.log
+�       SPEC_S123_6ch_both_150Hz.log
+�       SPEC_S123_6ch_both_200Hz.log
+�       SPEC_S123_6ch_both_50Hz.log
+�       SPEC_S1_1ch_acc_100Hz.log
+�       SPEC_S1_1ch_acc_150Hz.log
+�       SPEC_S1_1ch_acc_200Hz.log
+�       SPEC_S1_1ch_acc_250Hz.log
+�       SPEC_S1_1ch_acc_300Hz.log
+�       SPEC_S1_1ch_acc_350Hz.log
+�       SPEC_S1_1ch_acc_400Hz.log
+�       SPEC_S1_1ch_acc_450Hz.log
+�       SPEC_S1_1ch_acc_500Hz.log
+�       SPEC_S1_1ch_acc_50Hz.log
+�       SPEC_S1_3ch_default_100Hz.log
+�       SPEC_S1_3ch_default_150Hz.log
+�       SPEC_S1_3ch_default_200Hz.log
+�       SPEC_S1_3ch_default_250Hz.log
+�       SPEC_S1_3ch_default_300Hz.log
+�       SPEC_S1_3ch_default_350Hz.log
+�       SPEC_S1_3ch_default_400Hz.log
+�       SPEC_S1_3ch_default_450Hz.log
+�       SPEC_S1_3ch_default_500Hz.log
+�       SPEC_S1_3ch_default_50Hz.log
+�       SPEC_S1_6ch_both_100Hz.log
+�       SPEC_S1_6ch_both_150Hz.log
+�       SPEC_S1_6ch_both_200Hz.log
+�       SPEC_S1_6ch_both_50Hz.log
+�       
++---dlpf1_with_shaking
+�       GEN_S123_default_100Hz.log
+�       GEN_S123_default_120Hz.log
+�       GEN_S123_default_140Hz.log
+�       GEN_S123_default_160Hz.log
+�       GEN_S123_default_180Hz.log
+�       GEN_S123_default_200Hz.log
+�       GEN_S123_default_20Hz.log
+�       GEN_S123_default_40Hz.log
+�       GEN_S123_default_60Hz.log
+�       GEN_S123_default_80Hz.log
+�       GEN_S1_default_100Hz.log
+�       GEN_S1_default_120Hz.log
+�       GEN_S1_default_140Hz.log
+�       GEN_S1_default_160Hz.log
+�       GEN_S1_default_180Hz.log
+�       GEN_S1_default_200Hz.log
+�       GEN_S1_default_20Hz.log
+�       GEN_S1_default_40Hz.log
+�       GEN_S1_default_60Hz.log
+�       GEN_S1_default_80Hz.log
+�       SPEC_S123_6ch_both_100Hz.log
+�       SPEC_S123_6ch_both_150Hz.log
+�       SPEC_S123_6ch_both_200Hz.log
+�       SPEC_S123_6ch_both_50Hz.log
+�       SPEC_S1_1ch_acc_100Hz.log
+�       SPEC_S1_1ch_acc_150Hz.log
+�       SPEC_S1_1ch_acc_200Hz.log
+�       SPEC_S1_1ch_acc_250Hz.log
+�       SPEC_S1_1ch_acc_300Hz.log
+�       SPEC_S1_1ch_acc_350Hz.log
+�       SPEC_S1_1ch_acc_400Hz.log
+�       SPEC_S1_1ch_acc_450Hz.log
+�       SPEC_S1_1ch_acc_500Hz.log
+�       SPEC_S1_1ch_acc_50Hz.log
+�       SPEC_S1_3ch_default_100Hz.log
+�       SPEC_S1_3ch_default_150Hz.log
+�       SPEC_S1_3ch_default_200Hz.log
+�       SPEC_S1_3ch_default_250Hz.log
+�       SPEC_S1_3ch_default_300Hz.log
+�       SPEC_S1_3ch_default_350Hz.log
+�       SPEC_S1_3ch_default_400Hz.log
+�       SPEC_S1_3ch_default_450Hz.log
+�       SPEC_S1_3ch_default_500Hz.log
+�       SPEC_S1_3ch_default_50Hz.log
+�       SPEC_S1_6ch_both_100Hz.log
+�       SPEC_S1_6ch_both_150Hz.log
+�       SPEC_S1_6ch_both_200Hz.log
+�       SPEC_S1_6ch_both_50Hz.log
+�       
++---dlpf3
+        GEN_S123_default_100Hz.log
+        GEN_S123_default_120Hz.log
+        GEN_S123_default_140Hz.log
+        GEN_S123_default_160Hz.log
+        GEN_S123_default_180Hz.log
+        GEN_S123_default_200Hz.log
+        GEN_S123_default_20Hz.log
+        GEN_S123_default_40Hz.log
+        GEN_S123_default_60Hz.log
+        GEN_S123_default_80Hz.log
+        GEN_S1_default_100Hz.log
+        GEN_S1_default_120Hz.log
+        GEN_S1_default_140Hz.log
+        GEN_S1_default_160Hz.log
+        GEN_S1_default_180Hz.log
+        GEN_S1_default_200Hz.log
+        GEN_S1_default_20Hz.log
+        GEN_S1_default_40Hz.log
+        GEN_S1_default_60Hz.log
+        GEN_S1_default_80Hz.log
+        SPEC_S123_6ch_both_100Hz.log
+        SPEC_S123_6ch_both_150Hz.log
+        SPEC_S123_6ch_both_200Hz.log
+        SPEC_S123_6ch_both_50Hz.log
+        SPEC_S1_1ch_acc_100Hz.log
+        SPEC_S1_1ch_acc_150Hz.log
+        SPEC_S1_1ch_acc_200Hz.log
+        SPEC_S1_1ch_acc_250Hz.log
+        SPEC_S1_1ch_acc_300Hz.log
+        SPEC_S1_1ch_acc_350Hz.log
+        SPEC_S1_1ch_acc_400Hz.log
+        SPEC_S1_1ch_acc_450Hz.log
+        SPEC_S1_1ch_acc_500Hz.log
+        SPEC_S1_1ch_acc_50Hz.log
+        SPEC_S1_3ch_default_100Hz.log
+        SPEC_S1_3ch_default_150Hz.log
+        SPEC_S1_3ch_default_200Hz.log
+        SPEC_S1_3ch_default_250Hz.log
+        SPEC_S1_3ch_default_300Hz.log
+        SPEC_S1_3ch_default_350Hz.log
+        SPEC_S1_3ch_default_400Hz.log
+        SPEC_S1_3ch_default_450Hz.log
+        SPEC_S1_3ch_default_500Hz.log
+        SPEC_S1_3ch_default_50Hz.log
+        SPEC_S1_6ch_both_100Hz.log
+        SPEC_S1_6ch_both_150Hz.log
+        SPEC_S1_6ch_both_200Hz.log
+        SPEC_S1_6ch_both_50Hz.log
+        
+
+------------------------- DETAILED DIRECTORY LISTING -------------------------
+ Volume in drive C has no label.
+ Volume Serial Number is 46B7-CF63
+
+ Directory of C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs
+
+03/12/2025  09:55    <DIR>          .
+03/12/2025  09:55    <DIR>          ..
+30/11/2025  16:51             2.329 combine.bat
+03/12/2025  09:55             5.758 combined.py
+03/12/2025  09:26    <DIR>          dlpf1
+03/12/2025  09:45    <DIR>          dlpf1_with_shaking
+03/12/2025  09:12    <DIR>          dlpf3
+               2 File(s)          8.087 bytes
+
+ Directory of C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs\dlpf1
+
+03/12/2025  09:26    <DIR>          .
+03/12/2025  09:55    <DIR>          ..
+03/12/2025  09:16               591 GEN_S123_default_100Hz.log
+03/12/2025  09:17               593 GEN_S123_default_120Hz.log
+03/12/2025  09:17               594 GEN_S123_default_140Hz.log
+03/12/2025  09:17               594 GEN_S123_default_160Hz.log
+03/12/2025  09:17               594 GEN_S123_default_180Hz.log
+03/12/2025  09:18               594 GEN_S123_default_200Hz.log
+03/12/2025  09:15               587 GEN_S123_default_20Hz.log
+03/12/2025  09:15               587 GEN_S123_default_40Hz.log
+03/12/2025  09:16               587 GEN_S123_default_60Hz.log
+03/12/2025  09:16               590 GEN_S123_default_80Hz.log
+03/12/2025  09:13               301 GEN_S1_default_100Hz.log
+03/12/2025  09:14               301 GEN_S1_default_120Hz.log
+03/12/2025  09:14               301 GEN_S1_default_140Hz.log
+03/12/2025  09:14               301 GEN_S1_default_160Hz.log
+03/12/2025  09:15               301 GEN_S1_default_180Hz.log
+03/12/2025  09:15               301 GEN_S1_default_200Hz.log
+03/12/2025  09:12               299 GEN_S1_default_20Hz.log
+03/12/2025  09:13               299 GEN_S1_default_40Hz.log
+03/12/2025  09:13               299 GEN_S1_default_60Hz.log
+03/12/2025  09:13               300 GEN_S1_default_80Hz.log
+03/12/2025  09:25               593 SPEC_S123_6ch_both_100Hz.log
+03/12/2025  09:25               596 SPEC_S123_6ch_both_150Hz.log
+03/12/2025  09:25               596 SPEC_S123_6ch_both_200Hz.log
+03/12/2025  09:25               589 SPEC_S123_6ch_both_50Hz.log
+03/12/2025  09:18               302 SPEC_S1_1ch_acc_100Hz.log
+03/12/2025  09:18               302 SPEC_S1_1ch_acc_150Hz.log
+03/12/2025  09:19               302 SPEC_S1_1ch_acc_200Hz.log
+03/12/2025  09:19               302 SPEC_S1_1ch_acc_250Hz.log
+03/12/2025  09:19               302 SPEC_S1_1ch_acc_300Hz.log
+03/12/2025  09:20               302 SPEC_S1_1ch_acc_350Hz.log
+03/12/2025  09:20               302 SPEC_S1_1ch_acc_400Hz.log
+03/12/2025  09:20               302 SPEC_S1_1ch_acc_450Hz.log
+03/12/2025  09:20               302 SPEC_S1_1ch_acc_500Hz.log
+03/12/2025  09:18               300 SPEC_S1_1ch_acc_50Hz.log
+03/12/2025  09:21               306 SPEC_S1_3ch_default_100Hz.log
+03/12/2025  09:21               306 SPEC_S1_3ch_default_150Hz.log
+03/12/2025  09:22               306 SPEC_S1_3ch_default_200Hz.log
+03/12/2025  09:22               306 SPEC_S1_3ch_default_250Hz.log
+03/12/2025  09:22               306 SPEC_S1_3ch_default_300Hz.log
+03/12/2025  09:22               308 SPEC_S1_3ch_default_350Hz.log
+03/12/2025  09:23               309 SPEC_S1_3ch_default_400Hz.log
+03/12/2025  09:23               309 SPEC_S1_3ch_default_450Hz.log
+03/12/2025  09:23               309 SPEC_S1_3ch_default_500Hz.log
+03/12/2025  09:21               304 SPEC_S1_3ch_default_50Hz.log
+03/12/2025  09:24               303 SPEC_S1_6ch_both_100Hz.log
+03/12/2025  09:24               303 SPEC_S1_6ch_both_150Hz.log
+03/12/2025  09:24               303 SPEC_S1_6ch_both_200Hz.log
+03/12/2025  09:23               301 SPEC_S1_6ch_both_50Hz.log
+              48 File(s)         18.585 bytes
+
+ Directory of C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs\dlpf1_with_shaking
+
+03/12/2025  09:45    <DIR>          .
+03/12/2025  09:55    <DIR>          ..
+03/12/2025  09:33               591 GEN_S123_default_100Hz.log
+03/12/2025  09:33               592 GEN_S123_default_120Hz.log
+03/12/2025  09:33               594 GEN_S123_default_140Hz.log
+03/12/2025  09:34               594 GEN_S123_default_160Hz.log
+03/12/2025  09:34               594 GEN_S123_default_180Hz.log
+03/12/2025  09:34               594 GEN_S123_default_200Hz.log
+03/12/2025  09:32               587 GEN_S123_default_20Hz.log
+03/12/2025  09:32               587 GEN_S123_default_40Hz.log
+03/12/2025  09:32               587 GEN_S123_default_60Hz.log
+03/12/2025  09:33               590 GEN_S123_default_80Hz.log
+03/12/2025  09:30               301 GEN_S1_default_100Hz.log
+03/12/2025  09:30               301 GEN_S1_default_120Hz.log
+03/12/2025  09:31               301 GEN_S1_default_140Hz.log
+03/12/2025  09:31               301 GEN_S1_default_160Hz.log
+03/12/2025  09:31               301 GEN_S1_default_180Hz.log
+03/12/2025  09:31               301 GEN_S1_default_200Hz.log
+03/12/2025  09:29               299 GEN_S1_default_20Hz.log
+03/12/2025  09:29               299 GEN_S1_default_40Hz.log
+03/12/2025  09:30               299 GEN_S1_default_60Hz.log
+03/12/2025  09:30               300 GEN_S1_default_80Hz.log
+03/12/2025  09:41               593 SPEC_S123_6ch_both_100Hz.log
+03/12/2025  09:42               596 SPEC_S123_6ch_both_150Hz.log
+03/12/2025  09:42               596 SPEC_S123_6ch_both_200Hz.log
+03/12/2025  09:41               589 SPEC_S123_6ch_both_50Hz.log
+03/12/2025  09:35               302 SPEC_S1_1ch_acc_100Hz.log
+03/12/2025  09:35               302 SPEC_S1_1ch_acc_150Hz.log
+03/12/2025  09:35               302 SPEC_S1_1ch_acc_200Hz.log
+03/12/2025  09:36               302 SPEC_S1_1ch_acc_250Hz.log
+03/12/2025  09:36               302 SPEC_S1_1ch_acc_300Hz.log
+03/12/2025  09:36               302 SPEC_S1_1ch_acc_350Hz.log
+03/12/2025  09:36               302 SPEC_S1_1ch_acc_400Hz.log
+03/12/2025  09:37               302 SPEC_S1_1ch_acc_450Hz.log
+03/12/2025  09:37               303 SPEC_S1_1ch_acc_500Hz.log
+03/12/2025  09:35               300 SPEC_S1_1ch_acc_50Hz.log
+03/12/2025  09:38               306 SPEC_S1_3ch_default_100Hz.log
+03/12/2025  09:38               306 SPEC_S1_3ch_default_150Hz.log
+03/12/2025  09:38               306 SPEC_S1_3ch_default_200Hz.log
+03/12/2025  09:38               306 SPEC_S1_3ch_default_250Hz.log
+03/12/2025  09:39               306 SPEC_S1_3ch_default_300Hz.log
+03/12/2025  09:39               308 SPEC_S1_3ch_default_350Hz.log
+03/12/2025  09:39               309 SPEC_S1_3ch_default_400Hz.log
+03/12/2025  09:40               309 SPEC_S1_3ch_default_450Hz.log
+03/12/2025  09:40               309 SPEC_S1_3ch_default_500Hz.log
+03/12/2025  09:37               304 SPEC_S1_3ch_default_50Hz.log
+03/12/2025  09:40               303 SPEC_S1_6ch_both_100Hz.log
+03/12/2025  09:41               303 SPEC_S1_6ch_both_150Hz.log
+03/12/2025  09:41               303 SPEC_S1_6ch_both_200Hz.log
+03/12/2025  09:40               301 SPEC_S1_6ch_both_50Hz.log
+              48 File(s)         18.585 bytes
+
+ Directory of C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs\dlpf3
+
+03/12/2025  09:12    <DIR>          .
+03/12/2025  09:55    <DIR>          ..
+03/12/2025  08:53               585 GEN_S123_default_100Hz.log
+03/12/2025  08:53               587 GEN_S123_default_120Hz.log
+03/12/2025  08:53               588 GEN_S123_default_140Hz.log
+03/12/2025  08:54               588 GEN_S123_default_160Hz.log
+03/12/2025  08:54               588 GEN_S123_default_180Hz.log
+03/12/2025  08:54               588 GEN_S123_default_200Hz.log
+03/12/2025  08:52               581 GEN_S123_default_20Hz.log
+03/12/2025  08:52               581 GEN_S123_default_40Hz.log
+03/12/2025  08:52               581 GEN_S123_default_60Hz.log
+03/12/2025  08:53               584 GEN_S123_default_80Hz.log
+03/12/2025  08:50               299 GEN_S1_default_100Hz.log
+03/12/2025  08:50               299 GEN_S1_default_120Hz.log
+03/12/2025  08:51               299 GEN_S1_default_140Hz.log
+03/12/2025  08:51               299 GEN_S1_default_160Hz.log
+03/12/2025  08:51               299 GEN_S1_default_180Hz.log
+03/12/2025  08:52               299 GEN_S1_default_200Hz.log
+03/12/2025  08:49               297 GEN_S1_default_20Hz.log
+03/12/2025  08:49               297 GEN_S1_default_40Hz.log
+03/12/2025  08:50               297 GEN_S1_default_60Hz.log
+03/12/2025  08:50               298 GEN_S1_default_80Hz.log
+03/12/2025  09:02               587 SPEC_S123_6ch_both_100Hz.log
+03/12/2025  09:02               590 SPEC_S123_6ch_both_150Hz.log
+03/12/2025  09:02               590 SPEC_S123_6ch_both_200Hz.log
+03/12/2025  09:01               583 SPEC_S123_6ch_both_50Hz.log
+03/12/2025  08:55               300 SPEC_S1_1ch_acc_100Hz.log
+03/12/2025  08:55               300 SPEC_S1_1ch_acc_150Hz.log
+03/12/2025  08:55               300 SPEC_S1_1ch_acc_200Hz.log
+03/12/2025  08:56               300 SPEC_S1_1ch_acc_250Hz.log
+03/12/2025  08:56               300 SPEC_S1_1ch_acc_300Hz.log
+03/12/2025  08:56               300 SPEC_S1_1ch_acc_350Hz.log
+03/12/2025  08:57               300 SPEC_S1_1ch_acc_400Hz.log
+03/12/2025  08:57               300 SPEC_S1_1ch_acc_450Hz.log
+03/12/2025  08:57               300 SPEC_S1_1ch_acc_500Hz.log
+03/12/2025  08:55               298 SPEC_S1_1ch_acc_50Hz.log
+03/12/2025  08:58               304 SPEC_S1_3ch_default_100Hz.log
+03/12/2025  08:58               304 SPEC_S1_3ch_default_150Hz.log
+03/12/2025  08:58               304 SPEC_S1_3ch_default_200Hz.log
+03/12/2025  08:58               304 SPEC_S1_3ch_default_250Hz.log
+03/12/2025  08:59               304 SPEC_S1_3ch_default_300Hz.log
+03/12/2025  08:59               306 SPEC_S1_3ch_default_350Hz.log
+03/12/2025  08:59               307 SPEC_S1_3ch_default_400Hz.log
+03/12/2025  09:00               307 SPEC_S1_3ch_default_450Hz.log
+03/12/2025  09:00               307 SPEC_S1_3ch_default_500Hz.log
+03/12/2025  08:57               302 SPEC_S1_3ch_default_50Hz.log
+03/12/2025  09:00               301 SPEC_S1_6ch_both_100Hz.log
+03/12/2025  09:01               301 SPEC_S1_6ch_both_150Hz.log
+03/12/2025  09:01               301 SPEC_S1_6ch_both_200Hz.log
+03/12/2025  09:00               299 SPEC_S1_6ch_both_50Hz.log
+              48 File(s)         18.433 bytes
+
+     Total Files Listed:
+             146 File(s)         63.690 bytes
+              11 Dir(s)  762.614.304.768 bytes free
+
+============================================================================
+
+============================= combine.bat
+# File: combine.bat (ext: .bat
+# Dir : 
+# Size: 2329 bytes
+# Time: 30/11/2025 16:51
+============================= combine.bat
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+REM ====== Configuration ======
+set "OUTPUT_FILE=combined.py"
+
+REM Use the current directory as the root (run this from your main folder)
+set "ROOT=%CD%"
+set "OUT_FULL=%ROOT%\%OUTPUT_FILE%"
+
+REM Delete output file if it exists
+del "%OUTPUT_FILE%" 2>nul
+
+REM ================== Directory Details (Tree + Detailed DIR) ==================
+>>"%OUTPUT_FILE%" echo ============================= DIRECTORY OVERVIEW =============================
+>>"%OUTPUT_FILE%" echo Root: %ROOT%
+>>"%OUTPUT_FILE%" echo Timestamp: %DATE% %TIME%
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ----------------------------- TREE (with files) -----------------------------
+tree "%ROOT%" /F >>"%OUTPUT_FILE%"
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ------------------------- DETAILED DIRECTORY LISTING -------------------------
+dir "%ROOT%" /S /A >>"%OUTPUT_FILE%"
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ============================================================================
+>>"%OUTPUT_FILE%" echo(
+
+REM ================== Concatenate ALL files (any extension) ======================
+for /f "delims=" %%f in ('
+  dir /b /s /a:-d "%ROOT%\*" ^| sort
+') do (
+  REM Skip the output file itself
+  if /i not "%%~f"=="%OUT_FULL%" (
+    REM Build nice relative labels
+    set "ABS=%%~f"
+    set "REL=!ABS:%ROOT%\=!"          REM e.g. sub\pkg\file.ext
+    set "DIRABS=%%~dpf"
+    set "DIRREL=!DIRABS:%ROOT%\=!"     REM e.g. sub\pkg\
+    set "SIZE=%%~zf"
+    set "TIME=%%~tf"
+    set "EXT=%%~xf"
+
+    echo Adding !REL!...
+
+    REM Safe header lines (use echo() so parentheses are harmless)
+    >>"%OUTPUT_FILE%" echo(============================= !REL!
+    >>"%OUTPUT_FILE%" echo(# File: %%~nxf (ext: !EXT!)
+    >>"%OUTPUT_FILE%" echo(# Dir : !DIRREL!
+    >>"%OUTPUT_FILE%" echo(# Size: !SIZE! bytes
+    >>"%OUTPUT_FILE%" echo(# Time: !TIME!
+    >>"%OUTPUT_FILE%" echo(============================= !REL!
+
+    REM Append file contents (binary files will be dumped raw)
+    type "%%~f">>"%OUTPUT_FILE%"
+
+    REM Separator line after content
+    >>"%OUTPUT_FILE%" echo(
+    >>"%OUTPUT_FILE%" echo ------------------------------ END OF FILE ------------------------------
+    >>"%OUTPUT_FILE%" echo(
+  )
+)
+
+echo All files from "%ROOT%" and subfolders combined into "%OUTPUT_FILE%".
+pause
+
+------------------------------ END OF FILE ------------------------------
+
+# Dir : 
+# Size: 2329 bytes
+# Time: 30/11/2025 16:51
+============================= combine.bat
+============================= DIRECTORY OVERVIEW =============================
+Root: C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs
+Timestamp: 03/12/2025  9:55:42,50
+
+----------------------------- TREE (with files) -----------------------------
+Folder PATH listing
+Volume serial number is 46B7-CF63
+C:\PROJECTS\SENSE-PI-LOCAL-RECORDING-LIVE-MAIN\PARAM_SWEEP_LOGS
+�   combine.bat
+�   combined.py
+�   
++---dlpf1
+�       GEN_S123_default_100Hz.log
+�       GEN_S123_default_120Hz.log
+�       GEN_S123_default_140Hz.log
+�       GEN_S123_default_160Hz.log
+�       GEN_S123_default_180Hz.log
+�       GEN_S123_default_200Hz.log
+�       GEN_S123_default_20Hz.log
+�       GEN_S123_default_40Hz.log
+�       GEN_S123_default_60Hz.log
+�       GEN_S123_default_80Hz.log
+�       GEN_S1_default_100Hz.log
+�       GEN_S1_default_120Hz.log
+�       GEN_S1_default_140Hz.log
+�       GEN_S1_default_160Hz.log
+�       GEN_S1_default_180Hz.log
+�       GEN_S1_default_200Hz.log
+�       GEN_S1_default_20Hz.log
+�       GEN_S1_default_40Hz.log
+�       GEN_S1_default_60Hz.log
+�       GEN_S1_default_80Hz.log
+�       SPEC_S123_6ch_both_100Hz.log
+�       SPEC_S123_6ch_both_150Hz.log
+�       SPEC_S123_6ch_both_200Hz.log
+�       SPEC_S123_6ch_both_50Hz.log
+�       SPEC_S1_1ch_acc_100Hz.log
+�       SPEC_S1_1ch_acc_150Hz.log
+�       SPEC_S1_1ch_acc_200Hz.log
+�       SPEC_S1_1ch_acc_250Hz.log
+�       SPEC_S1_1ch_acc_300Hz.log
+�       SPEC_S1_1ch_acc_350Hz.log
+�       SPEC_S1_1ch_acc_400Hz.log
+�       SPEC_S1_1ch_acc_450Hz.log
+�       SPEC_S1_1ch_acc_500Hz.log
+�       SPEC_S1_1ch_acc_50Hz.log
+�       SPEC_S1_3ch_default_100Hz.log
+�       SPEC_S1_3ch_default_150Hz.log
+�       SPEC_S1_3ch_default_200Hz.log
+�       SPEC_S1_3ch_default_250Hz.log
+�       SPEC_S1_3ch_default_300Hz.log
+�       SPEC_S1_3ch_default_350Hz.log
+�       SPEC_S1_3ch_default_400Hz.log
+�       SPEC_S1_3ch_default_450Hz.log
+�       SPEC_S1_3ch_default_500Hz.log
+�       SPEC_S1_3ch_default_50Hz.log
+�       SPEC_S1_6ch_both_100Hz.log
+�       SPEC_S1_6ch_both_150Hz.log
+�       SPEC_S1_6ch_both_200Hz.log
+�       SPEC_S1_6ch_both_50Hz.log
+�       
++---dlpf1_with_shaking
+�       GEN_S123_default_100Hz.log
+�       GEN_S123_default_120Hz.log
+�       GEN_S123_default_140Hz.log
+�       GEN_S123_default_160Hz.log
+�       GEN_S123_default_180Hz.log
+�       GEN_S123_default_200Hz.log
+�       GEN_S123_default_20Hz.log
+�       GEN_S123_default_40Hz.log
+�       GEN_S123_default_60Hz.log
+�       GEN_S123_default_80Hz.log
+�       GEN_S1_default_100Hz.log
+�       GEN_S1_default_120Hz.log
+�       GEN_S1_default_140Hz.log
+�       GEN_S1_default_160Hz.log
+�       GEN_S1_default_180Hz.log
+�       GEN_S1_default_200Hz.log
+�       GEN_S1_default_20Hz.log
+�       GEN_S1_default_40Hz.log
+�       GEN_S1_default_60Hz.log
+�       GEN_S1_default_80Hz.log
+�       SPEC_S123_6ch_both_100Hz.log
+�       SPEC_S123_6ch_both_150Hz.log
+�       SPEC_S123_6ch_both_200Hz.log
+�       SPEC_S123_6ch_both_50Hz.log
+�       SPEC_S1_1ch_acc_100Hz.log
+�       SPEC_S1_1ch_acc_150Hz.log
+�       SPEC_S1_1ch_acc_200Hz.log
+�       SPEC_S1_1ch_acc_250Hz.log
+�       SPEC_S1_1ch_acc_300Hz.log
+�       SPEC_S1_1ch_acc_350Hz.log
+�       SPEC_S1_1ch_acc_400Hz.log
+�       SPEC_S1_1ch_acc_450Hz.log
+�       SPEC_S1_1ch_acc_500Hz.log
+�       SPEC_S1_1ch_acc_50Hz.log
+�       SPEC_S1_3ch_default_100Hz.log
+�       SPEC_S1_3ch_default_150Hz.log
+�       SPEC_S1_3ch_default_200Hz.log
+�       SPEC_S1_3ch_default_250Hz.log
+�       SPEC_S1_3ch_default_300Hz.log
+�       SPEC_S1_3ch_default_350Hz.log
+�       SPEC_S1_3ch_default_400Hz.log
+�       SPEC_S1_3ch_default_450Hz.log
+�       SPEC_S1_3ch_default_500Hz.log
+�       SPEC_S1_3ch_default_50Hz.log
+�       SPEC_S1_6ch_both_100Hz.log
+�       SPEC_S1_6ch_both_150Hz.log
+�       SPEC_S1_6ch_both_200Hz.log
+�       SPEC_S1_6ch_both_50Hz.log
+�       
++---dlpf3
+        GEN_S123_default_100Hz.log
+        GEN_S123_default_120Hz.log
+        GEN_S123_default_140Hz.log
+        GEN_S123_default_160Hz.log
+        GEN_S123_default_180Hz.log
+        GEN_S123_default_200Hz.log
+        GEN_S123_default_20Hz.log
+        GEN_S123_default_40Hz.log
+        GEN_S123_default_60Hz.log
+        GEN_S123_default_80Hz.log
+        GEN_S1_default_100Hz.log
+        GEN_S1_default_120Hz.log
+        GEN_S1_default_140Hz.log
+        GEN_S1_default_160Hz.log
+        GEN_S1_default_180Hz.log
+        GEN_S1_default_200Hz.log
+        GEN_S1_default_20Hz.log
+        GEN_S1_default_40Hz.log
+        GEN_S1_default_60Hz.log
+        GEN_S1_default_80Hz.log
+        SPEC_S123_6ch_both_100Hz.log
+        SPEC_S123_6ch_both_150Hz.log
+        SPEC_S123_6ch_both_200Hz.log
+        SPEC_S123_6ch_both_50Hz.log
+        SPEC_S1_1ch_acc_100Hz.log
+        SPEC_S1_1ch_acc_150Hz.log
+        SPEC_S1_1ch_acc_200Hz.log
+        SPEC_S1_1ch_acc_250Hz.log
+        SPEC_S1_1ch_acc_300Hz.log
+        SPEC_S1_1ch_acc_350Hz.log
+        SPEC_S1_1ch_acc_400Hz.log
+        SPEC_S1_1ch_acc_450Hz.log
+        SPEC_S1_1ch_acc_500Hz.log
+        SPEC_S1_1ch_acc_50Hz.log
+        SPEC_S1_3ch_default_100Hz.log
+        SPEC_S1_3ch_default_150Hz.log
+        SPEC_S1_3ch_default_200Hz.log
+        SPEC_S1_3ch_default_250Hz.log
+        SPEC_S1_3ch_default_300Hz.log
+        SPEC_S1_3ch_default_350Hz.log
+        SPEC_S1_3ch_default_400Hz.log
+        SPEC_S1_3ch_default_450Hz.log
+        SPEC_S1_3ch_default_500Hz.log
+        SPEC_S1_3ch_default_50Hz.log
+        SPEC_S1_6ch_both_100Hz.log
+        SPEC_S1_6ch_both_150Hz.log
+        SPEC_S1_6ch_both_200Hz.log
+        SPEC_S1_6ch_both_50Hz.log
+        
+
+------------------------- DETAILED DIRECTORY LISTING -------------------------
+ Volume in drive C has no label.
+ Volume Serial Number is 46B7-CF63
+
+ Directory of C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs
+
+03/12/2025  09:55    <DIR>          .
+03/12/2025  09:55    <DIR>          ..
+30/11/2025  16:51             2.329 combine.bat
+03/12/2025  09:55             5.758 combined.py
+03/12/2025  09:26    <DIR>          dlpf1
+03/12/2025  09:45    <DIR>          dlpf1_with_shaking
+03/12/2025  09:12    <DIR>          dlpf3
+               2 File(s)          8.087 bytes
+
+ Directory of C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs\dlpf1
+
+03/12/2025  09:26    <DIR>          .
+03/12/2025  09:55    <DIR>          ..
+03/12/2025  09:16               591 GEN_S123_default_100Hz.log
+03/12/2025  09:17               593 GEN_S123_default_120Hz.log
+03/12/2025  09:17               594 GEN_S123_default_140Hz.log
+03/12/2025  09:17               594 GEN_S123_default_160Hz.log
+03/12/2025  09:17               594 GEN_S123_default_180Hz.log
+03/12/2025  09:18               594 GEN_S123_default_200Hz.log
+03/12/2025  09:15               587 GEN_S123_default_20Hz.log
+03/12/2025  09:15               587 GEN_S123_default_40Hz.log
+03/12/2025  09:16               587 GEN_S123_default_60Hz.log
+03/12/2025  09:16               590 GEN_S123_default_80Hz.log
+03/12/2025  09:13               301 GEN_S1_default_100Hz.log
+03/12/2025  09:14               301 GEN_S1_default_120Hz.log
+03/12/2025  09:14               301 GEN_S1_default_140Hz.log
+03/12/2025  09:14               301 GEN_S1_default_160Hz.log
+03/12/2025  09:15               301 GEN_S1_default_180Hz.log
+03/12/2025  09:15               301 GEN_S1_default_200Hz.log
+03/12/2025  09:12               299 GEN_S1_default_20Hz.log
+03/12/2025  09:13               299 GEN_S1_default_40Hz.log
+03/12/2025  09:13               299 GEN_S1_default_60Hz.log
+03/12/2025  09:13               300 GEN_S1_default_80Hz.log
+03/12/2025  09:25               593 SPEC_S123_6ch_both_100Hz.log
+03/12/2025  09:25               596 SPEC_S123_6ch_both_150Hz.log
+03/12/2025  09:25               596 SPEC_S123_6ch_both_200Hz.log
+03/12/2025  09:25               589 SPEC_S123_6ch_both_50Hz.log
+03/12/2025  09:18               302 SPEC_S1_1ch_acc_100Hz.log
+03/12/2025  09:18               302 SPEC_S1_1ch_acc_150Hz.log
+03/12/2025  09:19               302 SPEC_S1_1ch_acc_200Hz.log
+03/12/2025  09:19               302 SPEC_S1_1ch_acc_250Hz.log
+03/12/2025  09:19               302 SPEC_S1_1ch_acc_300Hz.log
+03/12/2025  09:20               302 SPEC_S1_1ch_acc_350Hz.log
+03/12/2025  09:20               302 SPEC_S1_1ch_acc_400Hz.log
+03/12/2025  09:20               302 SPEC_S1_1ch_acc_450Hz.log
+03/12/2025  09:20               302 SPEC_S1_1ch_acc_500Hz.log
+03/12/2025  09:18               300 SPEC_S1_1ch_acc_50Hz.log
+03/12/2025  09:21               306 SPEC_S1_3ch_default_100Hz.log
+03/12/2025  09:21               306 SPEC_S1_3ch_default_150Hz.log
+03/12/2025  09:22               306 SPEC_S1_3ch_default_200Hz.log
+03/12/2025  09:22               306 SPEC_S1_3ch_default_250Hz.log
+03/12/2025  09:22               306 SPEC_S1_3ch_default_300Hz.log
+03/12/2025  09:22               308 SPEC_S1_3ch_default_350Hz.log
+03/12/2025  09:23               309 SPEC_S1_3ch_default_400Hz.log
+03/12/2025  09:23               309 SPEC_S1_3ch_default_450Hz.log
+03/12/2025  09:23               309 SPEC_S1_3ch_default_500Hz.log
+03/12/2025  09:21               304 SPEC_S1_3ch_default_50Hz.log
+03/12/2025  09:24               303 SPEC_S1_6ch_both_100Hz.log
+03/12/2025  09:24               303 SPEC_S1_6ch_both_150Hz.log
+03/12/2025  09:24               303 SPEC_S1_6ch_both_200Hz.log
+03/12/2025  09:23               301 SPEC_S1_6ch_both_50Hz.log
+              48 File(s)         18.585 bytes
+
+ Directory of C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs\dlpf1_with_shaking
+
+03/12/2025  09:45    <DIR>          .
+03/12/2025  09:55    <DIR>          ..
+03/12/2025  09:33               591 GEN_S123_default_100Hz.log
+03/12/2025  09:33               592 GEN_S123_default_120Hz.log
+03/12/2025  09:33               594 GEN_S123_default_140Hz.log
+03/12/2025  09:34               594 GEN_S123_default_160Hz.log
+03/12/2025  09:34               594 GEN_S123_default_180Hz.log
+03/12/2025  09:34               594 GEN_S123_default_200Hz.log
+03/12/2025  09:32               587 GEN_S123_default_20Hz.log
+03/12/2025  09:32               587 GEN_S123_default_40Hz.log
+03/12/2025  09:32               587 GEN_S123_default_60Hz.log
+03/12/2025  09:33               590 GEN_S123_default_80Hz.log
+03/12/2025  09:30               301 GEN_S1_default_100Hz.log
+03/12/2025  09:30               301 GEN_S1_default_120Hz.log
+03/12/2025  09:31               301 GEN_S1_default_140Hz.log
+03/12/2025  09:31               301 GEN_S1_default_160Hz.log
+03/12/2025  09:31               301 GEN_S1_default_180Hz.log
+03/12/2025  09:31               301 GEN_S1_default_200Hz.log
+03/12/2025  09:29               299 GEN_S1_default_20Hz.log
+03/12/2025  09:29               299 GEN_S1_default_40Hz.log
+03/12/2025  09:30               299 GEN_S1_default_60Hz.log
+03/12/2025  09:30               300 GEN_S1_default_80Hz.log
+03/12/2025  09:41               593 SPEC_S123_6ch_both_100Hz.log
+03/12/2025  09:42               596 SPEC_S123_6ch_both_150Hz.log
+03/12/2025  09:42               596 SPEC_S123_6ch_both_200Hz.log
+03/12/2025  09:41               589 SPEC_S123_6ch_both_50Hz.log
+03/12/2025  09:35               302 SPEC_S1_1ch_acc_100Hz.log
+03/12/2025  09:35               302 SPEC_S1_1ch_acc_150Hz.log
+03/12/2025  09:35               302 SPEC_S1_1ch_acc_200Hz.log
+03/12/2025  09:36               302 SPEC_S1_1ch_acc_250Hz.log
+03/12/2025  09:36               302 SPEC_S1_1ch_acc_300Hz.log
+03/12/2025  09:36               302 SPEC_S1_1ch_acc_350Hz.log
+03/12/2025  09:36               302 SPEC_S1_1ch_acc_400Hz.log
+03/12/2025  09:37               302 SPEC_S1_1ch_acc_450Hz.log
+03/12/2025  09:37               303 SPEC_S1_1ch_acc_500Hz.log
+03/12/2025  09:35               300 SPEC_S1_1ch_acc_50Hz.log
+03/12/2025  09:38               306 SPEC_S1_3ch_default_100Hz.log
+03/12/2025  09:38               306 SPEC_S1_3ch_default_150Hz.log
+03/12/2025  09:38               306 SPEC_S1_3ch_default_200Hz.log
+03/12/2025  09:38               306 SPEC_S1_3ch_default_250Hz.log
+03/12/2025  09:39               306 SPEC_S1_3ch_default_300Hz.log
+03/12/2025  09:39               308 SPEC_S1_3ch_default_350Hz.log
+03/12/2025  09:39               309 SPEC_S1_3ch_default_400Hz.log
+03/12/2025  09:40               309 SPEC_S1_3ch_default_450Hz.log
+03/12/2025  09:40               309 SPEC_S1_3ch_default_500Hz.log
+03/12/2025  09:37               304 SPEC_S1_3ch_default_50Hz.log
+03/12/2025  09:40               303 SPEC_S1_6ch_both_100Hz.log
+03/12/2025  09:41               303 SPEC_S1_6ch_both_150Hz.log
+03/12/2025  09:41               303 SPEC_S1_6ch_both_200Hz.log
+03/12/2025  09:40               301 SPEC_S1_6ch_both_50Hz.log
+              48 File(s)         18.585 bytes
+
+ Directory of C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs\dlpf3
+
+03/12/2025  09:12    <DIR>          .
+03/12/2025  09:55    <DIR>          ..
+03/12/2025  08:53               585 GEN_S123_default_100Hz.log
+03/12/2025  08:53               587 GEN_S123_default_120Hz.log
+03/12/2025  08:53               588 GEN_S123_default_140Hz.log
+03/12/2025  08:54               588 GEN_S123_default_160Hz.log
+03/12/2025  08:54               588 GEN_S123_default_180Hz.log
+03/12/2025  08:54               588 GEN_S123_default_200Hz.log
+03/12/2025  08:52               581 GEN_S123_default_20Hz.log
+03/12/2025  08:52               581 GEN_S123_default_40Hz.log
+03/12/2025  08:52               581 GEN_S123_default_60Hz.log
+03/12/2025  08:53               584 GEN_S123_default_80Hz.log
+03/12/2025  08:50               299 GEN_S1_default_100Hz.log
+03/12/2025  08:50               299 GEN_S1_default_120Hz.log
+03/12/2025  08:51               299 GEN_S1_default_140Hz.log
+03/12/2025  08:51               299 GEN_S1_default_160Hz.log
+03/12/2025  08:51               299 GEN_S1_default_180Hz.log
+03/12/2025  08:52               299 GEN_S1_default_200Hz.log
+03/12/2025  08:49               297 GEN_S1_default_20Hz.log
+03/12/2025  08:49               297 GEN_S1_default_40Hz.log
+03/12/2025  08:50               297 GEN_S1_default_60Hz.log
+03/12/2025  08:50               298 GEN_S1_default_80Hz.log
+03/12/2025  09:02               587 SPEC_S123_6ch_both_100Hz.log
+03/12/2025  09:02               590 SPEC_S123_6ch_both_150Hz.log
+03/12/2025  09:02               590 SPEC_S123_6ch_both_200Hz.log
+03/12/2025  09:01               583 SPEC_S123_6ch_both_50Hz.log
+03/12/2025  08:55               300 SPEC_S1_1ch_acc_100Hz.log
+03/12/2025  08:55               300 SPEC_S1_1ch_acc_150Hz.log
+03/12/2025  08:55               300 SPEC_S1_1ch_acc_200Hz.log
+03/12/2025  08:56               300 SPEC_S1_1ch_acc_250Hz.log
+03/12/2025  08:56               300 SPEC_S1_1ch_acc_300Hz.log
+03/12/2025  08:56               300 SPEC_S1_1ch_acc_350Hz.log
+03/12/2025  08:57               300 SPEC_S1_1ch_acc_400Hz.log
+03/12/2025  08:57               300 SPEC_S1_1ch_acc_450Hz.log
+03/12/2025  08:57               300 SPEC_S1_1ch_acc_500Hz.log
+03/12/2025  08:55               298 SPEC_S1_1ch_acc_50Hz.log
+03/12/2025  08:58               304 SPEC_S1_3ch_default_100Hz.log
+03/12/2025  08:58               304 SPEC_S1_3ch_default_150Hz.log
+03/12/2025  08:58               304 SPEC_S1_3ch_default_200Hz.log
+03/12/2025  08:58               304 SPEC_S1_3ch_default_250Hz.log
+03/12/2025  08:59               304 SPEC_S1_3ch_default_300Hz.log
+03/12/2025  08:59               306 SPEC_S1_3ch_default_350Hz.log
+03/12/2025  08:59               307 SPEC_S1_3ch_default_400Hz.log
+03/12/2025  09:00               307 SPEC_S1_3ch_default_450Hz.log
+03/12/2025  09:00               307 SPEC_S1_3ch_default_500Hz.log
+03/12/2025  08:57               302 SPEC_S1_3ch_default_50Hz.log
+03/12/2025  09:00               301 SPEC_S1_6ch_both_100Hz.log
+03/12/2025  09:01               301 SPEC_S1_6ch_both_150Hz.log
+03/12/2025  09:01               301 SPEC_S1_6ch_both_200Hz.log
+03/12/2025  09:00               299 SPEC_S1_6ch_both_50Hz.log
+              48 File(s)         18.433 bytes
+
+     Total Files Listed:
+             146 File(s)         63.690 bytes
+              11 Dir(s)  762.614.304.768 bytes free
+
+============================================================================
+
+============================= combine.bat
+# File: combine.bat (ext: .bat
+# Dir : 
+# Size: 2329 bytes
+# Time: 30/11/2025 16:51
+============================= combine.bat
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+REM ====== Configuration ======
+set "OUTPUT_FILE=combined.py"
+
+REM Use the current directory as the root (run this from your main folder)
+set "ROOT=%CD%"
+set "OUT_FULL=%ROOT%\%OUTPUT_FILE%"
+
+REM Delete output file if it exists
+del "%OUTPUT_FILE%" 2>nul
+
+REM ================== Directory Details (Tree + Detailed DIR) ==================
+>>"%OUTPUT_FILE%" echo ============================= DIRECTORY OVERVIEW =============================
+>>"%OUTPUT_FILE%" echo Root: %ROOT%
+>>"%OUTPUT_FILE%" echo Timestamp: %DATE% %TIME%
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ----------------------------- TREE (with files) -----------------------------
+tree "%ROOT%" /F >>"%OUTPUT_FILE%"
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ------------------------- DETAILED DIRECTORY LISTING -------------------------
+dir "%ROOT%" /S /A >>"%OUTPUT_FILE%"
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ============================================================================
+>>"%OUTPUT_FILE%" echo(
+
+REM ================== Concatenate ALL files (any extension) ======================
+for /f "delims=" %%f in ('
+  dir /b /s /a:-d "%ROOT%\*" ^| sort
+') do (
+  REM Skip the output file itself
+  if /i not "%%~f"=="%OUT_FULL%" (
+    REM Build nice relative labels
+    set "ABS=%%~f"
+    set "REL=!ABS:%ROOT%\=!"          REM e.g. sub\pkg\file.ext
+    set "DIRABS=%%~dpf"
+    set "DIRREL=!DIRABS:%ROOT%\=!"     REM e.g. sub\pkg\
+    set "SIZE=%%~zf"
+    set "TIME=%%~tf"
+    set "EXT=%%~xf"
+
+    echo Adding !REL!...
+
+    REM Safe header lines (use echo() so parentheses are harmless)
+    >>"%OUTPUT_FILE%" echo(============================= !REL!
+    >>"%OUTPUT_FILE%" echo(# File: %%~nxf (ext: !EXT!)
+    >>"%OUTPUT_FILE%" echo(# Dir : !DIRREL!
+    >>"%OUTPUT_FILE%" echo(# Size: !SIZE! bytes
+    >>"%OUTPUT_FILE%" echo(# Time: !TIME!
+    >>"%OUTPUT_FILE%" echo(============================= !REL!
+
+    REM Append file contents (binary files will be dumped raw)
+    type "%%~f">>"%OUTPUT_FILE%"
+
+    REM Separator line after content
+    >>"%OUTPUT_FILE%" echo(
+    >>"%OUTPUT_FILE%" echo ------------------------------ END OF FILE ------------------------------
+    >>"%OUTPUT_FILE%" echo(
+  )
+)
+
+echo All files from "%ROOT%" and subfolders combined into "%OUTPUT_FILE%".
+pause
+
+------------------------------ END OF FILE ------------------------------
+
+# Dir : 
+# Size: 2329 bytes
+# Time: 30/11/2025 16:51
+============================= combine.bat
+============================= DIRECTORY OVERVIEW =============================
+Root: C:\Projects\sense-pi-local-recording-live-main\param_sweep_logs
+Timestamp: 03/12/2025  9:55:42,50
+
+----------------------------- TREE (with files) -----------------------------
+Folder PATH listing
+Volume serial number is 46B7-CF63
+C:\PROJECTS\SENSE-PI-LOCAL-RECORDING-LIVE-MAIN\PARAM_SWEEP_LOGS
+�   combine.bat
+�   combined.py
+�   
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S1_default_100Hz.log
+# File: GEN_S1_default_100Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 301 bytes
+# Time: 03/12/2025 09:13
+============================= dlpf1\GEN_S1_default_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:32:16.177404Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S1_default_120Hz.log
+# File: GEN_S1_default_120Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 301 bytes
+# Time: 03/12/2025 09:14
+============================= dlpf1\GEN_S1_default_120Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:32:32.818063Z
+ Sensor 1: samples=1800, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/120Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S1_default_140Hz.log
+# File: GEN_S1_default_140Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 301 bytes
+# Time: 03/12/2025 09:14
+============================= dlpf1\GEN_S1_default_140Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:32:49.415832Z
+ Sensor 1: samples=2100, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/140Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S1_default_160Hz.log
+# File: GEN_S1_default_160Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 301 bytes
+# Time: 03/12/2025 09:14
+============================= dlpf1\GEN_S1_default_160Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:33:06.029331Z
+ Sensor 1: samples=2400, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/160Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S1_default_180Hz.log
+# File: GEN_S1_default_180Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 301 bytes
+# Time: 03/12/2025 09:15
+============================= dlpf1\GEN_S1_default_180Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:33:22.630655Z
+ Sensor 1: samples=2700, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/180Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S1_default_200Hz.log
+# File: GEN_S1_default_200Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 301 bytes
+# Time: 03/12/2025 09:15
+============================= dlpf1\GEN_S1_default_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:33:39.232981Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S1_default_20Hz.log
+# File: GEN_S1_default_20Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 299 bytes
+# Time: 03/12/2025 09:12
+============================= dlpf1\GEN_S1_default_20Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:31:09.728109Z
+ Sensor 1: samples=300, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/20Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S1_default_40Hz.log
+# File: GEN_S1_default_40Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 299 bytes
+# Time: 03/12/2025 09:13
+============================= dlpf1\GEN_S1_default_40Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:31:26.383267Z
+ Sensor 1: samples=600, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/40Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S1_default_60Hz.log
+# File: GEN_S1_default_60Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 299 bytes
+# Time: 03/12/2025 09:13
+============================= dlpf1\GEN_S1_default_60Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:31:42.982750Z
+ Sensor 1: samples=900, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/60Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S1_default_80Hz.log
+# File: GEN_S1_default_80Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 300 bytes
+# Time: 03/12/2025 09:13
+============================= dlpf1\GEN_S1_default_80Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:31:59.580839Z
+ Sensor 1: samples=1200, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/80Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S123_default_100Hz.log
+# File: GEN_S123_default_100Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 591 bytes
+# Time: 03/12/2025 09:16
+============================= dlpf1\GEN_S123_default_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:35:02.840668Z
+ Sensor 1: samples=1500, errors=0
+ Sensor 2: samples=1500, errors=0
+ Sensor 3: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S123_default_120Hz.log
+# File: GEN_S123_default_120Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 593 bytes
+# Time: 03/12/2025 09:17
+============================= dlpf1\GEN_S123_default_120Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:35:19.573338Z
+ Sensor 1: samples=1800, errors=0
+ Sensor 2: samples=1800, errors=0
+ Sensor 3: samples=1800, errors=0
+ Overruns: 115
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/120Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S123_default_140Hz.log
+# File: GEN_S123_default_140Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 594 bytes
+# Time: 03/12/2025 09:17
+============================= dlpf1\GEN_S123_default_140Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:35:36.296904Z
+ Sensor 1: samples=2082, errors=0
+ Sensor 2: samples=2082, errors=0
+ Sensor 3: samples=2082, errors=0
+ Overruns: 1608
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/140Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S123_default_160Hz.log
+# File: GEN_S123_default_160Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 594 bytes
+# Time: 03/12/2025 09:17
+============================= dlpf1\GEN_S123_default_160Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:35:53.090942Z
+ Sensor 1: samples=2155, errors=0
+ Sensor 2: samples=2155, errors=0
+ Sensor 3: samples=2155, errors=0
+ Overruns: 1621
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/160Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S123_default_180Hz.log
+# File: GEN_S123_default_180Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 594 bytes
+# Time: 03/12/2025 09:17
+============================= dlpf1\GEN_S123_default_180Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:36:09.815093Z
+ Sensor 1: samples=2191, errors=0
+ Sensor 2: samples=2191, errors=0
+ Sensor 3: samples=2191, errors=0
+ Overruns: 2190
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/180Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S123_default_200Hz.log
+# File: GEN_S123_default_200Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 594 bytes
+# Time: 03/12/2025 09:18
+============================= dlpf1\GEN_S123_default_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:36:26.632009Z
+ Sensor 1: samples=2197, errors=0
+ Sensor 2: samples=2197, errors=0
+ Sensor 3: samples=2197, errors=0
+ Overruns: 2196
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S123_default_20Hz.log
+# File: GEN_S123_default_20Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 587 bytes
+# Time: 03/12/2025 09:15
+============================= dlpf1\GEN_S123_default_20Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:33:55.851998Z
+ Sensor 1: samples=300, errors=0
+ Sensor 2: samples=300, errors=0
+ Sensor 3: samples=300, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/20Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S123_default_40Hz.log
+# File: GEN_S123_default_40Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 587 bytes
+# Time: 03/12/2025 09:15
+============================= dlpf1\GEN_S123_default_40Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:34:12.580577Z
+ Sensor 1: samples=600, errors=0
+ Sensor 2: samples=600, errors=0
+ Sensor 3: samples=600, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/40Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S123_default_60Hz.log
+# File: GEN_S123_default_60Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 587 bytes
+# Time: 03/12/2025 09:16
+============================= dlpf1\GEN_S123_default_60Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:34:29.338681Z
+ Sensor 1: samples=900, errors=0
+ Sensor 2: samples=900, errors=0
+ Sensor 3: samples=900, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/60Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\GEN_S123_default_80Hz.log
+# File: GEN_S123_default_80Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 590 bytes
+# Time: 03/12/2025 09:16
+============================= dlpf1\GEN_S123_default_80Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:34:46.063716Z
+ Sensor 1: samples=1200, errors=0
+ Sensor 2: samples=1200, errors=0
+ Sensor 3: samples=1200, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/80Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_1ch_acc_100Hz.log
+# File: SPEC_S1_1ch_acc_100Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 302 bytes
+# Time: 03/12/2025 09:18
+============================= dlpf1\SPEC_S1_1ch_acc_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:37:00.324008Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_1ch_acc_150Hz.log
+# File: SPEC_S1_1ch_acc_150Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 302 bytes
+# Time: 03/12/2025 09:18
+============================= dlpf1\SPEC_S1_1ch_acc_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:37:17.151602Z
+ Sensor 1: samples=2250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_1ch_acc_200Hz.log
+# File: SPEC_S1_1ch_acc_200Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 302 bytes
+# Time: 03/12/2025 09:19
+============================= dlpf1\SPEC_S1_1ch_acc_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:37:33.891906Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_1ch_acc_250Hz.log
+# File: SPEC_S1_1ch_acc_250Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 302 bytes
+# Time: 03/12/2025 09:19
+============================= dlpf1\SPEC_S1_1ch_acc_250Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=3 device_rate≈250.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:37:50.501187Z
+ Sensor 1: samples=3750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/250Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_1ch_acc_300Hz.log
+# File: SPEC_S1_1ch_acc_300Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 302 bytes
+# Time: 03/12/2025 09:19
+============================= dlpf1\SPEC_S1_1ch_acc_300Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:38:07.121702Z
+ Sensor 1: samples=4500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/300Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_1ch_acc_350Hz.log
+# File: SPEC_S1_1ch_acc_350Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 302 bytes
+# Time: 03/12/2025 09:20
+============================= dlpf1\SPEC_S1_1ch_acc_350Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:38:23.739833Z
+ Sensor 1: samples=5250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/350Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_1ch_acc_400Hz.log
+# File: SPEC_S1_1ch_acc_400Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 302 bytes
+# Time: 03/12/2025 09:20
+============================= dlpf1\SPEC_S1_1ch_acc_400Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:38:40.329085Z
+ Sensor 1: samples=6000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/400Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_1ch_acc_450Hz.log
+# File: SPEC_S1_1ch_acc_450Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 302 bytes
+# Time: 03/12/2025 09:20
+============================= dlpf1\SPEC_S1_1ch_acc_450Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:38:56.907029Z
+ Sensor 1: samples=6750, errors=0
+ Overruns: 2
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/450Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_1ch_acc_500Hz.log
+# File: SPEC_S1_1ch_acc_500Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 302 bytes
+# Time: 03/12/2025 09:20
+============================= dlpf1\SPEC_S1_1ch_acc_500Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:39:13.511345Z
+ Sensor 1: samples=7500, errors=0
+ Overruns: 5
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/500Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_1ch_acc_50Hz.log
+# File: SPEC_S1_1ch_acc_50Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 300 bytes
+# Time: 03/12/2025 09:18
+============================= dlpf1\SPEC_S1_1ch_acc_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:36:43.435727Z
+ Sensor 1: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_3ch_default_100Hz.log
+# File: SPEC_S1_3ch_default_100Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 306 bytes
+# Time: 03/12/2025 09:21
+============================= dlpf1\SPEC_S1_3ch_default_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:39:46.708476Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_3ch_default_150Hz.log
+# File: SPEC_S1_3ch_default_150Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 306 bytes
+# Time: 03/12/2025 09:21
+============================= dlpf1\SPEC_S1_3ch_default_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:40:03.333741Z
+ Sensor 1: samples=2250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_3ch_default_200Hz.log
+# File: SPEC_S1_3ch_default_200Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 306 bytes
+# Time: 03/12/2025 09:22
+============================= dlpf1\SPEC_S1_3ch_default_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:40:19.944810Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_3ch_default_250Hz.log
+# File: SPEC_S1_3ch_default_250Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 306 bytes
+# Time: 03/12/2025 09:22
+============================= dlpf1\SPEC_S1_3ch_default_250Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=3 device_rate≈250.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:40:36.524775Z
+ Sensor 1: samples=3750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/250Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_3ch_default_300Hz.log
+# File: SPEC_S1_3ch_default_300Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 306 bytes
+# Time: 03/12/2025 09:22
+============================= dlpf1\SPEC_S1_3ch_default_300Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:40:53.101987Z
+ Sensor 1: samples=4500, errors=0
+ Overruns: 1
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/300Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_3ch_default_350Hz.log
+# File: SPEC_S1_3ch_default_350Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 308 bytes
+# Time: 03/12/2025 09:22
+============================= dlpf1\SPEC_S1_3ch_default_350Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:41:09.700640Z
+ Sensor 1: samples=5250, errors=0
+ Overruns: 303
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/350Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_3ch_default_400Hz.log
+# File: SPEC_S1_3ch_default_400Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 309 bytes
+# Time: 03/12/2025 09:23
+============================= dlpf1\SPEC_S1_3ch_default_400Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:41:26.306433Z
+ Sensor 1: samples=6000, errors=0
+ Overruns: 1797
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/400Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_3ch_default_450Hz.log
+# File: SPEC_S1_3ch_default_450Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 309 bytes
+# Time: 03/12/2025 09:23
+============================= dlpf1\SPEC_S1_3ch_default_450Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:41:42.897962Z
+ Sensor 1: samples=6414, errors=0
+ Overruns: 4823
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/450Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_3ch_default_500Hz.log
+# File: SPEC_S1_3ch_default_500Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 309 bytes
+# Time: 03/12/2025 09:23
+============================= dlpf1\SPEC_S1_3ch_default_500Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:41:59.495604Z
+ Sensor 1: samples=6588, errors=0
+ Overruns: 4987
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/500Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_3ch_default_50Hz.log
+# File: SPEC_S1_3ch_default_50Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 304 bytes
+# Time: 03/12/2025 09:21
+============================= dlpf1\SPEC_S1_3ch_default_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:39:30.117300Z
+ Sensor 1: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_6ch_both_100Hz.log
+# File: SPEC_S1_6ch_both_100Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 303 bytes
+# Time: 03/12/2025 09:24
+============================= dlpf1\SPEC_S1_6ch_both_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:42:32.748405Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_6ch_both_150Hz.log
+# File: SPEC_S1_6ch_both_150Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 303 bytes
+# Time: 03/12/2025 09:24
+============================= dlpf1\SPEC_S1_6ch_both_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:42:49.342561Z
+ Sensor 1: samples=2250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_6ch_both_200Hz.log
+# File: SPEC_S1_6ch_both_200Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 303 bytes
+# Time: 03/12/2025 09:24
+============================= dlpf1\SPEC_S1_6ch_both_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:43:05.939000Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S1_6ch_both_50Hz.log
+# File: SPEC_S1_6ch_both_50Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 301 bytes
+# Time: 03/12/2025 09:23
+============================= dlpf1\SPEC_S1_6ch_both_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:42:16.081618Z
+ Sensor 1: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S123_6ch_both_100Hz.log
+# File: SPEC_S123_6ch_both_100Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 593 bytes
+# Time: 03/12/2025 09:25
+============================= dlpf1\SPEC_S123_6ch_both_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:43:39.259334Z
+ Sensor 1: samples=1500, errors=0
+ Sensor 2: samples=1500, errors=0
+ Sensor 3: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S123_6ch_both_150Hz.log
+# File: SPEC_S123_6ch_both_150Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 596 bytes
+# Time: 03/12/2025 09:25
+============================= dlpf1\SPEC_S123_6ch_both_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:43:56.896600Z
+ Sensor 1: samples=2072, errors=0
+ Sensor 2: samples=2072, errors=0
+ Sensor 3: samples=2072, errors=0
+ Overruns: 1695
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S123_6ch_both_200Hz.log
+# File: SPEC_S123_6ch_both_200Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 596 bytes
+# Time: 03/12/2025 09:25
+============================= dlpf1\SPEC_S123_6ch_both_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:44:13.625066Z
+ Sensor 1: samples=2148, errors=0
+ Sensor 2: samples=2148, errors=0
+ Sensor 3: samples=2148, errors=0
+ Overruns: 2147
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1\SPEC_S123_6ch_both_50Hz.log
+# File: SPEC_S123_6ch_both_50Hz.log (ext: .log
+# Dir : dlpf1\
+# Size: 589 bytes
+# Time: 03/12/2025 09:25
+============================= dlpf1\SPEC_S123_6ch_both_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:43:22.536083Z
+ Sensor 1: samples=750, errors=0
+ Sensor 2: samples=750, errors=0
+ Sensor 3: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S1_default_100Hz.log
+# File: GEN_S1_default_100Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 301 bytes
+# Time: 03/12/2025 09:30
+============================= dlpf1_with_shaking\GEN_S1_default_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:48:54.755565Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S1_default_120Hz.log
+# File: GEN_S1_default_120Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 301 bytes
+# Time: 03/12/2025 09:30
+============================= dlpf1_with_shaking\GEN_S1_default_120Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:49:11.416361Z
+ Sensor 1: samples=1800, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/120Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S1_default_140Hz.log
+# File: GEN_S1_default_140Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 301 bytes
+# Time: 03/12/2025 09:31
+============================= dlpf1_with_shaking\GEN_S1_default_140Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:49:28.026848Z
+ Sensor 1: samples=2100, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/140Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S1_default_160Hz.log
+# File: GEN_S1_default_160Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 301 bytes
+# Time: 03/12/2025 09:31
+============================= dlpf1_with_shaking\GEN_S1_default_160Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:49:44.643560Z
+ Sensor 1: samples=2400, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/160Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S1_default_180Hz.log
+# File: GEN_S1_default_180Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 301 bytes
+# Time: 03/12/2025 09:31
+============================= dlpf1_with_shaking\GEN_S1_default_180Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:50:01.256684Z
+ Sensor 1: samples=2700, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/180Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S1_default_200Hz.log
+# File: GEN_S1_default_200Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 301 bytes
+# Time: 03/12/2025 09:31
+============================= dlpf1_with_shaking\GEN_S1_default_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:50:17.854917Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S1_default_20Hz.log
+# File: GEN_S1_default_20Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 299 bytes
+# Time: 03/12/2025 09:29
+============================= dlpf1_with_shaking\GEN_S1_default_20Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:47:48.287688Z
+ Sensor 1: samples=300, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/20Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S1_default_40Hz.log
+# File: GEN_S1_default_40Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 299 bytes
+# Time: 03/12/2025 09:29
+============================= dlpf1_with_shaking\GEN_S1_default_40Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:48:04.896950Z
+ Sensor 1: samples=600, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/40Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S1_default_60Hz.log
+# File: GEN_S1_default_60Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 299 bytes
+# Time: 03/12/2025 09:30
+============================= dlpf1_with_shaking\GEN_S1_default_60Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:48:21.521757Z
+ Sensor 1: samples=900, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/60Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S1_default_80Hz.log
+# File: GEN_S1_default_80Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 300 bytes
+# Time: 03/12/2025 09:30
+============================= dlpf1_with_shaking\GEN_S1_default_80Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:48:38.147302Z
+ Sensor 1: samples=1200, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/80Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S123_default_100Hz.log
+# File: GEN_S123_default_100Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 591 bytes
+# Time: 03/12/2025 09:33
+============================= dlpf1_with_shaking\GEN_S123_default_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:51:41.829214Z
+ Sensor 1: samples=1500, errors=0
+ Sensor 2: samples=1500, errors=0
+ Sensor 3: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S123_default_120Hz.log
+# File: GEN_S123_default_120Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 592 bytes
+# Time: 03/12/2025 09:33
+============================= dlpf1_with_shaking\GEN_S123_default_120Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:51:58.554633Z
+ Sensor 1: samples=1800, errors=0
+ Sensor 2: samples=1800, errors=0
+ Sensor 3: samples=1800, errors=0
+ Overruns: 97
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/120Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S123_default_140Hz.log
+# File: GEN_S123_default_140Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 594 bytes
+# Time: 03/12/2025 09:33
+============================= dlpf1_with_shaking\GEN_S123_default_140Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:52:15.306646Z
+ Sensor 1: samples=2086, errors=0
+ Sensor 2: samples=2086, errors=0
+ Sensor 3: samples=2086, errors=0
+ Overruns: 1614
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/140Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S123_default_160Hz.log
+# File: GEN_S123_default_160Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 594 bytes
+# Time: 03/12/2025 09:34
+============================= dlpf1_with_shaking\GEN_S123_default_160Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:52:32.038949Z
+ Sensor 1: samples=2154, errors=0
+ Sensor 2: samples=2154, errors=0
+ Sensor 3: samples=2154, errors=0
+ Overruns: 1612
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/160Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S123_default_180Hz.log
+# File: GEN_S123_default_180Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 594 bytes
+# Time: 03/12/2025 09:34
+============================= dlpf1_with_shaking\GEN_S123_default_180Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:52:48.825395Z
+ Sensor 1: samples=2192, errors=0
+ Sensor 2: samples=2192, errors=0
+ Sensor 3: samples=2192, errors=0
+ Overruns: 2191
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/180Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S123_default_200Hz.log
+# File: GEN_S123_default_200Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 594 bytes
+# Time: 03/12/2025 09:34
+============================= dlpf1_with_shaking\GEN_S123_default_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:53:05.531343Z
+ Sensor 1: samples=2196, errors=0
+ Sensor 2: samples=2196, errors=0
+ Sensor 3: samples=2196, errors=0
+ Overruns: 2195
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S123_default_20Hz.log
+# File: GEN_S123_default_20Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 587 bytes
+# Time: 03/12/2025 09:32
+============================= dlpf1_with_shaking\GEN_S123_default_20Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:50:34.460858Z
+ Sensor 1: samples=300, errors=0
+ Sensor 2: samples=300, errors=0
+ Sensor 3: samples=300, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/20Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S123_default_40Hz.log
+# File: GEN_S123_default_40Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 587 bytes
+# Time: 03/12/2025 09:32
+============================= dlpf1_with_shaking\GEN_S123_default_40Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:50:51.184724Z
+ Sensor 1: samples=600, errors=0
+ Sensor 2: samples=600, errors=0
+ Sensor 3: samples=600, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/40Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S123_default_60Hz.log
+# File: GEN_S123_default_60Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 587 bytes
+# Time: 03/12/2025 09:32
+============================= dlpf1_with_shaking\GEN_S123_default_60Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:51:07.921239Z
+ Sensor 1: samples=900, errors=0
+ Sensor 2: samples=900, errors=0
+ Sensor 3: samples=900, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/60Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\GEN_S123_default_80Hz.log
+# File: GEN_S123_default_80Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 590 bytes
+# Time: 03/12/2025 09:33
+============================= dlpf1_with_shaking\GEN_S123_default_80Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:51:24.664297Z
+ Sensor 1: samples=1200, errors=0
+ Sensor 2: samples=1200, errors=0
+ Sensor 3: samples=1200, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/80Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_100Hz.log
+# File: SPEC_S1_1ch_acc_100Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 302 bytes
+# Time: 03/12/2025 09:35
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:53:38.877650Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_150Hz.log
+# File: SPEC_S1_1ch_acc_150Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 302 bytes
+# Time: 03/12/2025 09:35
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:53:55.559031Z
+ Sensor 1: samples=2250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_200Hz.log
+# File: SPEC_S1_1ch_acc_200Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 302 bytes
+# Time: 03/12/2025 09:35
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:54:12.165619Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_250Hz.log
+# File: SPEC_S1_1ch_acc_250Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 302 bytes
+# Time: 03/12/2025 09:36
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_250Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=3 device_rate≈250.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:54:28.767396Z
+ Sensor 1: samples=3750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/250Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_300Hz.log
+# File: SPEC_S1_1ch_acc_300Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 302 bytes
+# Time: 03/12/2025 09:36
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_300Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:54:45.381194Z
+ Sensor 1: samples=4500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/300Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_350Hz.log
+# File: SPEC_S1_1ch_acc_350Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 302 bytes
+# Time: 03/12/2025 09:36
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_350Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:55:02.027685Z
+ Sensor 1: samples=5250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/350Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_400Hz.log
+# File: SPEC_S1_1ch_acc_400Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 302 bytes
+# Time: 03/12/2025 09:36
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_400Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:55:18.663266Z
+ Sensor 1: samples=6000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/400Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_450Hz.log
+# File: SPEC_S1_1ch_acc_450Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 302 bytes
+# Time: 03/12/2025 09:37
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_450Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:55:35.264063Z
+ Sensor 1: samples=6750, errors=0
+ Overruns: 3
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/450Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_500Hz.log
+# File: SPEC_S1_1ch_acc_500Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 303 bytes
+# Time: 03/12/2025 09:37
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_500Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:55:51.842136Z
+ Sensor 1: samples=7500, errors=0
+ Overruns: 12
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/500Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_50Hz.log
+# File: SPEC_S1_1ch_acc_50Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 300 bytes
+# Time: 03/12/2025 09:35
+============================= dlpf1_with_shaking\SPEC_S1_1ch_acc_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:53:22.274873Z
+ Sensor 1: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_100Hz.log
+# File: SPEC_S1_3ch_default_100Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 306 bytes
+# Time: 03/12/2025 09:38
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:56:25.081961Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_150Hz.log
+# File: SPEC_S1_3ch_default_150Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 306 bytes
+# Time: 03/12/2025 09:38
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:56:41.979327Z
+ Sensor 1: samples=2250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_200Hz.log
+# File: SPEC_S1_3ch_default_200Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 306 bytes
+# Time: 03/12/2025 09:38
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:56:58.585534Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_250Hz.log
+# File: SPEC_S1_3ch_default_250Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 306 bytes
+# Time: 03/12/2025 09:38
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_250Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=3 device_rate≈250.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:57:15.190202Z
+ Sensor 1: samples=3750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/250Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_300Hz.log
+# File: SPEC_S1_3ch_default_300Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 306 bytes
+# Time: 03/12/2025 09:39
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_300Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:57:31.814805Z
+ Sensor 1: samples=4500, errors=0
+ Overruns: 7
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/300Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_350Hz.log
+# File: SPEC_S1_3ch_default_350Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 308 bytes
+# Time: 03/12/2025 09:39
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_350Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:57:48.431694Z
+ Sensor 1: samples=5250, errors=0
+ Overruns: 130
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/350Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_400Hz.log
+# File: SPEC_S1_3ch_default_400Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 309 bytes
+# Time: 03/12/2025 09:39
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_400Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:58:05.074571Z
+ Sensor 1: samples=6000, errors=0
+ Overruns: 1539
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/400Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_450Hz.log
+# File: SPEC_S1_3ch_default_450Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 309 bytes
+# Time: 03/12/2025 09:40
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_450Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:58:21.741739Z
+ Sensor 1: samples=6420, errors=0
+ Overruns: 4853
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/450Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_500Hz.log
+# File: SPEC_S1_3ch_default_500Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 309 bytes
+# Time: 03/12/2025 09:40
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_500Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:58:38.366558Z
+ Sensor 1: samples=6601, errors=0
+ Overruns: 5108
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/500Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_50Hz.log
+# File: SPEC_S1_3ch_default_50Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 304 bytes
+# Time: 03/12/2025 09:37
+============================= dlpf1_with_shaking\SPEC_S1_3ch_default_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:56:08.471995Z
+ Sensor 1: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_6ch_both_100Hz.log
+# File: SPEC_S1_6ch_both_100Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 303 bytes
+# Time: 03/12/2025 09:40
+============================= dlpf1_with_shaking\SPEC_S1_6ch_both_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:59:11.594250Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_6ch_both_150Hz.log
+# File: SPEC_S1_6ch_both_150Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 303 bytes
+# Time: 03/12/2025 09:41
+============================= dlpf1_with_shaking\SPEC_S1_6ch_both_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:59:28.197850Z
+ Sensor 1: samples=2250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_6ch_both_200Hz.log
+# File: SPEC_S1_6ch_both_200Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 303 bytes
+# Time: 03/12/2025 09:41
+============================= dlpf1_with_shaking\SPEC_S1_6ch_both_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:59:44.824743Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S1_6ch_both_50Hz.log
+# File: SPEC_S1_6ch_both_50Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 301 bytes
+# Time: 03/12/2025 09:40
+============================= dlpf1_with_shaking\SPEC_S1_6ch_both_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:58:54.991372Z
+ Sensor 1: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S123_6ch_both_100Hz.log
+# File: SPEC_S123_6ch_both_100Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 593 bytes
+# Time: 03/12/2025 09:41
+============================= dlpf1_with_shaking\SPEC_S123_6ch_both_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T02:00:18.181669Z
+ Sensor 1: samples=1500, errors=0
+ Sensor 2: samples=1500, errors=0
+ Sensor 3: samples=1500, errors=0
+ Overruns: 2
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S123_6ch_both_150Hz.log
+# File: SPEC_S123_6ch_both_150Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 596 bytes
+# Time: 03/12/2025 09:42
+============================= dlpf1_with_shaking\SPEC_S123_6ch_both_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T02:00:34.939055Z
+ Sensor 1: samples=2094, errors=0
+ Sensor 2: samples=2094, errors=0
+ Sensor 3: samples=2094, errors=0
+ Overruns: 1580
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S123_6ch_both_200Hz.log
+# File: SPEC_S123_6ch_both_200Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 596 bytes
+# Time: 03/12/2025 09:42
+============================= dlpf1_with_shaking\SPEC_S123_6ch_both_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T02:00:51.813761Z
+ Sensor 1: samples=2155, errors=0
+ Sensor 2: samples=2155, errors=0
+ Sensor 3: samples=2155, errors=0
+ Overruns: 2154
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf1_with_shaking\SPEC_S123_6ch_both_50Hz.log
+# File: SPEC_S123_6ch_both_50Hz.log (ext: .log
+# Dir : dlpf1_with_shaking\
+# Size: 589 bytes
+# Time: 03/12/2025 09:41
+============================= dlpf1_with_shaking\SPEC_S123_6ch_both_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T02:00:01.431246Z
+ Sensor 1: samples=750, errors=0
+ Sensor 2: samples=750, errors=0
+ Sensor 3: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S1_default_100Hz.log
+# File: GEN_S1_default_100Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 299 bytes
+# Time: 03/12/2025 08:50
+============================= dlpf3\GEN_S1_default_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:08:57.683120Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S1_default_120Hz.log
+# File: GEN_S1_default_120Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 299 bytes
+# Time: 03/12/2025 08:50
+============================= dlpf3\GEN_S1_default_120Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:09:14.283486Z
+ Sensor 1: samples=1800, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/120Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S1_default_140Hz.log
+# File: GEN_S1_default_140Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 299 bytes
+# Time: 03/12/2025 08:51
+============================= dlpf3\GEN_S1_default_140Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:09:30.902220Z
+ Sensor 1: samples=2100, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/140Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S1_default_160Hz.log
+# File: GEN_S1_default_160Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 299 bytes
+# Time: 03/12/2025 08:51
+============================= dlpf3\GEN_S1_default_160Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:09:47.524309Z
+ Sensor 1: samples=2400, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/160Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S1_default_180Hz.log
+# File: GEN_S1_default_180Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 299 bytes
+# Time: 03/12/2025 08:51
+============================= dlpf3\GEN_S1_default_180Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:10:04.132701Z
+ Sensor 1: samples=2700, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/180Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S1_default_200Hz.log
+# File: GEN_S1_default_200Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 299 bytes
+# Time: 03/12/2025 08:52
+============================= dlpf3\GEN_S1_default_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:10:20.750816Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S1_default_20Hz.log
+# File: GEN_S1_default_20Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 297 bytes
+# Time: 03/12/2025 08:49
+============================= dlpf3\GEN_S1_default_20Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:07:50.850494Z
+ Sensor 1: samples=300, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/20Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S1_default_40Hz.log
+# File: GEN_S1_default_40Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 297 bytes
+# Time: 03/12/2025 08:49
+============================= dlpf3\GEN_S1_default_40Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:08:07.456674Z
+ Sensor 1: samples=600, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/40Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S1_default_60Hz.log
+# File: GEN_S1_default_60Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 297 bytes
+# Time: 03/12/2025 08:50
+============================= dlpf3\GEN_S1_default_60Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:08:24.072451Z
+ Sensor 1: samples=900, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/60Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S1_default_80Hz.log
+# File: GEN_S1_default_80Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 298 bytes
+# Time: 03/12/2025 08:50
+============================= dlpf3\GEN_S1_default_80Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:08:41.013143Z
+ Sensor 1: samples=1200, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S1_default/80Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S123_default_100Hz.log
+# File: GEN_S123_default_100Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 585 bytes
+# Time: 03/12/2025 08:53
+============================= dlpf3\GEN_S123_default_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:11:44.410040Z
+ Sensor 1: samples=1500, errors=0
+ Sensor 2: samples=1500, errors=0
+ Sensor 3: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S123_default_120Hz.log
+# File: GEN_S123_default_120Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 587 bytes
+# Time: 03/12/2025 08:53
+============================= dlpf3\GEN_S123_default_120Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=7 device_rate≈125.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:12:01.149149Z
+ Sensor 1: samples=1800, errors=0
+ Sensor 2: samples=1800, errors=0
+ Sensor 3: samples=1800, errors=0
+ Overruns: 104
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/120Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S123_default_140Hz.log
+# File: GEN_S123_default_140Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 588 bytes
+# Time: 03/12/2025 08:53
+============================= dlpf3\GEN_S123_default_140Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:12:17.879474Z
+ Sensor 1: samples=2084, errors=0
+ Sensor 2: samples=2084, errors=0
+ Sensor 3: samples=2084, errors=0
+ Overruns: 1615
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/140Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S123_default_160Hz.log
+# File: GEN_S123_default_160Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 588 bytes
+# Time: 03/12/2025 08:54
+============================= dlpf3\GEN_S123_default_160Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:12:34.626582Z
+ Sensor 1: samples=2153, errors=0
+ Sensor 2: samples=2153, errors=0
+ Sensor 3: samples=2153, errors=0
+ Overruns: 1615
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/160Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S123_default_180Hz.log
+# File: GEN_S123_default_180Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 588 bytes
+# Time: 03/12/2025 08:54
+============================= dlpf3\GEN_S123_default_180Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=5 device_rate≈166.667 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:12:51.380981Z
+ Sensor 1: samples=2190, errors=0
+ Sensor 2: samples=2190, errors=0
+ Sensor 3: samples=2190, errors=0
+ Overruns: 2189
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/180Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S123_default_200Hz.log
+# File: GEN_S123_default_200Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 588 bytes
+# Time: 03/12/2025 08:54
+============================= dlpf3\GEN_S123_default_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:13:08.173634Z
+ Sensor 1: samples=2197, errors=0
+ Sensor 2: samples=2197, errors=0
+ Sensor 3: samples=2197, errors=0
+ Overruns: 2196
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S123_default_20Hz.log
+# File: GEN_S123_default_20Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 581 bytes
+# Time: 03/12/2025 08:52
+============================= dlpf3\GEN_S123_default_20Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=49 device_rate≈20.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:10:37.364453Z
+ Sensor 1: samples=300, errors=0
+ Sensor 2: samples=300, errors=0
+ Sensor 3: samples=300, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/20Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S123_default_40Hz.log
+# File: GEN_S123_default_40Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 581 bytes
+# Time: 03/12/2025 08:52
+============================= dlpf3\GEN_S123_default_40Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=24 device_rate≈40.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:10:54.136435Z
+ Sensor 1: samples=600, errors=0
+ Sensor 2: samples=600, errors=0
+ Sensor 3: samples=600, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/40Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S123_default_60Hz.log
+# File: GEN_S123_default_60Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 581 bytes
+# Time: 03/12/2025 08:52
+============================= dlpf3\GEN_S123_default_60Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=16 device_rate≈58.824 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:11:10.867543Z
+ Sensor 1: samples=900, errors=0
+ Sensor 2: samples=900, errors=0
+ Sensor 3: samples=900, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/60Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\GEN_S123_default_80Hz.log
+# File: GEN_S123_default_80Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 584 bytes
+# Time: 03/12/2025 08:53
+============================= dlpf3\GEN_S123_default_80Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:11:27.662073Z
+ Sensor 1: samples=1200, errors=0
+ Sensor 2: samples=1200, errors=0
+ Sensor 3: samples=1200, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/80Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_1ch_acc_100Hz.log
+# File: SPEC_S1_1ch_acc_100Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 300 bytes
+# Time: 03/12/2025 08:55
+============================= dlpf3\SPEC_S1_1ch_acc_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:13:41.516571Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_1ch_acc_150Hz.log
+# File: SPEC_S1_1ch_acc_150Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 300 bytes
+# Time: 03/12/2025 08:55
+============================= dlpf3\SPEC_S1_1ch_acc_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:13:58.103611Z
+ Sensor 1: samples=2250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_1ch_acc_200Hz.log
+# File: SPEC_S1_1ch_acc_200Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 300 bytes
+# Time: 03/12/2025 08:55
+============================= dlpf3\SPEC_S1_1ch_acc_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:14:14.709112Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_1ch_acc_250Hz.log
+# File: SPEC_S1_1ch_acc_250Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 300 bytes
+# Time: 03/12/2025 08:56
+============================= dlpf3\SPEC_S1_1ch_acc_250Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=3 device_rate≈250.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:14:31.336151Z
+ Sensor 1: samples=3750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/250Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_1ch_acc_300Hz.log
+# File: SPEC_S1_1ch_acc_300Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 300 bytes
+# Time: 03/12/2025 08:56
+============================= dlpf3\SPEC_S1_1ch_acc_300Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:14:47.975483Z
+ Sensor 1: samples=4500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/300Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_1ch_acc_350Hz.log
+# File: SPEC_S1_1ch_acc_350Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 300 bytes
+# Time: 03/12/2025 08:56
+============================= dlpf3\SPEC_S1_1ch_acc_350Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:15:04.604913Z
+ Sensor 1: samples=5250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/350Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_1ch_acc_400Hz.log
+# File: SPEC_S1_1ch_acc_400Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 300 bytes
+# Time: 03/12/2025 08:57
+============================= dlpf3\SPEC_S1_1ch_acc_400Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:15:21.238927Z
+ Sensor 1: samples=6000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/400Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_1ch_acc_450Hz.log
+# File: SPEC_S1_1ch_acc_450Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 300 bytes
+# Time: 03/12/2025 08:57
+============================= dlpf3\SPEC_S1_1ch_acc_450Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:15:37.842718Z
+ Sensor 1: samples=6750, errors=0
+ Overruns: 1
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/450Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_1ch_acc_500Hz.log
+# File: SPEC_S1_1ch_acc_500Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 300 bytes
+# Time: 03/12/2025 08:57
+============================= dlpf3\SPEC_S1_1ch_acc_500Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:15:54.476438Z
+ Sensor 1: samples=7500, errors=0
+ Overruns: 8
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/500Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_1ch_acc_50Hz.log
+# File: SPEC_S1_1ch_acc_50Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 298 bytes
+# Time: 03/12/2025 08:55
+============================= dlpf3\SPEC_S1_1ch_acc_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:13:24.922288Z
+ Sensor 1: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_3ch_default_100Hz.log
+# File: SPEC_S1_3ch_default_100Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 304 bytes
+# Time: 03/12/2025 08:58
+============================= dlpf3\SPEC_S1_3ch_default_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:16:27.736463Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_3ch_default_150Hz.log
+# File: SPEC_S1_3ch_default_150Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 304 bytes
+# Time: 03/12/2025 08:58
+============================= dlpf3\SPEC_S1_3ch_default_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:16:44.336231Z
+ Sensor 1: samples=2250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_3ch_default_200Hz.log
+# File: SPEC_S1_3ch_default_200Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 304 bytes
+# Time: 03/12/2025 08:58
+============================= dlpf3\SPEC_S1_3ch_default_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:17:00.919844Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_3ch_default_250Hz.log
+# File: SPEC_S1_3ch_default_250Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 304 bytes
+# Time: 03/12/2025 08:58
+============================= dlpf3\SPEC_S1_3ch_default_250Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=3 device_rate≈250.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:17:17.502447Z
+ Sensor 1: samples=3750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/250Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_3ch_default_300Hz.log
+# File: SPEC_S1_3ch_default_300Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 304 bytes
+# Time: 03/12/2025 08:59
+============================= dlpf3\SPEC_S1_3ch_default_300Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:17:34.098372Z
+ Sensor 1: samples=4500, errors=0
+ Overruns: 5
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/300Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_3ch_default_350Hz.log
+# File: SPEC_S1_3ch_default_350Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 306 bytes
+# Time: 03/12/2025 08:59
+============================= dlpf3\SPEC_S1_3ch_default_350Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=2 device_rate≈333.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:17:50.692668Z
+ Sensor 1: samples=5250, errors=0
+ Overruns: 102
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/350Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_3ch_default_400Hz.log
+# File: SPEC_S1_3ch_default_400Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 307 bytes
+# Time: 03/12/2025 08:59
+============================= dlpf3\SPEC_S1_3ch_default_400Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:18:07.270557Z
+ Sensor 1: samples=6000, errors=0
+ Overruns: 1265
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/400Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_3ch_default_450Hz.log
+# File: SPEC_S1_3ch_default_450Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 307 bytes
+# Time: 03/12/2025 09:00
+============================= dlpf3\SPEC_S1_3ch_default_450Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:18:23.855896Z
+ Sensor 1: samples=6424, errors=0
+ Overruns: 4878
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/450Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_3ch_default_500Hz.log
+# File: SPEC_S1_3ch_default_500Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 307 bytes
+# Time: 03/12/2025 09:00
+============================= dlpf3\SPEC_S1_3ch_default_500Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=1 device_rate≈500.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:18:40.745253Z
+ Sensor 1: samples=6576, errors=0
+ Overruns: 5073
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/500Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_3ch_default_50Hz.log
+# File: SPEC_S1_3ch_default_50Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 302 bytes
+# Time: 03/12/2025 08:57
+============================= dlpf3\SPEC_S1_3ch_default_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:16:11.131287Z
+ Sensor 1: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_3ch_default/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_6ch_both_100Hz.log
+# File: SPEC_S1_6ch_both_100Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 301 bytes
+# Time: 03/12/2025 09:00
+============================= dlpf3\SPEC_S1_6ch_both_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:19:13.999796Z
+ Sensor 1: samples=1500, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_6ch_both_150Hz.log
+# File: SPEC_S1_6ch_both_150Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 301 bytes
+# Time: 03/12/2025 09:01
+============================= dlpf3\SPEC_S1_6ch_both_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:19:30.605389Z
+ Sensor 1: samples=2250, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_6ch_both_200Hz.log
+# File: SPEC_S1_6ch_both_200Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 301 bytes
+# Time: 03/12/2025 09:01
+============================= dlpf3\SPEC_S1_6ch_both_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:19:47.213462Z
+ Sensor 1: samples=3000, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S1_6ch_both_50Hz.log
+# File: SPEC_S1_6ch_both_50Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 299 bytes
+# Time: 03/12/2025 09:00
+============================= dlpf3\SPEC_S1_6ch_both_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:18:57.328769Z
+ Sensor 1: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S1_6ch_both/50Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S123_6ch_both_100Hz.log
+# File: SPEC_S123_6ch_both_100Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 587 bytes
+# Time: 03/12/2025 09:02
+============================= dlpf3\SPEC_S123_6ch_both_100Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=9 device_rate≈100.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:20:20.639194Z
+ Sensor 1: samples=1500, errors=0
+ Sensor 2: samples=1500, errors=0
+ Sensor 3: samples=1500, errors=0
+ Overruns: 1
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/100Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S123_6ch_both_150Hz.log
+# File: SPEC_S123_6ch_both_150Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 590 bytes
+# Time: 03/12/2025 09:02
+============================= dlpf3\SPEC_S123_6ch_both_150Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=6 device_rate≈142.857 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:20:37.404225Z
+ Sensor 1: samples=2079, errors=0
+ Sensor 2: samples=2079, errors=0
+ Sensor 3: samples=2079, errors=0
+ Overruns: 1573
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/150Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S123_6ch_both_200Hz.log
+# File: SPEC_S123_6ch_both_200Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 590 bytes
+# Time: 03/12/2025 09:02
+============================= dlpf3\SPEC_S123_6ch_both_200Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=4 device_rate≈200.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:20:54.175773Z
+ Sensor 1: samples=2152, errors=0
+ Sensor 2: samples=2152, errors=0
+ Sensor 3: samples=2152, errors=0
+ Overruns: 2151
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/200Hz
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf3\SPEC_S123_6ch_both_50Hz.log
+# File: SPEC_S123_6ch_both_50Hz.log (ext: .log
+# Dir : dlpf3\
+# Size: 583 bytes
+# Time: 03/12/2025 09:01
+============================= dlpf3\SPEC_S123_6ch_both_50Hz.log
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:20:03.829691Z
+ Sensor 1: samples=750, errors=0
+ Sensor 2: samples=750, errors=0
+ Sensor 3: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/50Hz
+
+------------------------------ END OF FILE ------------------------------
+

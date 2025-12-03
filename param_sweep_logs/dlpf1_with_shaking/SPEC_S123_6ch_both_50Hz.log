@@ -1,0 +1,12 @@
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=19 device_rate≈50.000 Hz DLPF=1 (gyro≈184Hz, accel≈188Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T02:00:01.431246Z
+ Sensor 1: samples=750, errors=0
+ Sensor 2: samples=750, errors=0
+ Sensor 3: samples=750, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/SPEC_S123_6ch_both/50Hz

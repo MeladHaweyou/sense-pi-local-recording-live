@@ -1,0 +1,41 @@
+{
+  "start_utc": "2025-11-29T01:15:54.476438Z",
+  "hostname": "SensPi6",
+  "sensor_id": 1,
+  "bus": 1,
+  "address_hex": "0x68",
+  "who_am_i_hex": "0x68",
+  "requested_rate_hz": 500.0,
+  "clamped_rate_hz": 500.0,
+  "dlpf_cfg": 3,
+  "dlpf_gyro_bw_hz": 44,
+  "dlpf_accel_bw_hz": 42,
+  "fs_accel": "\u00b12g",
+  "fs_gyro": "\u00b1250dps",
+  "smplrt_div": 1,
+  "device_rate_hz": 500.0,
+  "channels": "acc",
+  "format": "csv",
+  "header": [
+    "timestamp_ns",
+    "t_s",
+    "sensor_id",
+    "ax",
+    "ay",
+    "az"
+  ],
+  "start_monotonic_ns": 3609938627267,
+  "session_name": "",
+  "session_slug": "",
+  "session_dir": "/home/verwalter/logs/param_sweep/SPEC_S1_1ch_acc/500Hz",
+  "stream_every": 8,
+  "stream_fields": [
+    "ax",
+    "ay",
+    "az"
+  ],
+  "version": 3,
+  "pi_device_sample_rate_hz": 500.0,
+  "pi_stream_decimation": 8,
+  "pi_stream_rate_hz": 62.5
+}

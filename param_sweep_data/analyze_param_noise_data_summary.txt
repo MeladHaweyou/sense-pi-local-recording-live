@@ -1,0 +1,1102 @@
+============================= DIRECTORY OVERVIEW =============================
+Root: C:\Projects\sense-pi-local-recording-live-main\param_sweep_data
+Timestamp: 03/12/2025  9:57:08,28
+
+----------------------------- TREE (with files) -----------------------------
+Folder PATH listing
+Volume serial number is 46B7-CF63
+C:\PROJECTS\SENSE-PI-LOCAL-RECORDING-LIVE-MAIN\PARAM_SWEEP_DATA
+    combine.bat
+    combined.py
+    dlpf 1 param_noise_summary.csv
+    dlpf 1_with_shaking param_noise_summary.csv
+    dlpf 3 param_noise_summary.csv
+    
+No subfolders exist 
+
+
+------------------------- DETAILED DIRECTORY LISTING -------------------------
+ Volume in drive C has no label.
+ Volume Serial Number is 46B7-CF63
+
+ Directory of C:\Projects\sense-pi-local-recording-live-main\param_sweep_data
+
+03/12/2025  09:57    <DIR>          .
+03/12/2025  09:57    <DIR>          ..
+30/11/2025  16:51             2.329 combine.bat
+03/12/2025  09:57               655 combined.py
+03/12/2025  09:51            49.926 dlpf 1 param_noise_summary.csv
+03/12/2025  09:55            49.421 dlpf 1_with_shaking param_noise_summary.csv
+03/12/2025  09:09            49.970 dlpf 3 param_noise_summary.csv
+               5 File(s)        152.301 bytes
+
+     Total Files Listed:
+               5 File(s)        152.301 bytes
+               2 Dir(s)  762.597.322.752 bytes free
+
+============================================================================
+
+============================= combine.bat
+# File: combine.bat (ext: .bat
+# Dir : 
+# Size: 2329 bytes
+# Time: 30/11/2025 16:51
+============================= combine.bat
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+REM ====== Configuration ======
+set "OUTPUT_FILE=combined.py"
+
+REM Use the current directory as the root (run this from your main folder)
+set "ROOT=%CD%"
+set "OUT_FULL=%ROOT%\%OUTPUT_FILE%"
+
+REM Delete output file if it exists
+del "%OUTPUT_FILE%" 2>nul
+
+REM ================== Directory Details (Tree + Detailed DIR) ==================
+>>"%OUTPUT_FILE%" echo ============================= DIRECTORY OVERVIEW =============================
+>>"%OUTPUT_FILE%" echo Root: %ROOT%
+>>"%OUTPUT_FILE%" echo Timestamp: %DATE% %TIME%
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ----------------------------- TREE (with files) -----------------------------
+tree "%ROOT%" /F >>"%OUTPUT_FILE%"
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ------------------------- DETAILED DIRECTORY LISTING -------------------------
+dir "%ROOT%" /S /A >>"%OUTPUT_FILE%"
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ============================================================================
+>>"%OUTPUT_FILE%" echo(
+
+REM ================== Concatenate ALL files (any extension) ======================
+for /f "delims=" %%f in ('
+  dir /b /s /a:-d "%ROOT%\*" ^| sort
+') do (
+  REM Skip the output file itself
+  if /i not "%%~f"=="%OUT_FULL%" (
+    REM Build nice relative labels
+    set "ABS=%%~f"
+    set "REL=!ABS:%ROOT%\=!"          REM e.g. sub\pkg\file.ext
+    set "DIRABS=%%~dpf"
+    set "DIRREL=!DIRABS:%ROOT%\=!"     REM e.g. sub\pkg\
+    set "SIZE=%%~zf"
+    set "TIME=%%~tf"
+    set "EXT=%%~xf"
+
+    echo Adding !REL!...
+
+    REM Safe header lines (use echo() so parentheses are harmless)
+    >>"%OUTPUT_FILE%" echo(============================= !REL!
+    >>"%OUTPUT_FILE%" echo(# File: %%~nxf (ext: !EXT!)
+    >>"%OUTPUT_FILE%" echo(# Dir : !DIRREL!
+    >>"%OUTPUT_FILE%" echo(# Size: !SIZE! bytes
+    >>"%OUTPUT_FILE%" echo(# Time: !TIME!
+    >>"%OUTPUT_FILE%" echo(============================= !REL!
+
+    REM Append file contents (binary files will be dumped raw)
+    type "%%~f">>"%OUTPUT_FILE%"
+
+    REM Separator line after content
+    >>"%OUTPUT_FILE%" echo(
+    >>"%OUTPUT_FILE%" echo ------------------------------ END OF FILE ------------------------------
+    >>"%OUTPUT_FILE%" echo(
+  )
+)
+
+echo All files from "%ROOT%" and subfolders combined into "%OUTPUT_FILE%".
+pause
+
+------------------------------ END OF FILE ------------------------------
+
+# Dir : 
+# Size: 2329 bytes
+# Time: 30/11/2025 16:51
+============================= combine.bat
+============================= DIRECTORY OVERVIEW =============================
+Root: C:\Projects\sense-pi-local-recording-live-main\param_sweep_data
+Timestamp: 03/12/2025  9:57:08,28
+
+----------------------------- TREE (with files) -----------------------------
+Folder PATH listing
+Volume serial number is 46B7-CF63
+C:\PROJECTS\SENSE-PI-LOCAL-RECORDING-LIVE-MAIN\PARAM_SWEEP_DATA
+    combine.bat
+    combined.py
+    dlpf 1 param_noise_summary.csv
+    dlpf 1_with_shaking param_noise_summary.csv
+    dlpf 3 param_noise_summary.csv
+    
+No subfolders exist 
+
+
+------------------------- DETAILED DIRECTORY LISTING -------------------------
+ Volume in drive C has no label.
+ Volume Serial Number is 46B7-CF63
+
+ Directory of C:\Projects\sense-pi-local-recording-live-main\param_sweep_data
+
+03/12/2025  09:57    <DIR>          .
+03/12/2025  09:57    <DIR>          ..
+30/11/2025  16:51             2.329 combine.bat
+03/12/2025  09:57               655 combined.py
+03/12/2025  09:51            49.926 dlpf 1 param_noise_summary.csv
+03/12/2025  09:55            49.421 dlpf 1_with_shaking param_noise_summary.csv
+03/12/2025  09:09            49.970 dlpf 3 param_noise_summary.csv
+               5 File(s)        152.301 bytes
+
+     Total Files Listed:
+               5 File(s)        152.301 bytes
+               2 Dir(s)  762.597.322.752 bytes free
+
+============================================================================
+
+============================= combine.bat
+# File: combine.bat (ext: .bat
+# Dir : 
+# Size: 2329 bytes
+# Time: 30/11/2025 16:51
+============================= combine.bat
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+REM ====== Configuration ======
+set "OUTPUT_FILE=combined.py"
+
+REM Use the current directory as the root (run this from your main folder)
+set "ROOT=%CD%"
+set "OUT_FULL=%ROOT%\%OUTPUT_FILE%"
+
+REM Delete output file if it exists
+del "%OUTPUT_FILE%" 2>nul
+
+REM ================== Directory Details (Tree + Detailed DIR) ==================
+>>"%OUTPUT_FILE%" echo ============================= DIRECTORY OVERVIEW =============================
+>>"%OUTPUT_FILE%" echo Root: %ROOT%
+>>"%OUTPUT_FILE%" echo Timestamp: %DATE% %TIME%
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ----------------------------- TREE (with files) -----------------------------
+tree "%ROOT%" /F >>"%OUTPUT_FILE%"
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ------------------------- DETAILED DIRECTORY LISTING -------------------------
+dir "%ROOT%" /S /A >>"%OUTPUT_FILE%"
+>>"%OUTPUT_FILE%" echo.
+>>"%OUTPUT_FILE%" echo ============================================================================
+>>"%OUTPUT_FILE%" echo(
+
+REM ================== Concatenate ALL files (any extension) ======================
+for /f "delims=" %%f in ('
+  dir /b /s /a:-d "%ROOT%\*" ^| sort
+') do (
+  REM Skip the output file itself
+  if /i not "%%~f"=="%OUT_FULL%" (
+    REM Build nice relative labels
+    set "ABS=%%~f"
+    set "REL=!ABS:%ROOT%\=!"          REM e.g. sub\pkg\file.ext
+    set "DIRABS=%%~dpf"
+    set "DIRREL=!DIRABS:%ROOT%\=!"     REM e.g. sub\pkg\
+    set "SIZE=%%~zf"
+    set "TIME=%%~tf"
+    set "EXT=%%~xf"
+
+    echo Adding !REL!...
+
+    REM Safe header lines (use echo() so parentheses are harmless)
+    >>"%OUTPUT_FILE%" echo(============================= !REL!
+    >>"%OUTPUT_FILE%" echo(# File: %%~nxf (ext: !EXT!)
+    >>"%OUTPUT_FILE%" echo(# Dir : !DIRREL!
+    >>"%OUTPUT_FILE%" echo(# Size: !SIZE! bytes
+    >>"%OUTPUT_FILE%" echo(# Time: !TIME!
+    >>"%OUTPUT_FILE%" echo(============================= !REL!
+
+    REM Append file contents (binary files will be dumped raw)
+    type "%%~f">>"%OUTPUT_FILE%"
+
+    REM Separator line after content
+    >>"%OUTPUT_FILE%" echo(
+    >>"%OUTPUT_FILE%" echo ------------------------------ END OF FILE ------------------------------
+    >>"%OUTPUT_FILE%" echo(
+  )
+)
+
+echo All files from "%ROOT%" and subfolders combined into "%OUTPUT_FILE%".
+pause
+
+------------------------------ END OF FILE ------------------------------
+
+# Dir : 
+# Size: 2329 bytes
+# Time: 30/11/2025 16:51
+============================= combine.bat
+============================= DIRECTORY OVERVIEW =============================
+Root: C:\Projects\sense-pi-local-recording-live-main\param_sweep_data
+Timestamp: 03/12/2025  9:57:08,28
+
+----------------------------- TREE (with files) -----------------------------
+Folder PATH listing
+Volume serial number is 46B7-CF63
+C:\PROJECTS\SENSE-PI-LOCAL-RECORDING-LIVE-MAIN\PARAM_SWEEP_DATA
+    combine.bat
+    combined.py
+    dlpf 1 param_noise_summary.csv
+    dlpf 1
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf 1 param_noise_summary.csv
+# File: dlpf 1 param_noise_summary.csv (ext: .csv
+# Dir : 
+# Size: 49926 bytes
+# Time: 03/12/2025 09:51
+============================= dlpf 1 param_noise_summary.csv
+dlpf,tag,rate_hz,sensor_id,axis,std_dev,n_samples,source_file
+1,GEN_S123_default,100.0,1,ax,0.026566616605758677,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S1_2025-11-29_01-35-02.csv
+1,GEN_S123_default,100.0,1,ay,0.024282695289084333,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S1_2025-11-29_01-35-02.csv
+1,GEN_S123_default,100.0,1,gz,0.032738540435464994,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S1_2025-11-29_01-35-02.csv
+1,GEN_S123_default,100.0,2,ax,0.029954810790665178,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S2_2025-11-29_01-35-02.csv
+1,GEN_S123_default,100.0,2,ay,0.026550074673898538,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S2_2025-11-29_01-35-02.csv
+1,GEN_S123_default,100.0,2,gz,0.0399224698119539,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S2_2025-11-29_01-35-02.csv
+1,GEN_S123_default,100.0,3,ax,0.024181180252329796,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S3_2025-11-29_01-35-02.csv
+1,GEN_S123_default,100.0,3,ay,0.02485900622252818,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S3_2025-11-29_01-35-02.csv
+1,GEN_S123_default,100.0,3,gz,0.06168194506663645,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S3_2025-11-29_01-35-02.csv
+1,GEN_S123_default,120.0,1,ax,0.025891447657916837,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S1_2025-11-29_01-35-19.csv
+1,GEN_S123_default,120.0,1,ay,0.024645410358686004,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S1_2025-11-29_01-35-19.csv
+1,GEN_S123_default,120.0,1,gz,0.03670955607020523,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S1_2025-11-29_01-35-19.csv
+1,GEN_S123_default,120.0,2,ax,0.030613424298751822,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S2_2025-11-29_01-35-19.csv
+1,GEN_S123_default,120.0,2,ay,0.02625401421228322,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S2_2025-11-29_01-35-19.csv
+1,GEN_S123_default,120.0,2,gz,0.04538081503962768,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S2_2025-11-29_01-35-19.csv
+1,GEN_S123_default,120.0,3,ax,0.027008335714309793,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S3_2025-11-29_01-35-19.csv
+1,GEN_S123_default,120.0,3,ay,0.024553139854677136,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S3_2025-11-29_01-35-19.csv
+1,GEN_S123_default,120.0,3,gz,0.04179532304579124,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S3_2025-11-29_01-35-19.csv
+1,GEN_S123_default,140.0,1,ax,0.025557184936228237,2082,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S1_2025-11-29_01-35-36.csv
+1,GEN_S123_default,140.0,1,ay,0.024442274009426328,2082,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S1_2025-11-29_01-35-36.csv
+1,GEN_S123_default,140.0,1,gz,0.03955239915699191,2082,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S1_2025-11-29_01-35-36.csv
+1,GEN_S123_default,140.0,2,ax,0.03045404012213102,2082,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S2_2025-11-29_01-35-36.csv
+1,GEN_S123_default,140.0,2,ay,0.026289471547450732,2082,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S2_2025-11-29_01-35-36.csv
+1,GEN_S123_default,140.0,2,gz,0.05148239298033885,2082,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S2_2025-11-29_01-35-36.csv
+1,GEN_S123_default,140.0,3,ax,0.026131586879542423,2082,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S3_2025-11-29_01-35-36.csv
+1,GEN_S123_default,140.0,3,ay,0.024738754890016548,2082,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S3_2025-11-29_01-35-36.csv
+1,GEN_S123_default,140.0,3,gz,0.04364025802663185,2082,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S3_2025-11-29_01-35-36.csv
+1,GEN_S123_default,160.0,1,ax,0.026150144515512747,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S1_2025-11-29_01-35-53.csv
+1,GEN_S123_default,160.0,1,ay,0.025035520228946485,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S1_2025-11-29_01-35-53.csv
+1,GEN_S123_default,160.0,1,gz,0.04070493503761524,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S1_2025-11-29_01-35-53.csv
+1,GEN_S123_default,160.0,2,ax,0.03237152347653251,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S2_2025-11-29_01-35-53.csv
+1,GEN_S123_default,160.0,2,ay,0.026967800210997896,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S2_2025-11-29_01-35-53.csv
+1,GEN_S123_default,160.0,2,gz,0.05436571608162652,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S2_2025-11-29_01-35-53.csv
+1,GEN_S123_default,160.0,3,ax,0.02669583088977645,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S3_2025-11-29_01-35-53.csv
+1,GEN_S123_default,160.0,3,ay,0.024973862289114673,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S3_2025-11-29_01-35-53.csv
+1,GEN_S123_default,160.0,3,gz,0.04737648082888997,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S3_2025-11-29_01-35-53.csv
+1,GEN_S123_default,180.0,1,ax,0.0271172159446282,2191,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S1_2025-11-29_01-36-09.csv
+1,GEN_S123_default,180.0,1,ay,0.023960067512879955,2191,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S1_2025-11-29_01-36-09.csv
+1,GEN_S123_default,180.0,1,gz,0.04049846086542056,2191,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S1_2025-11-29_01-36-09.csv
+1,GEN_S123_default,180.0,2,ax,0.03113513408811257,2191,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S2_2025-11-29_01-36-09.csv
+1,GEN_S123_default,180.0,2,ay,0.026270509495212094,2191,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S2_2025-11-29_01-36-09.csv
+1,GEN_S123_default,180.0,2,gz,0.05372369858840657,2191,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S2_2025-11-29_01-36-09.csv
+1,GEN_S123_default,180.0,3,ax,0.025551877616921244,2191,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S3_2025-11-29_01-36-09.csv
+1,GEN_S123_default,180.0,3,ay,0.02532875009172161,2191,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S3_2025-11-29_01-36-09.csv
+1,GEN_S123_default,180.0,3,gz,0.046828031057787996,2191,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S3_2025-11-29_01-36-09.csv
+1,GEN_S123_default,200.0,1,ax,0.026078959430835384,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S1_2025-11-29_01-36-26.csv
+1,GEN_S123_default,200.0,1,ay,0.0248722991254347,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S1_2025-11-29_01-36-26.csv
+1,GEN_S123_default,200.0,1,gz,0.04380490354760582,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S1_2025-11-29_01-36-26.csv
+1,GEN_S123_default,200.0,2,ax,0.030991674807734817,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S2_2025-11-29_01-36-26.csv
+1,GEN_S123_default,200.0,2,ay,0.025348870854841683,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S2_2025-11-29_01-36-26.csv
+1,GEN_S123_default,200.0,2,gz,0.05336658108581113,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S2_2025-11-29_01-36-26.csv
+1,GEN_S123_default,200.0,3,ax,0.02572733022189229,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S3_2025-11-29_01-36-26.csv
+1,GEN_S123_default,200.0,3,ay,0.024550712835799144,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S3_2025-11-29_01-36-26.csv
+1,GEN_S123_default,200.0,3,gz,0.051379416732902826,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S3_2025-11-29_01-36-26.csv
+1,GEN_S123_default,20.0,1,ax,0.027855564446953328,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S1_2025-11-29_01-33-55.csv
+1,GEN_S123_default,20.0,1,ay,0.025098348500889534,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S1_2025-11-29_01-33-55.csv
+1,GEN_S123_default,20.0,1,gz,0.02372490523928314,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S1_2025-11-29_01-33-55.csv
+1,GEN_S123_default,20.0,2,ax,0.025305209611292293,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S2_2025-11-29_01-33-55.csv
+1,GEN_S123_default,20.0,2,ay,0.027698782927506882,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S2_2025-11-29_01-33-55.csv
+1,GEN_S123_default,20.0,2,gz,0.026954486460516437,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S2_2025-11-29_01-33-55.csv
+1,GEN_S123_default,20.0,3,ax,0.025921136729173736,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S3_2025-11-29_01-33-55.csv
+1,GEN_S123_default,20.0,3,ay,0.02448333519233579,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S3_2025-11-29_01-33-55.csv
+1,GEN_S123_default,20.0,3,gz,0.03523940835079398,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S3_2025-11-29_01-33-55.csv
+1,GEN_S123_default,40.0,1,ax,0.02716957025978574,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S1_2025-11-29_01-34-12.csv
+1,GEN_S123_default,40.0,1,ay,0.02403844284983455,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S1_2025-11-29_01-34-12.csv
+1,GEN_S123_default,40.0,1,gz,0.021706383562464536,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S1_2025-11-29_01-34-12.csv
+1,GEN_S123_default,40.0,2,ax,0.02793544004543246,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S2_2025-11-29_01-34-12.csv
+1,GEN_S123_default,40.0,2,ay,0.027071632704100068,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S2_2025-11-29_01-34-12.csv
+1,GEN_S123_default,40.0,2,gz,0.031824148230445284,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S2_2025-11-29_01-34-12.csv
+1,GEN_S123_default,40.0,3,ax,0.024321521521146108,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S3_2025-11-29_01-34-12.csv
+1,GEN_S123_default,40.0,3,ay,0.025565006010667513,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S3_2025-11-29_01-34-12.csv
+1,GEN_S123_default,40.0,3,gz,0.054186992098541574,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S3_2025-11-29_01-34-12.csv
+1,GEN_S123_default,60.0,1,ax,0.027444481996923887,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S1_2025-11-29_01-34-29.csv
+1,GEN_S123_default,60.0,1,ay,0.024374959583998126,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S1_2025-11-29_01-34-29.csv
+1,GEN_S123_default,60.0,1,gz,0.026416841283870198,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S1_2025-11-29_01-34-29.csv
+1,GEN_S123_default,60.0,2,ax,0.031215206970414293,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S2_2025-11-29_01-34-29.csv
+1,GEN_S123_default,60.0,2,ay,0.02640439261950877,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S2_2025-11-29_01-34-29.csv
+1,GEN_S123_default,60.0,2,gz,0.03155493263954559,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S2_2025-11-29_01-34-29.csv
+1,GEN_S123_default,60.0,3,ax,0.02508169869420047,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S3_2025-11-29_01-34-29.csv
+1,GEN_S123_default,60.0,3,ay,0.025464427171546348,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S3_2025-11-29_01-34-29.csv
+1,GEN_S123_default,60.0,3,gz,0.03718241755233056,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S3_2025-11-29_01-34-29.csv
+1,GEN_S123_default,80.0,1,ax,0.025877974999462778,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S1_2025-11-29_01-34-46.csv
+1,GEN_S123_default,80.0,1,ay,0.024096787020802594,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S1_2025-11-29_01-34-46.csv
+1,GEN_S123_default,80.0,1,gz,0.028808782316760196,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S1_2025-11-29_01-34-46.csv
+1,GEN_S123_default,80.0,2,ax,0.029112272244238468,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S2_2025-11-29_01-34-46.csv
+1,GEN_S123_default,80.0,2,ay,0.025947523192535835,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S2_2025-11-29_01-34-46.csv
+1,GEN_S123_default,80.0,2,gz,0.03678168062687508,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S2_2025-11-29_01-34-46.csv
+1,GEN_S123_default,80.0,3,ax,0.02462166924507454,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S3_2025-11-29_01-34-46.csv
+1,GEN_S123_default,80.0,3,ay,0.02431681733972462,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S3_2025-11-29_01-34-46.csv
+1,GEN_S123_default,80.0,3,gz,0.05651949636395477,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S3_2025-11-29_01-34-46.csv
+1,GEN_S1_default,100.0,1,ax,0.02606307007236449,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\100Hz\mpu_S1_2025-11-29_01-32-16.csv
+1,GEN_S1_default,100.0,1,ay,0.02509061860890255,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\100Hz\mpu_S1_2025-11-29_01-32-16.csv
+1,GEN_S1_default,100.0,1,gz,0.03738621163163251,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\100Hz\mpu_S1_2025-11-29_01-32-16.csv
+1,GEN_S1_default,120.0,1,ax,0.026039899556283785,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\120Hz\mpu_S1_2025-11-29_01-32-32.csv
+1,GEN_S1_default,120.0,1,ay,0.02402710804982115,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\120Hz\mpu_S1_2025-11-29_01-32-32.csv
+1,GEN_S1_default,120.0,1,gz,0.04611760331398587,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\120Hz\mpu_S1_2025-11-29_01-32-32.csv
+1,GEN_S1_default,140.0,1,ax,0.02667124089177312,2100,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\140Hz\mpu_S1_2025-11-29_01-32-49.csv
+1,GEN_S1_default,140.0,1,ay,0.02447855742314866,2100,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\140Hz\mpu_S1_2025-11-29_01-32-49.csv
+1,GEN_S1_default,140.0,1,gz,0.03790906553906836,2100,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\140Hz\mpu_S1_2025-11-29_01-32-49.csv
+1,GEN_S1_default,160.0,1,ax,0.026509040984580616,2400,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\160Hz\mpu_S1_2025-11-29_01-33-06.csv
+1,GEN_S1_default,160.0,1,ay,0.023599555270313217,2400,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\160Hz\mpu_S1_2025-11-29_01-33-06.csv
+1,GEN_S1_default,160.0,1,gz,0.047729210458347986,2400,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\160Hz\mpu_S1_2025-11-29_01-33-06.csv
+1,GEN_S1_default,180.0,1,ax,0.026268558498114776,2700,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\180Hz\mpu_S1_2025-11-29_01-33-22.csv
+1,GEN_S1_default,180.0,1,ay,0.023877271827740354,2700,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\180Hz\mpu_S1_2025-11-29_01-33-22.csv
+1,GEN_S1_default,180.0,1,gz,0.047861028528282716,2700,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\180Hz\mpu_S1_2025-11-29_01-33-22.csv
+1,GEN_S1_default,200.0,1,ax,0.026400323746568578,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\200Hz\mpu_S1_2025-11-29_01-33-39.csv
+1,GEN_S1_default,200.0,1,ay,0.024192522286146628,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\200Hz\mpu_S1_2025-11-29_01-33-39.csv
+1,GEN_S1_default,200.0,1,gz,0.045156418854905817,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\200Hz\mpu_S1_2025-11-29_01-33-39.csv
+1,GEN_S1_default,20.0,1,ax,0.025450352122278624,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\20Hz\mpu_S1_2025-11-29_01-31-09.csv
+1,GEN_S1_default,20.0,1,ay,0.024483072875103103,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\20Hz\mpu_S1_2025-11-29_01-31-09.csv
+1,GEN_S1_default,20.0,1,gz,0.024279381185835117,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\20Hz\mpu_S1_2025-11-29_01-31-09.csv
+1,GEN_S1_default,40.0,1,ax,0.027609069145502273,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\40Hz\mpu_S1_2025-11-29_01-31-26.csv
+1,GEN_S1_default,40.0,1,ay,0.024310089964217838,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\40Hz\mpu_S1_2025-11-29_01-31-26.csv
+1,GEN_S1_default,40.0,1,gz,0.030157221840109643,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\40Hz\mpu_S1_2025-11-29_01-31-26.csv
+1,GEN_S1_default,60.0,1,ax,0.0265147825612133,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\60Hz\mpu_S1_2025-11-29_01-31-42.csv
+1,GEN_S1_default,60.0,1,ay,0.024453063802262975,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\60Hz\mpu_S1_2025-11-29_01-31-42.csv
+1,GEN_S1_default,60.0,1,gz,0.039335779705792225,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\60Hz\mpu_S1_2025-11-29_01-31-42.csv
+1,GEN_S1_default,80.0,1,ax,0.026263058611562362,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\80Hz\mpu_S1_2025-11-29_01-31-59.csv
+1,GEN_S1_default,80.0,1,ay,0.023666713953132648,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\80Hz\mpu_S1_2025-11-29_01-31-59.csv
+1,GEN_S1_default,80.0,1,gz,0.032921476276008485,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\80Hz\mpu_S1_2025-11-29_01-31-59.csv
+1,SPEC_S123_6ch_both,100.0,1,ax,0.027074811098505527,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,1,ay,0.02355182497822467,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,1,az,0.03802519274206742,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,1,gx,0.0436761502447217,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,1,gy,0.04190985513458683,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,1,gz,0.033466910012618596,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,2,ax,0.030770148483934702,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,2,ay,0.02652017730005723,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,2,az,0.04012367419522779,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,2,gx,0.03659439038462882,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,2,gy,0.0524805834922677,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,2,gz,0.04018378898218668,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,3,ax,0.024713859337838696,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,3,ay,0.024744655274744523,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,3,az,0.041345358230727824,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,3,gx,0.10855172124717483,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,3,gy,0.051646080640186,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,100.0,3,gz,0.07980195931577864,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-43-39.csv
+1,SPEC_S123_6ch_both,150.0,1,ax,0.026589929175471767,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,1,ay,0.02528707273020775,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,1,az,0.03829480491237688,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,1,gx,0.05053085272148261,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,1,gy,0.05049218504102765,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,1,gz,0.038945478584772056,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,2,ax,0.03179023786356253,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,2,ay,0.026381789566796838,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,2,az,0.04163906138564065,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,2,gx,0.04315076672971595,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,2,gy,0.06185873066644412,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,2,gz,0.05139666684074496,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,3,ax,0.02525027196899868,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,3,ay,0.02480750951187063,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,3,az,0.03887515344207138,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,3,gx,0.04696658997489248,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,3,gy,0.06282854244730479,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,150.0,3,gz,0.04362508471915111,2072,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-43-56.csv
+1,SPEC_S123_6ch_both,200.0,1,ax,0.026238797222977627,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,1,ay,0.023894369682445342,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,1,az,0.03959152564274234,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,1,gx,0.059078020788986,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,1,gy,0.05961372992015855,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,1,gz,0.044782463238485365,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,2,ax,0.0335155065692064,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,2,ay,0.025169587863643563,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,2,az,0.04140786985939724,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,2,gx,0.049953469012700306,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,2,gy,0.0717489133426194,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,2,gz,0.05371504185255764,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,3,ax,0.026569846780294844,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,3,ay,0.02489640052772633,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,3,az,0.04125116865058224,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,3,gx,0.05458989933199894,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,3,gy,0.07165797543541903,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,200.0,3,gz,0.05269657134411509,2148,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-44-13.csv
+1,SPEC_S123_6ch_both,50.0,1,ax,0.02614394680912225,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,1,ay,0.022883513093774312,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,1,az,0.03779914018831654,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,1,gx,0.026773652722357492,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,1,gy,0.027663503488684037,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,1,gz,0.023785991538292667,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,2,ax,0.027736548445808175,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,2,ay,0.02631930361725285,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,2,az,0.04257960752298569,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,2,gx,0.026238548159040094,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,2,gy,0.02914021435836163,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,2,gz,0.032521000559791825,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,3,ax,0.025028933516880538,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,3,ay,0.02465613439928922,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,3,az,0.039055530045091345,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,3,gx,0.051332775202625754,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,3,gy,0.030986564964389066,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-43-22.csv
+1,SPEC_S123_6ch_both,50.0,3,gz,0.03966290446483658,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-43-22.csv
+1,SPEC_S1_1ch_acc,100.0,1,ax,0.026789609824464024,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\100Hz\mpu_S1_2025-11-29_01-37-00.csv
+1,SPEC_S1_1ch_acc,100.0,1,ay,0.02515383492722594,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\100Hz\mpu_S1_2025-11-29_01-37-00.csv
+1,SPEC_S1_1ch_acc,100.0,1,az,0.03989782033839949,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\100Hz\mpu_S1_2025-11-29_01-37-00.csv
+1,SPEC_S1_1ch_acc,150.0,1,ax,0.02620775687362481,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\150Hz\mpu_S1_2025-11-29_01-37-17.csv
+1,SPEC_S1_1ch_acc,150.0,1,ay,0.02376471721847784,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\150Hz\mpu_S1_2025-11-29_01-37-17.csv
+1,SPEC_S1_1ch_acc,150.0,1,az,0.03950840843225722,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\150Hz\mpu_S1_2025-11-29_01-37-17.csv
+1,SPEC_S1_1ch_acc,200.0,1,ax,0.025959889766780923,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\200Hz\mpu_S1_2025-11-29_01-37-33.csv
+1,SPEC_S1_1ch_acc,200.0,1,ay,0.02564262557563169,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\200Hz\mpu_S1_2025-11-29_01-37-33.csv
+1,SPEC_S1_1ch_acc,200.0,1,az,0.040289386502127,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\200Hz\mpu_S1_2025-11-29_01-37-33.csv
+1,SPEC_S1_1ch_acc,250.0,1,ax,0.026346100907082056,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\250Hz\mpu_S1_2025-11-29_01-37-50.csv
+1,SPEC_S1_1ch_acc,250.0,1,ay,0.02464375489846408,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\250Hz\mpu_S1_2025-11-29_01-37-50.csv
+1,SPEC_S1_1ch_acc,250.0,1,az,0.04190189215542845,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\250Hz\mpu_S1_2025-11-29_01-37-50.csv
+1,SPEC_S1_1ch_acc,300.0,1,ax,0.026355870692791317,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\300Hz\mpu_S1_2025-11-29_01-38-07.csv
+1,SPEC_S1_1ch_acc,300.0,1,ay,0.02512422133718634,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\300Hz\mpu_S1_2025-11-29_01-38-07.csv
+1,SPEC_S1_1ch_acc,300.0,1,az,0.04316636366384986,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\300Hz\mpu_S1_2025-11-29_01-38-07.csv
+1,SPEC_S1_1ch_acc,350.0,1,ax,0.0267499736478293,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\350Hz\mpu_S1_2025-11-29_01-38-23.csv
+1,SPEC_S1_1ch_acc,350.0,1,ay,0.02515736798809494,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\350Hz\mpu_S1_2025-11-29_01-38-23.csv
+1,SPEC_S1_1ch_acc,350.0,1,az,0.04213975099916157,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\350Hz\mpu_S1_2025-11-29_01-38-23.csv
+1,SPEC_S1_1ch_acc,400.0,1,ax,0.026332378184260645,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\400Hz\mpu_S1_2025-11-29_01-38-40.csv
+1,SPEC_S1_1ch_acc,400.0,1,ay,0.025552419380360784,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\400Hz\mpu_S1_2025-11-29_01-38-40.csv
+1,SPEC_S1_1ch_acc,400.0,1,az,0.04528847257283479,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\400Hz\mpu_S1_2025-11-29_01-38-40.csv
+1,SPEC_S1_1ch_acc,450.0,1,ax,0.026851818661285203,6750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\450Hz\mpu_S1_2025-11-29_01-38-56.csv
+1,SPEC_S1_1ch_acc,450.0,1,ay,0.02606793784098076,6750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\450Hz\mpu_S1_2025-11-29_01-38-56.csv
+1,SPEC_S1_1ch_acc,450.0,1,az,0.04501358291673717,6750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\450Hz\mpu_S1_2025-11-29_01-38-56.csv
+1,SPEC_S1_1ch_acc,500.0,1,ax,0.026519578601344334,7500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\500Hz\mpu_S1_2025-11-29_01-39-13.csv
+1,SPEC_S1_1ch_acc,500.0,1,ay,0.02547344949691842,7500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\500Hz\mpu_S1_2025-11-29_01-39-13.csv
+1,SPEC_S1_1ch_acc,500.0,1,az,0.043681638156520104,7500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\500Hz\mpu_S1_2025-11-29_01-39-13.csv
+1,SPEC_S1_1ch_acc,50.0,1,ax,0.02523842300715613,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\50Hz\mpu_S1_2025-11-29_01-36-43.csv
+1,SPEC_S1_1ch_acc,50.0,1,ay,0.023999065526723096,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\50Hz\mpu_S1_2025-11-29_01-36-43.csv
+1,SPEC_S1_1ch_acc,50.0,1,az,0.03869102874854821,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\50Hz\mpu_S1_2025-11-29_01-36-43.csv
+1,SPEC_S1_3ch_default,100.0,1,ax,0.02721097564448285,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\100Hz\mpu_S1_2025-11-29_01-39-46.csv
+1,SPEC_S1_3ch_default,100.0,1,ay,0.025292973068748607,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\100Hz\mpu_S1_2025-11-29_01-39-46.csv
+1,SPEC_S1_3ch_default,100.0,1,gz,0.03587925450570785,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\100Hz\mpu_S1_2025-11-29_01-39-46.csv
+1,SPEC_S1_3ch_default,150.0,1,ax,0.026857378116175494,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\150Hz\mpu_S1_2025-11-29_01-40-03.csv
+1,SPEC_S1_3ch_default,150.0,1,ay,0.023726796319264293,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\150Hz\mpu_S1_2025-11-29_01-40-03.csv
+1,SPEC_S1_3ch_default,150.0,1,gz,0.03935299650298858,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\150Hz\mpu_S1_2025-11-29_01-40-03.csv
+1,SPEC_S1_3ch_default,200.0,1,ax,0.026161138029596187,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\200Hz\mpu_S1_2025-11-29_01-40-19.csv
+1,SPEC_S1_3ch_default,200.0,1,ay,0.024785517527440078,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\200Hz\mpu_S1_2025-11-29_01-40-19.csv
+1,SPEC_S1_3ch_default,200.0,1,gz,0.046883601374086065,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\200Hz\mpu_S1_2025-11-29_01-40-19.csv
+1,SPEC_S1_3ch_default,250.0,1,ax,0.026702520247496857,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\250Hz\mpu_S1_2025-11-29_01-40-36.csv
+1,SPEC_S1_3ch_default,250.0,1,ay,0.024367039310274893,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\250Hz\mpu_S1_2025-11-29_01-40-36.csv
+1,SPEC_S1_3ch_default,250.0,1,gz,0.04969238068948049,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\250Hz\mpu_S1_2025-11-29_01-40-36.csv
+1,SPEC_S1_3ch_default,300.0,1,ax,0.026665742884739555,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\300Hz\mpu_S1_2025-11-29_01-40-53.csv
+1,SPEC_S1_3ch_default,300.0,1,ay,0.025822560894097152,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\300Hz\mpu_S1_2025-11-29_01-40-53.csv
+1,SPEC_S1_3ch_default,300.0,1,gz,0.05415778481824737,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\300Hz\mpu_S1_2025-11-29_01-40-53.csv
+1,SPEC_S1_3ch_default,350.0,1,ax,0.026980893627218217,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\350Hz\mpu_S1_2025-11-29_01-41-09.csv
+1,SPEC_S1_3ch_default,350.0,1,ay,0.02491383278229424,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\350Hz\mpu_S1_2025-11-29_01-41-09.csv
+1,SPEC_S1_3ch_default,350.0,1,gz,0.05349959430267263,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\350Hz\mpu_S1_2025-11-29_01-41-09.csv
+1,SPEC_S1_3ch_default,400.0,1,ax,0.026457848106202435,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\400Hz\mpu_S1_2025-11-29_01-41-26.csv
+1,SPEC_S1_3ch_default,400.0,1,ay,0.025137843109855507,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\400Hz\mpu_S1_2025-11-29_01-41-26.csv
+1,SPEC_S1_3ch_default,400.0,1,gz,0.05923270288435457,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\400Hz\mpu_S1_2025-11-29_01-41-26.csv
+1,SPEC_S1_3ch_default,450.0,1,ax,0.026686862007320192,6414,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\450Hz\mpu_S1_2025-11-29_01-41-42.csv
+1,SPEC_S1_3ch_default,450.0,1,ay,0.02561982375887713,6414,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\450Hz\mpu_S1_2025-11-29_01-41-42.csv
+1,SPEC_S1_3ch_default,450.0,1,gz,0.05997590497432603,6414,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\450Hz\mpu_S1_2025-11-29_01-41-42.csv
+1,SPEC_S1_3ch_default,500.0,1,ax,0.02650753802729648,6588,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\500Hz\mpu_S1_2025-11-29_01-41-59.csv
+1,SPEC_S1_3ch_default,500.0,1,ay,0.025610110805274883,6588,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\500Hz\mpu_S1_2025-11-29_01-41-59.csv
+1,SPEC_S1_3ch_default,500.0,1,gz,0.06036536619526021,6588,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\500Hz\mpu_S1_2025-11-29_01-41-59.csv
+1,SPEC_S1_3ch_default,50.0,1,ax,0.025962009292484278,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\50Hz\mpu_S1_2025-11-29_01-39-30.csv
+1,SPEC_S1_3ch_default,50.0,1,ay,0.02424466498660273,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\50Hz\mpu_S1_2025-11-29_01-39-30.csv
+1,SPEC_S1_3ch_default,50.0,1,gz,0.03009520737665176,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\50Hz\mpu_S1_2025-11-29_01-39-30.csv
+1,SPEC_S1_6ch_both,100.0,1,ax,0.025910337142027787,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-42-32.csv
+1,SPEC_S1_6ch_both,100.0,1,ay,0.02422571881719139,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-42-32.csv
+1,SPEC_S1_6ch_both,100.0,1,az,0.04014007999049279,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-42-32.csv
+1,SPEC_S1_6ch_both,100.0,1,gx,0.04273775267219022,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-42-32.csv
+1,SPEC_S1_6ch_both,100.0,1,gy,0.041550173164335936,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-42-32.csv
+1,SPEC_S1_6ch_both,100.0,1,gz,0.03247609461226266,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-42-32.csv
+1,SPEC_S1_6ch_both,150.0,1,ax,0.02639000838260666,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-42-49.csv
+1,SPEC_S1_6ch_both,150.0,1,ay,0.02391209685203605,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-42-49.csv
+1,SPEC_S1_6ch_both,150.0,1,az,0.039641095544867645,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-42-49.csv
+1,SPEC_S1_6ch_both,150.0,1,gx,0.05112918630704847,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-42-49.csv
+1,SPEC_S1_6ch_both,150.0,1,gy,0.04938812160985925,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-42-49.csv
+1,SPEC_S1_6ch_both,150.0,1,gz,0.03896314112519881,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-42-49.csv
+1,SPEC_S1_6ch_both,200.0,1,ax,0.025964563757611994,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-43-05.csv
+1,SPEC_S1_6ch_both,200.0,1,ay,0.02455320944447912,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-43-05.csv
+1,SPEC_S1_6ch_both,200.0,1,az,0.04067076207703287,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-43-05.csv
+1,SPEC_S1_6ch_both,200.0,1,gx,0.05917569157425698,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-43-05.csv
+1,SPEC_S1_6ch_both,200.0,1,gy,0.05790568559322437,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-43-05.csv
+1,SPEC_S1_6ch_both,200.0,1,gz,0.04593366069110993,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-43-05.csv
+1,SPEC_S1_6ch_both,50.0,1,ax,0.02670693657375574,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-42-16.csv
+1,SPEC_S1_6ch_both,50.0,1,ay,0.024805606282485973,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-42-16.csv
+1,SPEC_S1_6ch_both,50.0,1,az,0.037415299979517945,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-42-16.csv
+1,SPEC_S1_6ch_both,50.0,1,gx,0.026498980943998694,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-42-16.csv
+1,SPEC_S1_6ch_both,50.0,1,gy,0.02833060984237253,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-42-16.csv
+1,SPEC_S1_6ch_both,50.0,1,gz,0.024079064147025517,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-42-16.csv
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf 1_with_shaking param_noise_summary.csv
+# File: dlpf 1_with_shaking param_noise_summary.csv (ext: .csv
+# Dir : 
+# Size: 49421 bytes
+# Time: 03/12/2025 09:55
+============================= dlpf 1_with_shaking param_noise_summary.csv
+dlpf,tag,rate_hz,sensor_id,axis,std_dev,n_samples,source_file
+1,GEN_S123_default,100.0,1,ax,1.8734107953387933,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S1_2025-11-29_01-51-41.csv
+1,GEN_S123_default,100.0,1,ay,2.045928912555587,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S1_2025-11-29_01-51-41.csv
+1,GEN_S123_default,100.0,1,gz,47.43715780290432,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S1_2025-11-29_01-51-41.csv
+1,GEN_S123_default,100.0,2,ax,4.099035735182661,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S2_2025-11-29_01-51-41.csv
+1,GEN_S123_default,100.0,2,ay,1.3623687274972123,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S2_2025-11-29_01-51-41.csv
+1,GEN_S123_default,100.0,2,gz,106.41261496036881,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S2_2025-11-29_01-51-41.csv
+1,GEN_S123_default,100.0,3,ax,2.1294786755836688,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S3_2025-11-29_01-51-41.csv
+1,GEN_S123_default,100.0,3,ay,2.606195854412796,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S3_2025-11-29_01-51-41.csv
+1,GEN_S123_default,100.0,3,gz,74.2167599347854,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\100Hz\mpu_S3_2025-11-29_01-51-41.csv
+1,GEN_S123_default,120.0,1,ax,0.5894823637931867,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S1_2025-11-29_01-51-58.csv
+1,GEN_S123_default,120.0,1,ay,0.8480359110202048,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S1_2025-11-29_01-51-58.csv
+1,GEN_S123_default,120.0,1,gz,18.46704361892941,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S1_2025-11-29_01-51-58.csv
+1,GEN_S123_default,120.0,2,ax,1.7027823644073352,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S2_2025-11-29_01-51-58.csv
+1,GEN_S123_default,120.0,2,ay,0.9414154748271304,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S2_2025-11-29_01-51-58.csv
+1,GEN_S123_default,120.0,2,gz,48.75833097741267,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S2_2025-11-29_01-51-58.csv
+1,GEN_S123_default,120.0,3,ax,1.1699643938864746,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S3_2025-11-29_01-51-58.csv
+1,GEN_S123_default,120.0,3,ay,1.1018061238275654,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S3_2025-11-29_01-51-58.csv
+1,GEN_S123_default,120.0,3,gz,30.728926074237393,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\120Hz\mpu_S3_2025-11-29_01-51-58.csv
+1,GEN_S123_default,140.0,1,ax,0.716680415835623,2086,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S1_2025-11-29_01-52-15.csv
+1,GEN_S123_default,140.0,1,ay,1.0177497325060303,2086,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S1_2025-11-29_01-52-15.csv
+1,GEN_S123_default,140.0,1,gz,20.643343441773872,2086,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S1_2025-11-29_01-52-15.csv
+1,GEN_S123_default,140.0,2,ax,1.9282660873522635,2086,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S2_2025-11-29_01-52-15.csv
+1,GEN_S123_default,140.0,2,ay,1.1652980067030387,2086,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S2_2025-11-29_01-52-15.csv
+1,GEN_S123_default,140.0,2,gz,60.06681935209314,2086,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S2_2025-11-29_01-52-15.csv
+1,GEN_S123_default,140.0,3,ax,1.267194755070346,2086,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S3_2025-11-29_01-52-15.csv
+1,GEN_S123_default,140.0,3,ay,0.7187553916954872,2086,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S3_2025-11-29_01-52-15.csv
+1,GEN_S123_default,140.0,3,gz,21.521645054514813,2086,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\140Hz\mpu_S3_2025-11-29_01-52-15.csv
+1,GEN_S123_default,160.0,1,ax,1.2411049781361747,2154,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S1_2025-11-29_01-52-32.csv
+1,GEN_S123_default,160.0,1,ay,1.106623356806698,2154,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S1_2025-11-29_01-52-32.csv
+1,GEN_S123_default,160.0,1,gz,23.7321284241975,2154,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S1_2025-11-29_01-52-32.csv
+1,GEN_S123_default,160.0,2,ax,2.123484480664378,2154,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S2_2025-11-29_01-52-32.csv
+1,GEN_S123_default,160.0,2,ay,1.2019327386610348,2154,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S2_2025-11-29_01-52-32.csv
+1,GEN_S123_default,160.0,2,gz,60.04399764923938,2154,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S2_2025-11-29_01-52-32.csv
+1,GEN_S123_default,160.0,3,ax,1.6256685628688938,2154,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S3_2025-11-29_01-52-32.csv
+1,GEN_S123_default,160.0,3,ay,1.345614314347282,2154,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S3_2025-11-29_01-52-32.csv
+1,GEN_S123_default,160.0,3,gz,30.840635793923965,2154,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\160Hz\mpu_S3_2025-11-29_01-52-32.csv
+1,GEN_S123_default,180.0,1,ax,2.595866493425546,2192,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S1_2025-11-29_01-52-48.csv
+1,GEN_S123_default,180.0,1,ay,1.6124917859376848,2192,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S1_2025-11-29_01-52-48.csv
+1,GEN_S123_default,180.0,1,gz,40.901459757718925,2192,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S1_2025-11-29_01-52-48.csv
+1,GEN_S123_default,180.0,2,ax,1.9934817134518148,2192,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S2_2025-11-29_01-52-48.csv
+1,GEN_S123_default,180.0,2,ay,1.6809136065639025,2192,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S2_2025-11-29_01-52-48.csv
+1,GEN_S123_default,180.0,2,gz,55.333188127743135,2192,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S2_2025-11-29_01-52-48.csv
+1,GEN_S123_default,180.0,3,ax,1.8581325513573794,2192,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S3_2025-11-29_01-52-48.csv
+1,GEN_S123_default,180.0,3,ay,3.8333538228509085,2192,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S3_2025-11-29_01-52-48.csv
+1,GEN_S123_default,180.0,3,gz,59.127194587485434,2192,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\180Hz\mpu_S3_2025-11-29_01-52-48.csv
+1,GEN_S123_default,200.0,1,ax,1.0934749860256445,2196,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S1_2025-11-29_01-53-05.csv
+1,GEN_S123_default,200.0,1,ay,1.4217034290010866,2196,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S1_2025-11-29_01-53-05.csv
+1,GEN_S123_default,200.0,1,gz,30.507039034374497,2196,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S1_2025-11-29_01-53-05.csv
+1,GEN_S123_default,200.0,2,ax,2.9107753322230545,2196,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S2_2025-11-29_01-53-05.csv
+1,GEN_S123_default,200.0,2,ay,1.429623835036613,2196,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S2_2025-11-29_01-53-05.csv
+1,GEN_S123_default,200.0,2,gz,78.45145082388473,2196,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S2_2025-11-29_01-53-05.csv
+1,GEN_S123_default,200.0,3,ax,1.7752086238269325,2196,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S3_2025-11-29_01-53-05.csv
+1,GEN_S123_default,200.0,3,ay,1.5851338043958996,2196,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S3_2025-11-29_01-53-05.csv
+1,GEN_S123_default,200.0,3,gz,42.011970407530036,2196,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\200Hz\mpu_S3_2025-11-29_01-53-05.csv
+1,GEN_S123_default,20.0,1,ax,1.7641785543288868,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S1_2025-11-29_01-50-34.csv
+1,GEN_S123_default,20.0,1,ay,1.395050070964009,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S1_2025-11-29_01-50-34.csv
+1,GEN_S123_default,20.0,1,gz,28.05185645665936,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S1_2025-11-29_01-50-34.csv
+1,GEN_S123_default,20.0,2,ax,2.3396952504556228,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S2_2025-11-29_01-50-34.csv
+1,GEN_S123_default,20.0,2,ay,2.03706712604161,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S2_2025-11-29_01-50-34.csv
+1,GEN_S123_default,20.0,2,gz,50.35533945413412,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S2_2025-11-29_01-50-34.csv
+1,GEN_S123_default,20.0,3,ax,1.5345547540049174,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S3_2025-11-29_01-50-34.csv
+1,GEN_S123_default,20.0,3,ay,2.5055642138134897,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S3_2025-11-29_01-50-34.csv
+1,GEN_S123_default,20.0,3,gz,48.99270568562279,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\20Hz\mpu_S3_2025-11-29_01-50-34.csv
+1,GEN_S123_default,40.0,1,ax,1.461290265317465,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S1_2025-11-29_01-50-51.csv
+1,GEN_S123_default,40.0,1,ay,1.2204066031344165,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S1_2025-11-29_01-50-51.csv
+1,GEN_S123_default,40.0,1,gz,24.747321138578133,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S1_2025-11-29_01-50-51.csv
+1,GEN_S123_default,40.0,2,ax,2.216818487814371,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S2_2025-11-29_01-50-51.csv
+1,GEN_S123_default,40.0,2,ay,1.1217820374059382,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S2_2025-11-29_01-50-51.csv
+1,GEN_S123_default,40.0,2,gz,61.27456299806302,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S2_2025-11-29_01-50-51.csv
+1,GEN_S123_default,40.0,3,ax,1.1196318291092464,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S3_2025-11-29_01-50-51.csv
+1,GEN_S123_default,40.0,3,ay,1.5858740705920151,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S3_2025-11-29_01-50-51.csv
+1,GEN_S123_default,40.0,3,gz,23.866715681480823,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\40Hz\mpu_S3_2025-11-29_01-50-51.csv
+1,GEN_S123_default,60.0,1,ax,1.84349937950068,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S1_2025-11-29_01-51-07.csv
+1,GEN_S123_default,60.0,1,ay,1.3769610418586213,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S1_2025-11-29_01-51-07.csv
+1,GEN_S123_default,60.0,1,gz,32.32970447299701,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S1_2025-11-29_01-51-07.csv
+1,GEN_S123_default,60.0,2,ax,2.9941852892145326,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S2_2025-11-29_01-51-07.csv
+1,GEN_S123_default,60.0,2,ay,1.7911738927350722,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S2_2025-11-29_01-51-07.csv
+1,GEN_S123_default,60.0,2,gz,77.99455517438102,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S2_2025-11-29_01-51-07.csv
+1,GEN_S123_default,60.0,3,ax,2.0842723392239546,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S3_2025-11-29_01-51-07.csv
+1,GEN_S123_default,60.0,3,ay,2.261204087321368,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S3_2025-11-29_01-51-07.csv
+1,GEN_S123_default,60.0,3,gz,35.65177638310286,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\60Hz\mpu_S3_2025-11-29_01-51-07.csv
+1,GEN_S123_default,80.0,1,ax,1.5351509241732615,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S1_2025-11-29_01-51-24.csv
+1,GEN_S123_default,80.0,1,ay,2.2458077294421934,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S1_2025-11-29_01-51-24.csv
+1,GEN_S123_default,80.0,1,gz,70.02883274008849,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S1_2025-11-29_01-51-24.csv
+1,GEN_S123_default,80.0,2,ax,1.8725802471821411,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S2_2025-11-29_01-51-24.csv
+1,GEN_S123_default,80.0,2,ay,1.570072927299736,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S2_2025-11-29_01-51-24.csv
+1,GEN_S123_default,80.0,2,gz,49.66799788837212,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S2_2025-11-29_01-51-24.csv
+1,GEN_S123_default,80.0,3,ax,1.1837305486241063,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S3_2025-11-29_01-51-24.csv
+1,GEN_S123_default,80.0,3,ay,3.440788020865147,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S3_2025-11-29_01-51-24.csv
+1,GEN_S123_default,80.0,3,gz,86.06361488663875,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S123_default\80Hz\mpu_S3_2025-11-29_01-51-24.csv
+1,GEN_S1_default,100.0,1,ax,1.1528450708197155,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\100Hz\mpu_S1_2025-11-29_01-48-54.csv
+1,GEN_S1_default,100.0,1,ay,1.8451276739153915,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\100Hz\mpu_S1_2025-11-29_01-48-54.csv
+1,GEN_S1_default,100.0,1,gz,25.2699032027064,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\100Hz\mpu_S1_2025-11-29_01-48-54.csv
+1,GEN_S1_default,120.0,1,ax,3.1937452321269335,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\120Hz\mpu_S1_2025-11-29_01-49-11.csv
+1,GEN_S1_default,120.0,1,ay,3.0858210526621166,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\120Hz\mpu_S1_2025-11-29_01-49-11.csv
+1,GEN_S1_default,120.0,1,gz,61.356072148445364,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\120Hz\mpu_S1_2025-11-29_01-49-11.csv
+1,GEN_S1_default,140.0,1,ax,3.5133086649686596,2100,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\140Hz\mpu_S1_2025-11-29_01-49-28.csv
+1,GEN_S1_default,140.0,1,ay,1.6630695245173546,2100,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\140Hz\mpu_S1_2025-11-29_01-49-28.csv
+1,GEN_S1_default,140.0,1,gz,62.43981238892793,2100,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\140Hz\mpu_S1_2025-11-29_01-49-28.csv
+1,GEN_S1_default,160.0,1,ax,1.7448208122198723,2400,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\160Hz\mpu_S1_2025-11-29_01-49-44.csv
+1,GEN_S1_default,160.0,1,ay,1.4866085606131139,2400,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\160Hz\mpu_S1_2025-11-29_01-49-44.csv
+1,GEN_S1_default,160.0,1,gz,38.046207918476426,2400,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\160Hz\mpu_S1_2025-11-29_01-49-44.csv
+1,GEN_S1_default,180.0,1,ax,0.9945330965435955,2700,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\180Hz\mpu_S1_2025-11-29_01-50-01.csv
+1,GEN_S1_default,180.0,1,ay,0.6891422840764998,2700,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\180Hz\mpu_S1_2025-11-29_01-50-01.csv
+1,GEN_S1_default,180.0,1,gz,18.60838228635924,2700,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\180Hz\mpu_S1_2025-11-29_01-50-01.csv
+1,GEN_S1_default,200.0,1,ax,1.1595195847746174,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\200Hz\mpu_S1_2025-11-29_01-50-17.csv
+1,GEN_S1_default,200.0,1,ay,0.7721121538650072,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\200Hz\mpu_S1_2025-11-29_01-50-17.csv
+1,GEN_S1_default,200.0,1,gz,18.72623595789138,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\200Hz\mpu_S1_2025-11-29_01-50-17.csv
+1,GEN_S1_default,20.0,1,ax,1.6660729876528766,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\20Hz\mpu_S1_2025-11-29_01-47-48.csv
+1,GEN_S1_default,20.0,1,ay,0.9193723067633217,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\20Hz\mpu_S1_2025-11-29_01-47-48.csv
+1,GEN_S1_default,20.0,1,gz,21.391137305304458,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\20Hz\mpu_S1_2025-11-29_01-47-48.csv
+1,GEN_S1_default,40.0,1,ax,1.4975259064074717,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\40Hz\mpu_S1_2025-11-29_01-48-04.csv
+1,GEN_S1_default,40.0,1,ay,1.5406653582483585,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\40Hz\mpu_S1_2025-11-29_01-48-04.csv
+1,GEN_S1_default,40.0,1,gz,30.50122463459235,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\40Hz\mpu_S1_2025-11-29_01-48-04.csv
+1,GEN_S1_default,60.0,1,ax,2.870775473114867,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\60Hz\mpu_S1_2025-11-29_01-48-21.csv
+1,GEN_S1_default,60.0,1,ay,1.9448203574689125,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\60Hz\mpu_S1_2025-11-29_01-48-21.csv
+1,GEN_S1_default,60.0,1,gz,35.93305180118283,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\60Hz\mpu_S1_2025-11-29_01-48-21.csv
+1,GEN_S1_default,80.0,1,ax,1.3099753019501446,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\80Hz\mpu_S1_2025-11-29_01-48-38.csv
+1,GEN_S1_default,80.0,1,ay,1.564522612131276,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\80Hz\mpu_S1_2025-11-29_01-48-38.csv
+1,GEN_S1_default,80.0,1,gz,36.33011820434442,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\GEN_S1_default\80Hz\mpu_S1_2025-11-29_01-48-38.csv
+1,SPEC_S123_6ch_both,100.0,1,ax,1.5409742729846783,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,1,ay,1.6022055471588392,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,1,az,3.370556728706802,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,1,gx,27.75056898755356,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,1,gy,48.89235234155469,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,1,gz,32.602061860825415,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,2,ax,3.9262851183220198,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,2,ay,3.0905898484318164,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,2,az,2.4600650369113612,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,2,gx,70.64998672882881,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,2,gy,107.38463003424602,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,2,gz,101.2882060538313,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,3,ax,2.91340918917905,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,3,ay,5.165892463837982,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,3,az,3.218561453962127,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,3,gx,82.46818949380473,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,3,gy,116.9231819280069,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,100.0,3,gz,139.3157540824096,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_02-00-18.csv
+1,SPEC_S123_6ch_both,150.0,1,ax,2.029017021380042,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,1,ay,1.7990616337837921,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,1,az,1.8220705967530397,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,1,gx,33.70620898555772,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,1,gy,35.615130318172085,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,1,gz,29.944194444336592,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,2,ax,2.531685851302042,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,2,ay,1.6498085550724695,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,2,az,1.8553042602204446,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,2,gx,47.60160628899082,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,2,gy,80.44564366158102,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,2,gz,63.06230124896085,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,3,ax,1.634586558792569,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,3,ay,2.4163130912904824,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,3,az,1.959123992659154,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,3,gx,62.20469904264498,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,3,gy,68.12590001762803,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,150.0,3,gz,63.76600329921242,2094,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_02-00-34.csv
+1,SPEC_S123_6ch_both,200.0,1,ax,1.1882445351568027,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,1,ay,1.1379322817971047,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,1,az,1.378392175485938,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,1,gx,14.175124935382906,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,1,gy,26.6068056332816,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,1,gz,26.26028408324942,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,2,ax,1.0410051336613564,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,2,ay,1.0179229032397183,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,2,az,1.1023887680477111,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,2,gx,28.144020170167895,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,2,gy,44.56157061151736,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,2,gz,29.21489843857172,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,3,ax,1.0988789315345657,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,3,ay,1.1812374515538073,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,3,az,1.4868706549152133,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,3,gx,28.32371244970858,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,3,gy,64.62279313483663,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,200.0,3,gz,38.4458081553891,2155,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_02-00-51.csv
+1,SPEC_S123_6ch_both,50.0,1,ax,1.409188959710955,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,1,ay,1.376959063873066,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,1,az,2.6502517240664436,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,1,gx,27.96892571814707,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,1,gy,38.707584265847885,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,1,gz,26.856005885140924,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,2,ax,3.7054263416789324,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,2,ay,2.4053141453482145,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,2,az,2.2787779418419696,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,2,gx,54.35200522689084,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,2,gy,89.83348213710006,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,2,gz,91.85205790311372,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,3,ax,2.4506852346952392,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,3,ay,4.019568259537852,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,3,az,2.266413165160823,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,3,gx,56.64772554527296,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,3,gy,80.94862269433516,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_02-00-01.csv
+1,SPEC_S123_6ch_both,50.0,3,gz,106.45851683532308,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_02-00-01.csv
+1,SPEC_S1_1ch_acc,100.0,1,ax,1.4745777326829825,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\100Hz\mpu_S1_2025-11-29_01-53-38.csv
+1,SPEC_S1_1ch_acc,100.0,1,ay,1.338296156523504,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\100Hz\mpu_S1_2025-11-29_01-53-38.csv
+1,SPEC_S1_1ch_acc,100.0,1,az,1.868709878564017,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\100Hz\mpu_S1_2025-11-29_01-53-38.csv
+1,SPEC_S1_1ch_acc,150.0,1,ax,1.1022924231205184,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\150Hz\mpu_S1_2025-11-29_01-53-55.csv
+1,SPEC_S1_1ch_acc,150.0,1,ay,1.2026870880591236,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\150Hz\mpu_S1_2025-11-29_01-53-55.csv
+1,SPEC_S1_1ch_acc,150.0,1,az,1.7278839980866119,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\150Hz\mpu_S1_2025-11-29_01-53-55.csv
+1,SPEC_S1_1ch_acc,200.0,1,ax,0.8813140008911198,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\200Hz\mpu_S1_2025-11-29_01-54-12.csv
+1,SPEC_S1_1ch_acc,200.0,1,ay,1.0072337234071684,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\200Hz\mpu_S1_2025-11-29_01-54-12.csv
+1,SPEC_S1_1ch_acc,200.0,1,az,1.8880962280088196,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\200Hz\mpu_S1_2025-11-29_01-54-12.csv
+1,SPEC_S1_1ch_acc,250.0,1,ax,1.3819182845054088,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\250Hz\mpu_S1_2025-11-29_01-54-28.csv
+1,SPEC_S1_1ch_acc,250.0,1,ay,1.3736579693812698,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\250Hz\mpu_S1_2025-11-29_01-54-28.csv
+1,SPEC_S1_1ch_acc,250.0,1,az,2.47508542836024,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\250Hz\mpu_S1_2025-11-29_01-54-28.csv
+1,SPEC_S1_1ch_acc,300.0,1,ax,2.2914815585233597,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\300Hz\mpu_S1_2025-11-29_01-54-45.csv
+1,SPEC_S1_1ch_acc,300.0,1,ay,0.9114419676243725,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\300Hz\mpu_S1_2025-11-29_01-54-45.csv
+1,SPEC_S1_1ch_acc,300.0,1,az,1.374374377436606,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\300Hz\mpu_S1_2025-11-29_01-54-45.csv
+1,SPEC_S1_1ch_acc,350.0,1,ax,1.5057250635649502,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\350Hz\mpu_S1_2025-11-29_01-55-02.csv
+1,SPEC_S1_1ch_acc,350.0,1,ay,0.9452315533530931,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\350Hz\mpu_S1_2025-11-29_01-55-02.csv
+1,SPEC_S1_1ch_acc,350.0,1,az,1.8233958057188446,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\350Hz\mpu_S1_2025-11-29_01-55-02.csv
+1,SPEC_S1_1ch_acc,400.0,1,ax,0.715863578566397,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\400Hz\mpu_S1_2025-11-29_01-55-18.csv
+1,SPEC_S1_1ch_acc,400.0,1,ay,0.7448642950784343,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\400Hz\mpu_S1_2025-11-29_01-55-18.csv
+1,SPEC_S1_1ch_acc,400.0,1,az,1.9880021292458525,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\400Hz\mpu_S1_2025-11-29_01-55-18.csv
+1,SPEC_S1_1ch_acc,450.0,1,ax,0.8772858069852196,6750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\450Hz\mpu_S1_2025-11-29_01-55-35.csv
+1,SPEC_S1_1ch_acc,450.0,1,ay,0.923255377940916,6750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\450Hz\mpu_S1_2025-11-29_01-55-35.csv
+1,SPEC_S1_1ch_acc,450.0,1,az,1.9389528040124389,6750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\450Hz\mpu_S1_2025-11-29_01-55-35.csv
+1,SPEC_S1_1ch_acc,500.0,1,ax,0.7921558560063559,7500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\500Hz\mpu_S1_2025-11-29_01-55-51.csv
+1,SPEC_S1_1ch_acc,500.0,1,ay,0.9654456181923742,7500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\500Hz\mpu_S1_2025-11-29_01-55-51.csv
+1,SPEC_S1_1ch_acc,500.0,1,az,1.6895708829025593,7500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\500Hz\mpu_S1_2025-11-29_01-55-51.csv
+1,SPEC_S1_1ch_acc,50.0,1,ax,1.4958438431399934,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\50Hz\mpu_S1_2025-11-29_01-53-22.csv
+1,SPEC_S1_1ch_acc,50.0,1,ay,1.7977596617748364,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\50Hz\mpu_S1_2025-11-29_01-53-22.csv
+1,SPEC_S1_1ch_acc,50.0,1,az,2.3417185338707442,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_1ch_acc\50Hz\mpu_S1_2025-11-29_01-53-22.csv
+1,SPEC_S1_3ch_default,100.0,1,ax,1.367544217127589,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\100Hz\mpu_S1_2025-11-29_01-56-25.csv
+1,SPEC_S1_3ch_default,100.0,1,ay,1.0559563944887431,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\100Hz\mpu_S1_2025-11-29_01-56-25.csv
+1,SPEC_S1_3ch_default,100.0,1,gz,21.443342272047406,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\100Hz\mpu_S1_2025-11-29_01-56-25.csv
+1,SPEC_S1_3ch_default,150.0,1,ax,1.217577193971556,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\150Hz\mpu_S1_2025-11-29_01-56-41.csv
+1,SPEC_S1_3ch_default,150.0,1,ay,0.9689397772495348,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\150Hz\mpu_S1_2025-11-29_01-56-41.csv
+1,SPEC_S1_3ch_default,150.0,1,gz,21.640573263558146,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\150Hz\mpu_S1_2025-11-29_01-56-41.csv
+1,SPEC_S1_3ch_default,200.0,1,ax,0.7171601526177083,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\200Hz\mpu_S1_2025-11-29_01-56-58.csv
+1,SPEC_S1_3ch_default,200.0,1,ay,0.6441086518028812,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\200Hz\mpu_S1_2025-11-29_01-56-58.csv
+1,SPEC_S1_3ch_default,200.0,1,gz,13.888553747308372,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\200Hz\mpu_S1_2025-11-29_01-56-58.csv
+1,SPEC_S1_3ch_default,250.0,1,ax,1.2823009200826505,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\250Hz\mpu_S1_2025-11-29_01-57-15.csv
+1,SPEC_S1_3ch_default,250.0,1,ay,0.8499173140135478,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\250Hz\mpu_S1_2025-11-29_01-57-15.csv
+1,SPEC_S1_3ch_default,250.0,1,gz,18.87146357798433,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\250Hz\mpu_S1_2025-11-29_01-57-15.csv
+1,SPEC_S1_3ch_default,300.0,1,ax,2.721275239467916,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\300Hz\mpu_S1_2025-11-29_01-57-31.csv
+1,SPEC_S1_3ch_default,300.0,1,ay,1.6876909949010601,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\300Hz\mpu_S1_2025-11-29_01-57-31.csv
+1,SPEC_S1_3ch_default,300.0,1,gz,34.44925509359297,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\300Hz\mpu_S1_2025-11-29_01-57-31.csv
+1,SPEC_S1_3ch_default,350.0,1,ax,0.9369897793515978,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\350Hz\mpu_S1_2025-11-29_01-57-48.csv
+1,SPEC_S1_3ch_default,350.0,1,ay,0.5071538607900268,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\350Hz\mpu_S1_2025-11-29_01-57-48.csv
+1,SPEC_S1_3ch_default,350.0,1,gz,13.511280374077328,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\350Hz\mpu_S1_2025-11-29_01-57-48.csv
+1,SPEC_S1_3ch_default,400.0,1,ax,0.8119406052970733,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\400Hz\mpu_S1_2025-11-29_01-58-05.csv
+1,SPEC_S1_3ch_default,400.0,1,ay,0.8528329891620662,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\400Hz\mpu_S1_2025-11-29_01-58-05.csv
+1,SPEC_S1_3ch_default,400.0,1,gz,14.631573188110368,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\400Hz\mpu_S1_2025-11-29_01-58-05.csv
+1,SPEC_S1_3ch_default,450.0,1,ax,1.5974935369852143,6420,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\450Hz\mpu_S1_2025-11-29_01-58-21.csv
+1,SPEC_S1_3ch_default,450.0,1,ay,1.6172571205536117,6420,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\450Hz\mpu_S1_2025-11-29_01-58-21.csv
+1,SPEC_S1_3ch_default,450.0,1,gz,27.525720931098654,6420,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\450Hz\mpu_S1_2025-11-29_01-58-21.csv
+1,SPEC_S1_3ch_default,500.0,1,ax,0.8814514745588053,6601,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\500Hz\mpu_S1_2025-11-29_01-58-38.csv
+1,SPEC_S1_3ch_default,500.0,1,ay,1.1290532362189634,6601,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\500Hz\mpu_S1_2025-11-29_01-58-38.csv
+1,SPEC_S1_3ch_default,500.0,1,gz,19.662690374258155,6601,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\500Hz\mpu_S1_2025-11-29_01-58-38.csv
+1,SPEC_S1_3ch_default,50.0,1,ax,0.7992965380078958,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\50Hz\mpu_S1_2025-11-29_01-56-08.csv
+1,SPEC_S1_3ch_default,50.0,1,ay,0.8521366152414499,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\50Hz\mpu_S1_2025-11-29_01-56-08.csv
+1,SPEC_S1_3ch_default,50.0,1,gz,20.594682944894057,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_3ch_default\50Hz\mpu_S1_2025-11-29_01-56-08.csv
+1,SPEC_S1_6ch_both,100.0,1,ax,1.1412672936396584,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-59-11.csv
+1,SPEC_S1_6ch_both,100.0,1,ay,1.169441119327635,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-59-11.csv
+1,SPEC_S1_6ch_both,100.0,1,az,1.5335484172667841,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-59-11.csv
+1,SPEC_S1_6ch_both,100.0,1,gx,29.491404106155606,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-59-11.csv
+1,SPEC_S1_6ch_both,100.0,1,gy,39.48553403139395,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-59-11.csv
+1,SPEC_S1_6ch_both,100.0,1,gz,20.525153567436625,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-59-11.csv
+1,SPEC_S1_6ch_both,150.0,1,ax,1.4597004677351364,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-59-28.csv
+1,SPEC_S1_6ch_both,150.0,1,ay,1.8791432642714756,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-59-28.csv
+1,SPEC_S1_6ch_both,150.0,1,az,1.2938725702451797,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-59-28.csv
+1,SPEC_S1_6ch_both,150.0,1,gx,28.281422882990004,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-59-28.csv
+1,SPEC_S1_6ch_both,150.0,1,gy,28.558562524749657,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-59-28.csv
+1,SPEC_S1_6ch_both,150.0,1,gz,22.07376843003357,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-59-28.csv
+1,SPEC_S1_6ch_both,200.0,1,ax,1.2772285422266112,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-59-44.csv
+1,SPEC_S1_6ch_both,200.0,1,ay,2.498774433333214,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-59-44.csv
+1,SPEC_S1_6ch_both,200.0,1,az,1.540542937738937,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-59-44.csv
+1,SPEC_S1_6ch_both,200.0,1,gx,41.814304294047304,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-59-44.csv
+1,SPEC_S1_6ch_both,200.0,1,gy,40.10088738027983,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-59-44.csv
+1,SPEC_S1_6ch_both,200.0,1,gz,36.59319376479017,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-59-44.csv
+1,SPEC_S1_6ch_both,50.0,1,ax,1.5305276704377047,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-58-54.csv
+1,SPEC_S1_6ch_both,50.0,1,ay,0.9286369056558664,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-58-54.csv
+1,SPEC_S1_6ch_both,50.0,1,az,1.4377853477762887,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-58-54.csv
+1,SPEC_S1_6ch_both,50.0,1,gx,27.886712412595333,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-58-54.csv
+1,SPEC_S1_6ch_both,50.0,1,gy,27.731150112486137,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-58-54.csv
+1,SPEC_S1_6ch_both,50.0,1,gz,19.164101774776572,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf1\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-58-54.csv
+
+------------------------------ END OF FILE ------------------------------
+
+============================= dlpf 3 param_noise_summary.csv
+# File: dlpf 3 param_noise_summary.csv (ext: .csv
+# Dir : 
+# Size: 49970 bytes
+# Time: 03/12/2025 09:09
+============================= dlpf 3 param_noise_summary.csv
+dlpf,tag,rate_hz,sensor_id,axis,std_dev,n_samples,source_file
+3,GEN_S123_default,100.0,1,ax,0.014778892240159273,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\100Hz\mpu_S1_2025-11-29_01-11-44.csv
+3,GEN_S123_default,100.0,1,ay,0.013490187088340643,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\100Hz\mpu_S1_2025-11-29_01-11-44.csv
+3,GEN_S123_default,100.0,1,gz,0.027579154461158308,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\100Hz\mpu_S1_2025-11-29_01-11-44.csv
+3,GEN_S123_default,100.0,2,ax,0.01750256979996981,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\100Hz\mpu_S2_2025-11-29_01-11-44.csv
+3,GEN_S123_default,100.0,2,ay,0.014637058094744023,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\100Hz\mpu_S2_2025-11-29_01-11-44.csv
+3,GEN_S123_default,100.0,2,gz,0.031589922017467464,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\100Hz\mpu_S2_2025-11-29_01-11-44.csv
+3,GEN_S123_default,100.0,3,ax,0.014249272839787384,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\100Hz\mpu_S3_2025-11-29_01-11-44.csv
+3,GEN_S123_default,100.0,3,ay,0.01414207103223879,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\100Hz\mpu_S3_2025-11-29_01-11-44.csv
+3,GEN_S123_default,100.0,3,gz,0.03617127605264617,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\100Hz\mpu_S3_2025-11-29_01-11-44.csv
+3,GEN_S123_default,120.0,1,ax,0.014600833782947875,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\120Hz\mpu_S1_2025-11-29_01-12-01.csv
+3,GEN_S123_default,120.0,1,ay,0.013415236513668743,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\120Hz\mpu_S1_2025-11-29_01-12-01.csv
+3,GEN_S123_default,120.0,1,gz,0.029389931240587867,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\120Hz\mpu_S1_2025-11-29_01-12-01.csv
+3,GEN_S123_default,120.0,2,ax,0.020095023999226354,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\120Hz\mpu_S2_2025-11-29_01-12-01.csv
+3,GEN_S123_default,120.0,2,ay,0.013765454429715133,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\120Hz\mpu_S2_2025-11-29_01-12-01.csv
+3,GEN_S123_default,120.0,2,gz,0.034653549748032315,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\120Hz\mpu_S2_2025-11-29_01-12-01.csv
+3,GEN_S123_default,120.0,3,ax,0.014033043010584141,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\120Hz\mpu_S3_2025-11-29_01-12-01.csv
+3,GEN_S123_default,120.0,3,ay,0.013906766900402334,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\120Hz\mpu_S3_2025-11-29_01-12-01.csv
+3,GEN_S123_default,120.0,3,gz,0.03399455043360108,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\120Hz\mpu_S3_2025-11-29_01-12-01.csv
+3,GEN_S123_default,140.0,1,ax,0.014502714212349327,2084,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\140Hz\mpu_S1_2025-11-29_01-12-17.csv
+3,GEN_S123_default,140.0,1,ay,0.013246219308740863,2084,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\140Hz\mpu_S1_2025-11-29_01-12-17.csv
+3,GEN_S123_default,140.0,1,gz,0.029772289991948347,2084,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\140Hz\mpu_S1_2025-11-29_01-12-17.csv
+3,GEN_S123_default,140.0,2,ax,0.019731127421477763,2084,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\140Hz\mpu_S2_2025-11-29_01-12-17.csv
+3,GEN_S123_default,140.0,2,ay,0.014398982213013561,2084,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\140Hz\mpu_S2_2025-11-29_01-12-17.csv
+3,GEN_S123_default,140.0,2,gz,0.036081862566166446,2084,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\140Hz\mpu_S2_2025-11-29_01-12-17.csv
+3,GEN_S123_default,140.0,3,ax,0.013995237823563466,2084,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\140Hz\mpu_S3_2025-11-29_01-12-17.csv
+3,GEN_S123_default,140.0,3,ay,0.013770138386295094,2084,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\140Hz\mpu_S3_2025-11-29_01-12-17.csv
+3,GEN_S123_default,140.0,3,gz,0.03454177588731491,2084,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\140Hz\mpu_S3_2025-11-29_01-12-17.csv
+3,GEN_S123_default,160.0,1,ax,0.014115953921736896,2153,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\160Hz\mpu_S1_2025-11-29_01-12-34.csv
+3,GEN_S123_default,160.0,1,ay,0.01324270902284351,2153,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\160Hz\mpu_S1_2025-11-29_01-12-34.csv
+3,GEN_S123_default,160.0,1,gz,0.031205404761601895,2153,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\160Hz\mpu_S1_2025-11-29_01-12-34.csv
+3,GEN_S123_default,160.0,2,ax,0.020796363338226355,2153,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\160Hz\mpu_S2_2025-11-29_01-12-34.csv
+3,GEN_S123_default,160.0,2,ay,0.014475718384564063,2153,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\160Hz\mpu_S2_2025-11-29_01-12-34.csv
+3,GEN_S123_default,160.0,2,gz,0.03584027229259041,2153,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\160Hz\mpu_S2_2025-11-29_01-12-34.csv
+3,GEN_S123_default,160.0,3,ax,0.014073995363071898,2153,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\160Hz\mpu_S3_2025-11-29_01-12-34.csv
+3,GEN_S123_default,160.0,3,ay,0.013528020317587812,2153,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\160Hz\mpu_S3_2025-11-29_01-12-34.csv
+3,GEN_S123_default,160.0,3,gz,0.03482607914421989,2153,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\160Hz\mpu_S3_2025-11-29_01-12-34.csv
+3,GEN_S123_default,180.0,1,ax,0.014507951650459839,2190,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\180Hz\mpu_S1_2025-11-29_01-12-51.csv
+3,GEN_S123_default,180.0,1,ay,0.013206926201286846,2190,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\180Hz\mpu_S1_2025-11-29_01-12-51.csv
+3,GEN_S123_default,180.0,1,gz,0.030559867662671037,2190,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\180Hz\mpu_S1_2025-11-29_01-12-51.csv
+3,GEN_S123_default,180.0,2,ax,0.022717469006018332,2190,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\180Hz\mpu_S2_2025-11-29_01-12-51.csv
+3,GEN_S123_default,180.0,2,ay,0.014004182834177066,2190,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\180Hz\mpu_S2_2025-11-29_01-12-51.csv
+3,GEN_S123_default,180.0,2,gz,0.03648419800232187,2190,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\180Hz\mpu_S2_2025-11-29_01-12-51.csv
+3,GEN_S123_default,180.0,3,ax,0.013910479207781329,2190,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\180Hz\mpu_S3_2025-11-29_01-12-51.csv
+3,GEN_S123_default,180.0,3,ay,0.01335088184025972,2190,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\180Hz\mpu_S3_2025-11-29_01-12-51.csv
+3,GEN_S123_default,180.0,3,gz,0.03601263559964465,2190,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\180Hz\mpu_S3_2025-11-29_01-12-51.csv
+3,GEN_S123_default,200.0,1,ax,0.014803665712405807,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\200Hz\mpu_S1_2025-11-29_01-13-08.csv
+3,GEN_S123_default,200.0,1,ay,0.013150485107060296,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\200Hz\mpu_S1_2025-11-29_01-13-08.csv
+3,GEN_S123_default,200.0,1,gz,0.03283711664615923,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\200Hz\mpu_S1_2025-11-29_01-13-08.csv
+3,GEN_S123_default,200.0,2,ax,0.02185756635692434,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\200Hz\mpu_S2_2025-11-29_01-13-08.csv
+3,GEN_S123_default,200.0,2,ay,0.014543678102555429,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\200Hz\mpu_S2_2025-11-29_01-13-08.csv
+3,GEN_S123_default,200.0,2,gz,0.03746868736459412,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\200Hz\mpu_S2_2025-11-29_01-13-08.csv
+3,GEN_S123_default,200.0,3,ax,0.013855134427391114,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\200Hz\mpu_S3_2025-11-29_01-13-08.csv
+3,GEN_S123_default,200.0,3,ay,0.01328404359171127,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\200Hz\mpu_S3_2025-11-29_01-13-08.csv
+3,GEN_S123_default,200.0,3,gz,0.03748576153259183,2197,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\200Hz\mpu_S3_2025-11-29_01-13-08.csv
+3,GEN_S123_default,20.0,1,ax,0.014563055178618741,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\20Hz\mpu_S1_2025-11-29_01-10-37.csv
+3,GEN_S123_default,20.0,1,ay,0.012925848386617091,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\20Hz\mpu_S1_2025-11-29_01-10-37.csv
+3,GEN_S123_default,20.0,1,gz,0.015629160295386985,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\20Hz\mpu_S1_2025-11-29_01-10-37.csv
+3,GEN_S123_default,20.0,2,ax,0.01396239483822361,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\20Hz\mpu_S2_2025-11-29_01-10-37.csv
+3,GEN_S123_default,20.0,2,ay,0.014423359183659818,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\20Hz\mpu_S2_2025-11-29_01-10-37.csv
+3,GEN_S123_default,20.0,2,gz,0.01906275042192823,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\20Hz\mpu_S2_2025-11-29_01-10-37.csv
+3,GEN_S123_default,20.0,3,ax,0.013811285710699358,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\20Hz\mpu_S3_2025-11-29_01-10-37.csv
+3,GEN_S123_default,20.0,3,ay,0.014206959690147649,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\20Hz\mpu_S3_2025-11-29_01-10-37.csv
+3,GEN_S123_default,20.0,3,gz,0.053119037360914015,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\20Hz\mpu_S3_2025-11-29_01-10-37.csv
+3,GEN_S123_default,40.0,1,ax,0.013835119081354654,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\40Hz\mpu_S1_2025-11-29_01-10-54.csv
+3,GEN_S123_default,40.0,1,ay,0.013467407062032205,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\40Hz\mpu_S1_2025-11-29_01-10-54.csv
+3,GEN_S123_default,40.0,1,gz,0.01967789147201565,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\40Hz\mpu_S1_2025-11-29_01-10-54.csv
+3,GEN_S123_default,40.0,2,ax,0.017537726384159697,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\40Hz\mpu_S2_2025-11-29_01-10-54.csv
+3,GEN_S123_default,40.0,2,ay,0.013861067720711643,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\40Hz\mpu_S2_2025-11-29_01-10-54.csv
+3,GEN_S123_default,40.0,2,gz,0.022553245152914587,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\40Hz\mpu_S2_2025-11-29_01-10-54.csv
+3,GEN_S123_default,40.0,3,ax,0.013375529253461837,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\40Hz\mpu_S3_2025-11-29_01-10-54.csv
+3,GEN_S123_default,40.0,3,ay,0.01333169290303623,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\40Hz\mpu_S3_2025-11-29_01-10-54.csv
+3,GEN_S123_default,40.0,3,gz,0.04063157898724141,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\40Hz\mpu_S3_2025-11-29_01-10-54.csv
+3,GEN_S123_default,60.0,1,ax,0.014625238278269084,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\60Hz\mpu_S1_2025-11-29_01-11-10.csv
+3,GEN_S123_default,60.0,1,ay,0.013302654712655184,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\60Hz\mpu_S1_2025-11-29_01-11-10.csv
+3,GEN_S123_default,60.0,1,gz,0.023196697359744625,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\60Hz\mpu_S1_2025-11-29_01-11-10.csv
+3,GEN_S123_default,60.0,2,ax,0.0164016365048055,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\60Hz\mpu_S2_2025-11-29_01-11-10.csv
+3,GEN_S123_default,60.0,2,ay,0.014131601899235801,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\60Hz\mpu_S2_2025-11-29_01-11-10.csv
+3,GEN_S123_default,60.0,2,gz,0.0269946065271984,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\60Hz\mpu_S2_2025-11-29_01-11-10.csv
+3,GEN_S123_default,60.0,3,ax,0.014199430645396924,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\60Hz\mpu_S3_2025-11-29_01-11-10.csv
+3,GEN_S123_default,60.0,3,ay,0.014062583355156446,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\60Hz\mpu_S3_2025-11-29_01-11-10.csv
+3,GEN_S123_default,60.0,3,gz,0.02752734254101167,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\60Hz\mpu_S3_2025-11-29_01-11-10.csv
+3,GEN_S123_default,80.0,1,ax,0.014753678584293928,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\80Hz\mpu_S1_2025-11-29_01-11-27.csv
+3,GEN_S123_default,80.0,1,ay,0.013223166500564489,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\80Hz\mpu_S1_2025-11-29_01-11-27.csv
+3,GEN_S123_default,80.0,1,gz,0.025614088523405704,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\80Hz\mpu_S1_2025-11-29_01-11-27.csv
+3,GEN_S123_default,80.0,2,ax,0.02010931008988381,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\80Hz\mpu_S2_2025-11-29_01-11-27.csv
+3,GEN_S123_default,80.0,2,ay,0.014259683608807576,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\80Hz\mpu_S2_2025-11-29_01-11-27.csv
+3,GEN_S123_default,80.0,2,gz,0.030375935736747794,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\80Hz\mpu_S2_2025-11-29_01-11-27.csv
+3,GEN_S123_default,80.0,3,ax,0.013943844944860742,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\80Hz\mpu_S3_2025-11-29_01-11-27.csv
+3,GEN_S123_default,80.0,3,ay,0.013894302726204798,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\80Hz\mpu_S3_2025-11-29_01-11-27.csv
+3,GEN_S123_default,80.0,3,gz,0.05368698463383821,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S123_default\80Hz\mpu_S3_2025-11-29_01-11-27.csv
+3,GEN_S1_default,100.0,1,ax,0.014501808368643683,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\100Hz\mpu_S1_2025-11-29_01-08-57.csv
+3,GEN_S1_default,100.0,1,ay,0.01317577742323793,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\100Hz\mpu_S1_2025-11-29_01-08-57.csv
+3,GEN_S1_default,100.0,1,gz,0.03375497975044878,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\100Hz\mpu_S1_2025-11-29_01-08-57.csv
+3,GEN_S1_default,120.0,1,ax,0.01421115483379535,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\120Hz\mpu_S1_2025-11-29_01-09-14.csv
+3,GEN_S1_default,120.0,1,ay,0.013346146631376883,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\120Hz\mpu_S1_2025-11-29_01-09-14.csv
+3,GEN_S1_default,120.0,1,gz,0.040447153517969875,1800,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\120Hz\mpu_S1_2025-11-29_01-09-14.csv
+3,GEN_S1_default,140.0,1,ax,0.014915331736685572,2100,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\140Hz\mpu_S1_2025-11-29_01-09-30.csv
+3,GEN_S1_default,140.0,1,ay,0.013495139731527233,2100,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\140Hz\mpu_S1_2025-11-29_01-09-30.csv
+3,GEN_S1_default,140.0,1,gz,0.035148672676053865,2100,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\140Hz\mpu_S1_2025-11-29_01-09-30.csv
+3,GEN_S1_default,160.0,1,ax,0.014691839518817536,2400,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\160Hz\mpu_S1_2025-11-29_01-09-47.csv
+3,GEN_S1_default,160.0,1,ay,0.01363918415704771,2400,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\160Hz\mpu_S1_2025-11-29_01-09-47.csv
+3,GEN_S1_default,160.0,1,gz,0.031167005105317266,2400,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\160Hz\mpu_S1_2025-11-29_01-09-47.csv
+3,GEN_S1_default,180.0,1,ax,0.014356869486463652,2700,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\180Hz\mpu_S1_2025-11-29_01-10-04.csv
+3,GEN_S1_default,180.0,1,ay,0.01311785522950802,2700,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\180Hz\mpu_S1_2025-11-29_01-10-04.csv
+3,GEN_S1_default,180.0,1,gz,0.030967053802654666,2700,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\180Hz\mpu_S1_2025-11-29_01-10-04.csv
+3,GEN_S1_default,200.0,1,ax,0.014683608187758587,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\200Hz\mpu_S1_2025-11-29_01-10-20.csv
+3,GEN_S1_default,200.0,1,ay,0.013325243043174506,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\200Hz\mpu_S1_2025-11-29_01-10-20.csv
+3,GEN_S1_default,200.0,1,gz,0.03570029785469168,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\200Hz\mpu_S1_2025-11-29_01-10-20.csv
+3,GEN_S1_default,20.0,1,ax,0.015131019729169594,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\20Hz\mpu_S1_2025-11-29_01-07-50.csv
+3,GEN_S1_default,20.0,1,ay,0.013399955313714547,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\20Hz\mpu_S1_2025-11-29_01-07-50.csv
+3,GEN_S1_default,20.0,1,gz,0.03169974300728654,300,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\20Hz\mpu_S1_2025-11-29_01-07-50.csv
+3,GEN_S1_default,40.0,1,ax,0.014450965914646972,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\40Hz\mpu_S1_2025-11-29_01-08-07.csv
+3,GEN_S1_default,40.0,1,ay,0.013547287624719592,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\40Hz\mpu_S1_2025-11-29_01-08-07.csv
+3,GEN_S1_default,40.0,1,gz,0.0278685230240123,600,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\40Hz\mpu_S1_2025-11-29_01-08-07.csv
+3,GEN_S1_default,60.0,1,ax,0.015410126940072894,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\60Hz\mpu_S1_2025-11-29_01-08-24.csv
+3,GEN_S1_default,60.0,1,ay,0.013630333582894139,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\60Hz\mpu_S1_2025-11-29_01-08-24.csv
+3,GEN_S1_default,60.0,1,gz,0.025596552457791178,900,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\60Hz\mpu_S1_2025-11-29_01-08-24.csv
+3,GEN_S1_default,80.0,1,ax,0.014656799799810261,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\80Hz\mpu_S1_2025-11-29_01-08-41.csv
+3,GEN_S1_default,80.0,1,ay,0.01304938124464507,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\80Hz\mpu_S1_2025-11-29_01-08-41.csv
+3,GEN_S1_default,80.0,1,gz,0.03437026554090381,1200,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\GEN_S1_default\80Hz\mpu_S1_2025-11-29_01-08-41.csv
+3,SPEC_S123_6ch_both,100.0,1,ax,0.014920530426979042,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,1,ay,0.013033993003626702,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,1,az,0.026226291556708945,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,1,gx,0.034149062613576225,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,1,gy,0.034407415450183707,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,1,gz,0.027034892413036034,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S1_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,2,ax,0.01857468076881645,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,2,ay,0.0142284761563153,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,2,az,0.02326129582745499,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,2,gx,0.02985631494155136,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,2,gy,0.040767822981982324,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,2,gz,0.03074549898484538,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S2_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,3,ax,0.013661848872648697,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,3,ay,0.013669731726588521,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,3,az,0.02256506479804359,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,3,gx,0.03654083998677292,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,3,gy,0.04595595699973847,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,100.0,3,gz,0.03280969395648006,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\100Hz\mpu_S3_2025-11-29_01-20-20.csv
+3,SPEC_S123_6ch_both,150.0,1,ax,0.014661824235809756,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,1,ay,0.01355592259667283,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,1,az,0.02524064622590639,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,1,gx,0.03729339348664959,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,1,gy,0.03796721116856433,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,1,gz,0.029649509205006364,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S1_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,2,ax,0.021600267649767246,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,2,ay,0.014462232085088077,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,2,az,0.02286444464426639,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,2,gx,0.033383165656509145,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,2,gy,0.04632612083271244,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,2,gz,0.03541623365728197,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S2_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,3,ax,0.014014049597010945,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,3,ay,0.014061767479100252,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,3,az,0.022057008699762293,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,3,gx,0.037490670239524175,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,3,gy,0.04623877585515881,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,150.0,3,gz,0.03345334362048054,2079,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\150Hz\mpu_S3_2025-11-29_01-20-37.csv
+3,SPEC_S123_6ch_both,200.0,1,ax,0.014635106354237315,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,1,ay,0.013444034919909502,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,1,az,0.026499552303792497,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,1,gx,0.04109684510228681,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,1,gy,0.04111181988274189,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,1,gz,0.03191492462423137,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S1_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,2,ax,0.023458131346843224,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,2,ay,0.014218172572300812,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,2,az,0.02392178549708872,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,2,gx,0.03538279774533166,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,2,gy,0.050514703022166305,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,2,gz,0.037373151071034075,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S2_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,3,ax,0.01403760926185947,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,3,ay,0.013772164152101021,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,3,az,0.022140658732988948,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,3,gx,0.03931842219515481,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,3,gy,0.050855308244052,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,200.0,3,gz,0.037518278876659886,2152,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\200Hz\mpu_S3_2025-11-29_01-20-54.csv
+3,SPEC_S123_6ch_both,50.0,1,ax,0.014481236212044451,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,1,ay,0.012931728173091055,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,1,az,0.02354735735375831,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,1,gx,0.023908390585967616,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,1,gy,0.0253759706895391,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,1,gz,0.021585271072913966,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S1_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,2,ax,0.0173453569916527,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,2,ay,0.014500635852699548,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,2,az,0.0230000013698172,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,2,gx,0.024397056713295732,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,2,gy,0.027501676620673918,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,2,gz,0.02554198988451908,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S2_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,3,ax,0.014400066774408202,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,3,ay,0.01316762005254594,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,3,az,0.023187535988753075,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,3,gx,0.1021170721087544,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,3,gy,0.0285257399408074,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-20-03.csv
+3,SPEC_S123_6ch_both,50.0,3,gz,0.07471949859882214,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S123_6ch_both\50Hz\mpu_S3_2025-11-29_01-20-03.csv
+3,SPEC_S1_1ch_acc,100.0,1,ax,0.0148108144405009,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\100Hz\mpu_S1_2025-11-29_01-13-41.csv
+3,SPEC_S1_1ch_acc,100.0,1,ay,0.013321267912491185,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\100Hz\mpu_S1_2025-11-29_01-13-41.csv
+3,SPEC_S1_1ch_acc,100.0,1,az,0.024801206058857203,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\100Hz\mpu_S1_2025-11-29_01-13-41.csv
+3,SPEC_S1_1ch_acc,150.0,1,ax,0.014577413613935842,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\150Hz\mpu_S1_2025-11-29_01-13-58.csv
+3,SPEC_S1_1ch_acc,150.0,1,ay,0.013306712943732193,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\150Hz\mpu_S1_2025-11-29_01-13-58.csv
+3,SPEC_S1_1ch_acc,150.0,1,az,0.025926079545273588,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\150Hz\mpu_S1_2025-11-29_01-13-58.csv
+3,SPEC_S1_1ch_acc,200.0,1,ax,0.01493713337684389,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\200Hz\mpu_S1_2025-11-29_01-14-14.csv
+3,SPEC_S1_1ch_acc,200.0,1,ay,0.013390094282304851,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\200Hz\mpu_S1_2025-11-29_01-14-14.csv
+3,SPEC_S1_1ch_acc,200.0,1,az,0.0273042805952203,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\200Hz\mpu_S1_2025-11-29_01-14-14.csv
+3,SPEC_S1_1ch_acc,250.0,1,ax,0.014629007563372596,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\250Hz\mpu_S1_2025-11-29_01-14-31.csv
+3,SPEC_S1_1ch_acc,250.0,1,ay,0.01328046202472196,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\250Hz\mpu_S1_2025-11-29_01-14-31.csv
+3,SPEC_S1_1ch_acc,250.0,1,az,0.026762253113565154,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\250Hz\mpu_S1_2025-11-29_01-14-31.csv
+3,SPEC_S1_1ch_acc,300.0,1,ax,0.014389539511788594,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\300Hz\mpu_S1_2025-11-29_01-14-47.csv
+3,SPEC_S1_1ch_acc,300.0,1,ay,0.013077872031639914,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\300Hz\mpu_S1_2025-11-29_01-14-47.csv
+3,SPEC_S1_1ch_acc,300.0,1,az,0.028936104611333967,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\300Hz\mpu_S1_2025-11-29_01-14-47.csv
+3,SPEC_S1_1ch_acc,350.0,1,ax,0.014572046890332894,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\350Hz\mpu_S1_2025-11-29_01-15-04.csv
+3,SPEC_S1_1ch_acc,350.0,1,ay,0.013263604030134421,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\350Hz\mpu_S1_2025-11-29_01-15-04.csv
+3,SPEC_S1_1ch_acc,350.0,1,az,0.02812977743372951,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\350Hz\mpu_S1_2025-11-29_01-15-04.csv
+3,SPEC_S1_1ch_acc,400.0,1,ax,0.014957849408327005,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\400Hz\mpu_S1_2025-11-29_01-15-21.csv
+3,SPEC_S1_1ch_acc,400.0,1,ay,0.013125029564067345,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\400Hz\mpu_S1_2025-11-29_01-15-21.csv
+3,SPEC_S1_1ch_acc,400.0,1,az,0.03061988080194855,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\400Hz\mpu_S1_2025-11-29_01-15-21.csv
+3,SPEC_S1_1ch_acc,450.0,1,ax,0.014281481225625637,6750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\450Hz\mpu_S1_2025-11-29_01-15-37.csv
+3,SPEC_S1_1ch_acc,450.0,1,ay,0.013654925683506427,6750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\450Hz\mpu_S1_2025-11-29_01-15-37.csv
+3,SPEC_S1_1ch_acc,450.0,1,az,0.029391650769059866,6750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\450Hz\mpu_S1_2025-11-29_01-15-37.csv
+3,SPEC_S1_1ch_acc,500.0,1,ax,0.014674850243385891,7500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\500Hz\mpu_S1_2025-11-29_01-15-54.csv
+3,SPEC_S1_1ch_acc,500.0,1,ay,0.013539081208820733,7500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\500Hz\mpu_S1_2025-11-29_01-15-54.csv
+3,SPEC_S1_1ch_acc,500.0,1,az,0.031579820470030134,7500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\500Hz\mpu_S1_2025-11-29_01-15-54.csv
+3,SPEC_S1_1ch_acc,50.0,1,ax,0.014934430823545218,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\50Hz\mpu_S1_2025-11-29_01-13-24.csv
+3,SPEC_S1_1ch_acc,50.0,1,ay,0.013588040357427649,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\50Hz\mpu_S1_2025-11-29_01-13-24.csv
+3,SPEC_S1_1ch_acc,50.0,1,az,0.023409758620586127,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_1ch_acc\50Hz\mpu_S1_2025-11-29_01-13-24.csv
+3,SPEC_S1_3ch_default,100.0,1,ax,0.014676428653488989,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\100Hz\mpu_S1_2025-11-29_01-16-27.csv
+3,SPEC_S1_3ch_default,100.0,1,ay,0.013222829800452054,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\100Hz\mpu_S1_2025-11-29_01-16-27.csv
+3,SPEC_S1_3ch_default,100.0,1,gz,0.02731021113449365,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\100Hz\mpu_S1_2025-11-29_01-16-27.csv
+3,SPEC_S1_3ch_default,150.0,1,ax,0.014722821918043394,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\150Hz\mpu_S1_2025-11-29_01-16-44.csv
+3,SPEC_S1_3ch_default,150.0,1,ay,0.013376077624340793,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\150Hz\mpu_S1_2025-11-29_01-16-44.csv
+3,SPEC_S1_3ch_default,150.0,1,gz,0.035664825555534116,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\150Hz\mpu_S1_2025-11-29_01-16-44.csv
+3,SPEC_S1_3ch_default,200.0,1,ax,0.014622282643650964,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\200Hz\mpu_S1_2025-11-29_01-17-00.csv
+3,SPEC_S1_3ch_default,200.0,1,ay,0.01297928088581314,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\200Hz\mpu_S1_2025-11-29_01-17-00.csv
+3,SPEC_S1_3ch_default,200.0,1,gz,0.03535961665929074,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\200Hz\mpu_S1_2025-11-29_01-17-00.csv
+3,SPEC_S1_3ch_default,250.0,1,ax,0.014333216520757506,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\250Hz\mpu_S1_2025-11-29_01-17-17.csv
+3,SPEC_S1_3ch_default,250.0,1,ay,0.013671167824211884,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\250Hz\mpu_S1_2025-11-29_01-17-17.csv
+3,SPEC_S1_3ch_default,250.0,1,gz,0.033570013907989346,3750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\250Hz\mpu_S1_2025-11-29_01-17-17.csv
+3,SPEC_S1_3ch_default,300.0,1,ax,0.014811228782809062,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\300Hz\mpu_S1_2025-11-29_01-17-34.csv
+3,SPEC_S1_3ch_default,300.0,1,ay,0.013438274452718474,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\300Hz\mpu_S1_2025-11-29_01-17-34.csv
+3,SPEC_S1_3ch_default,300.0,1,gz,0.035182257482732994,4500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\300Hz\mpu_S1_2025-11-29_01-17-34.csv
+3,SPEC_S1_3ch_default,350.0,1,ax,0.014422331183652643,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\350Hz\mpu_S1_2025-11-29_01-17-50.csv
+3,SPEC_S1_3ch_default,350.0,1,ay,0.013082417246918648,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\350Hz\mpu_S1_2025-11-29_01-17-50.csv
+3,SPEC_S1_3ch_default,350.0,1,gz,0.035247629349824644,5250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\350Hz\mpu_S1_2025-11-29_01-17-50.csv
+3,SPEC_S1_3ch_default,400.0,1,ax,0.01469147600607908,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\400Hz\mpu_S1_2025-11-29_01-18-07.csv
+3,SPEC_S1_3ch_default,400.0,1,ay,0.013148382794146379,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\400Hz\mpu_S1_2025-11-29_01-18-07.csv
+3,SPEC_S1_3ch_default,400.0,1,gz,0.03574006243063493,6000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\400Hz\mpu_S1_2025-11-29_01-18-07.csv
+3,SPEC_S1_3ch_default,450.0,1,ax,0.014867993118218494,6424,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\450Hz\mpu_S1_2025-11-29_01-18-23.csv
+3,SPEC_S1_3ch_default,450.0,1,ay,0.0132085936889618,6424,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\450Hz\mpu_S1_2025-11-29_01-18-23.csv
+3,SPEC_S1_3ch_default,450.0,1,gz,0.03530175144438604,6424,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\450Hz\mpu_S1_2025-11-29_01-18-23.csv
+3,SPEC_S1_3ch_default,500.0,1,ax,0.01449229804947601,6576,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\500Hz\mpu_S1_2025-11-29_01-18-40.csv
+3,SPEC_S1_3ch_default,500.0,1,ay,0.0129490115692701,6576,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\500Hz\mpu_S1_2025-11-29_01-18-40.csv
+3,SPEC_S1_3ch_default,500.0,1,gz,0.035609849278212126,6576,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\500Hz\mpu_S1_2025-11-29_01-18-40.csv
+3,SPEC_S1_3ch_default,50.0,1,ax,0.013796934789014783,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\50Hz\mpu_S1_2025-11-29_01-16-11.csv
+3,SPEC_S1_3ch_default,50.0,1,ay,0.013396831967514032,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\50Hz\mpu_S1_2025-11-29_01-16-11.csv
+3,SPEC_S1_3ch_default,50.0,1,gz,0.03336844251615455,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_3ch_default\50Hz\mpu_S1_2025-11-29_01-16-11.csv
+3,SPEC_S1_6ch_both,100.0,1,ax,0.014753776428528518,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-19-13.csv
+3,SPEC_S1_6ch_both,100.0,1,ay,0.013250682703598273,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-19-13.csv
+3,SPEC_S1_6ch_both,100.0,1,az,0.026886578587812408,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-19-13.csv
+3,SPEC_S1_6ch_both,100.0,1,gx,0.03628271962432801,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-19-13.csv
+3,SPEC_S1_6ch_both,100.0,1,gy,0.035727883717562726,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-19-13.csv
+3,SPEC_S1_6ch_both,100.0,1,gz,0.030147959149002146,1500,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\100Hz\mpu_S1_2025-11-29_01-19-13.csv
+3,SPEC_S1_6ch_both,150.0,1,ax,0.0145855626948486,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-19-30.csv
+3,SPEC_S1_6ch_both,150.0,1,ay,0.012961368773392825,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-19-30.csv
+3,SPEC_S1_6ch_both,150.0,1,az,0.02612040091637959,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-19-30.csv
+3,SPEC_S1_6ch_both,150.0,1,gx,0.03947596346364285,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-19-30.csv
+3,SPEC_S1_6ch_both,150.0,1,gy,0.03806277707013225,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-19-30.csv
+3,SPEC_S1_6ch_both,150.0,1,gz,0.030877964033589896,2250,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\150Hz\mpu_S1_2025-11-29_01-19-30.csv
+3,SPEC_S1_6ch_both,200.0,1,ax,0.014686902457882968,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-19-47.csv
+3,SPEC_S1_6ch_both,200.0,1,ay,0.013559340618431748,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-19-47.csv
+3,SPEC_S1_6ch_both,200.0,1,az,0.028320691431586064,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-19-47.csv
+3,SPEC_S1_6ch_both,200.0,1,gx,0.041620616609405074,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-19-47.csv
+3,SPEC_S1_6ch_both,200.0,1,gy,0.04088582466741209,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-19-47.csv
+3,SPEC_S1_6ch_both,200.0,1,gz,0.0325783839870027,3000,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\200Hz\mpu_S1_2025-11-29_01-19-47.csv
+3,SPEC_S1_6ch_both,50.0,1,ax,0.014522193434719036,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-18-57.csv
+3,SPEC_S1_6ch_both,50.0,1,ay,0.013211105505709128,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-18-57.csv
+3,SPEC_S1_6ch_both,50.0,1,az,0.02297222483137914,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-18-57.csv
+3,SPEC_S1_6ch_both,50.0,1,gx,0.03800275578678317,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-18-57.csv
+3,SPEC_S1_6ch_both,50.0,1,gy,0.03194218122777893,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-18-57.csv
+3,SPEC_S1_6ch_both,50.0,1,gz,0.04833301670486629,750,C:\Projects\sense-pi-local-recording-live-main\param_sweep_data\dlpf3\SPEC_S1_6ch_both\50Hz\mpu_S1_2025-11-29_01-18-57.csv
+
+------------------------------ END OF FILE ------------------------------
+

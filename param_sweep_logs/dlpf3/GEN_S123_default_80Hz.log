@@ -1,0 +1,12 @@
+[INFO] Sensor 1: bus=1 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 2: bus=1 addr=0x69 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+[INFO] Sensor 3: bus=0 addr=0x68 WHO=0x68 div=11 device_rate≈83.333 Hz DLPF=3 (gyro≈44Hz, accel≈42Hz)
+
+=== Run summary ===
+Host: SensPi6
+Started: 2025-11-29T01:11:27.662073Z
+ Sensor 1: samples=1200, errors=0
+ Sensor 2: samples=1200, errors=0
+ Sensor 3: samples=1200, errors=0
+ Overruns: 0
+Output directory: /home/verwalter/logs/param_sweep/GEN_S123_default/80Hz
