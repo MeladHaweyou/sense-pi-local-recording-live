@@ -109,31 +109,50 @@ class SamplingConfig:
             sampling:
               device_rate_hz: 200
               mode: high_fidelity
+        
+        Also understands legacy configs where ``sample_rate_hz`` lived under
+        ``sensors.mpu6050``.
         """
-        sampling_block = mapping.get("sampling") if isinstance(mapping, Mapping) else None
-        device_rate = default_device_rate
-        mode_key = default_mode
+        # Guard against None / non-mapping inputs early
+        payload: Mapping[str, Any] = mapping or {}
+
+        sampling_block = (
+            payload.get("sampling") if isinstance(payload, Mapping) else None
+        )
+
+        device_rate: Any = default_device_rate
+        mode_value: Any = default_mode
 
         if isinstance(sampling_block, Mapping):
-            device_rate = sampling_block.get("device_rate_hz", device_rate)  # type: ignore[arg-type]
-            mode_key = sampling_block.get("mode", mode_key)  # type: ignore[arg-type]
+            device_rate = sampling_block.get("device_rate_hz", device_rate)
+            mode_value = sampling_block.get("mode", mode_value)
 
-        # legacy fallback: look for a per-sensor sample rate if the sampling block is
-        # missing. This smooths upgrades from the old sensors.yaml structure.
-        sensors = mapping.get("sensors") if isinstance(mapping, Mapping) else None
+        # Legacy fallback: old sensors.yaml stored sample_rate_hz under sensors.mpu6050.
+        sensors = payload.get("sensors") if isinstance(payload, Mapping) else None
         if isinstance(sensors, Mapping) and not isinstance(sampling_block, Mapping):
-            mpu_cfg = sensors.get("mpu6050") if isinstance(sensors.get("mpu6050"), Mapping) else None
+            mpu_cfg = sensors.get("mpu6050")
             if isinstance(mpu_cfg, Mapping):
-                device_rate = mpu_cfg.get("sample_rate_hz", device_rate)  # type: ignore[arg-type]
+                device_rate = mpu_cfg.get("sample_rate_hz", device_rate)
 
+        # Coerce rate to float with a safe fallback
         try:
             rate = float(device_rate)
         except (TypeError, ValueError):
             rate = float(default_device_rate)
 
-        mode_key_str = str(mode_key or default_mode)
-        if mode_key_str not in RECORDING_MODES:
-            mode_key_str = default_mode
+        # Normalize mode: case-insensitive, hyphens vs underscores, common aliases
+        raw_mode = str(mode_value or default_mode).strip().lower().replace("-", "_")
+
+        # Simple aliases for convenience
+        if raw_mode in {"low", "low_fid"}:
+            raw_mode = "low_fidelity"
+        elif raw_mode in {"high", "high_fid"}:
+            raw_mode = "high_fidelity"
+        elif raw_mode in {"device", "raw_device"}:
+            raw_mode = "raw"
+
+        mode_key_str = raw_mode if raw_mode in RECORDING_MODES else default_mode
+
         return cls(device_rate_hz=rate, mode_key=mode_key_str)
 
     def to_mapping(self) -> dict:

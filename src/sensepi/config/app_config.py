@@ -14,6 +14,22 @@ from .pi_logger_config import PiLoggerConfig
 from .sampling import SamplingConfig
 
 
+def _default_repo_root() -> Path:
+    """
+    Best-effort guess for the project root (one level above src/).
+
+    Falls back to the current file's parent if the original assumption about
+    directory depth no longer holds.
+    """
+    path = Path(__file__).resolve()
+    try:
+        # Preserve the original behaviour where possible
+        return path.parents[3]
+    except IndexError:
+        # Fallback: just use the containing directory
+        return path.parent
+
+
 DEFAULT_BASE_PATH = Path("~/sensor")
 DEFAULT_DATA_DIR = Path("~/logs")
 
@@ -79,7 +95,7 @@ class AppPaths:
     """
 
     # repo_root points at the project root (one level above src/)
-    repo_root: Path = Path(__file__).resolve().parents[3]
+    repo_root: Path = field(default_factory=_default_repo_root)
     data_root: Path = field(init=False)
     raw_data: Path = field(init=False)
     processed_data: Path = field(init=False)
