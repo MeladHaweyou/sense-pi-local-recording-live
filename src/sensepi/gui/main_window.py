@@ -182,7 +182,7 @@ class MainWindow(QMainWindow):
     @Slot(SensorSelectionConfig)
     def _on_sensor_selection_changed(self, cfg: SensorSelectionConfig) -> None:
         self._current_sensor_selection = cfg
-        print("Updated sensor selection:", cfg)
+        self._logger.info("Updated sensor selection: %s", cfg)
         self.signals_tab.set_sensor_selection(cfg)
         self.fft_tab.update_sensor_selection(cfg)
 
@@ -191,7 +191,7 @@ class MainWindow(QMainWindow):
         self._current_gui_acquisition_config = cfg
         if getattr(cfg, "calibration", None) is not None:
             self._current_calibration_offsets = cfg.calibration
-        print("[MainWindow] GuiAcquisitionConfig:", cfg.summary())
+        self._logger.info("GuiAcquisitionConfig updated: %s", cfg.summary())
         self.signals_tab.apply_gui_acquisition_config(cfg)
         self.recorder_tab.apply_gui_acquisition_config(cfg)
         self.fft_tab.update_acquisition_config(cfg)
