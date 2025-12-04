@@ -13,3 +13,8 @@ from .tabs.tab_signals import SignalPlotWidget
 # import path alive so older code can still request PyQtGraphSignalPlotWidget.
 PyQtGraphSignalPlotWidget = SignalPlotWidget
 
+__all__ = [
+    "SignalPlotWidget",
+    "PyQtGraphSignalPlotWidget",
+]
+

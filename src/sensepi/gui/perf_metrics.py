@@ -48,3 +48,22 @@ class PlotPerfStats:
         if not self.sample_to_draw_latencies:
             return 0.0
         return 1000.0 * max(self.sample_to_draw_latencies)
+
+    def as_dict(self) -> dict[str, float]:
+        """
+        Return a snapshot of commonly-used metrics.
+
+        This is useful for a perf HUD or structured logging.
+        """
+        return {
+            "fps": self.compute_fps(),
+            "avg_frame_ms": self.avg_frame_ms(),
+            "avg_latency_ms": self.avg_latency_ms(),
+            "max_latency_ms": self.max_latency_ms(),
+        }
+
+    def reset(self) -> None:
+        """Clear all stored samples."""
+        self.frame_times.clear()
+        self.frame_durations.clear()
+        self.sample_to_draw_latencies.clear()
