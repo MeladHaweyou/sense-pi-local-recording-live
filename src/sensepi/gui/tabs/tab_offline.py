@@ -517,5 +517,9 @@ class OfflineTab(QWidget):
 
         self._canvas = FigureCanvasQTAgg(fig)
         self.layout().addWidget(self._canvas)
-        fig.canvas.manager.set_window_title(f"SensePi offline — {path.name}")
+        # Update the top-level window title instead of relying on a Matplotlib
+        # figure manager (which may not exist in embedded use).
+        window = self.window()
+        if window is not None:
+            window.setWindowTitle(f"SensePi offline — {path.name}")
         self.status_label.setText(f"Loaded {path}")
