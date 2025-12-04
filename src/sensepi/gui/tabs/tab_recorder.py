@@ -352,7 +352,9 @@ class RecorderTab(QWidget):
 
         text = self.mpu_sensors_edit.text().strip()
         if not text:
-            active_sensors: list[int] = []
+            # Fallback to default sensors if the user leaves the field empty.
+            # Adjust [1, 2, 3] to match your actual hardware layout.
+            active_sensors: list[int] = [1, 2, 3]
         else:
             active_sensors = []
             for part in text.split(","):
@@ -362,6 +364,7 @@ class RecorderTab(QWidget):
                 try:
                     active_sensors.append(int(part))
                 except ValueError:
+                    # Ignore invalid entries; keep going
                     continue
 
         key = str(self.mpu_channels_combo.currentData() or "default")
