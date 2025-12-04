@@ -343,6 +343,25 @@ class FftTab(QWidget):
         self._ensure_fft_frequency_axis(self._stream_rate_hz)
         self._request_full_refresh()
 
+    def set_sampling_rate_hz(self, hz: float) -> None:
+        """
+        Manually set the nominal sampling/stream rate used by the FFT timer.
+
+        This is used when we already know the target stream/plot rate from
+        the GUI (GuiAcquisitionConfig) before the RecorderTab has measured
+        and reported a real rate.
+
+        Internally it just routes through update_stream_rate().
+        """
+        try:
+            value = float(hz)
+        except (TypeError, ValueError):
+            # Ignore invalid values; keep existing rate
+            return
+
+        # Reuse the existing logic that already updates labels, timers, etc.
+        self.update_stream_rate("mpu6050", value)
+
     @Slot()
     def on_stream_started(self) -> None:
         self._clear_layout()
