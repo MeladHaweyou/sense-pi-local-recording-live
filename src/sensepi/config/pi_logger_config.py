@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, List, Mapping
 import shlex
 
 from .sampling import SamplingConfig
@@ -22,7 +22,7 @@ class PiLoggerConfig:
     stream_rate_hz: float = 0.0
     sections: Dict[str, Any] | None = None
     logger_script: str = "mpu6050_multi_logger.py"
-    extra_cli: Dict[str, Any] | None = None
+    extra_cli: Mapping[str, Any] | None = None
 
     @classmethod
     def from_sampling(cls, sampling: SamplingConfig, **kwargs: Any) -> "PiLoggerConfig":
@@ -98,7 +98,7 @@ class PiLoggerConfig:
         return cmd
 
 
-def _format_extra_flags(extra: Dict[str, Any] | None) -> List[str]:
+def _format_extra_flags(extra: Mapping[str, Any] | None) -> List[str]:
     if not extra:
         return []
 
