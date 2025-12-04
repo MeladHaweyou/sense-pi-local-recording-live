@@ -7,30 +7,32 @@ from typing import Any, Dict, Mapping, Optional
 
 @dataclass(frozen=True)
 class RecordingMode:
+    """User-facing presets (labels only; sampling is single-rate)."""
+
     key: str
     label: str
-    target_record_hz: Optional[float]  # None = "raw" (no decimation)
-    target_stream_hz: float  # desired GUI stream rate
+    target_record_hz: Optional[float]  # kept for backwards compatibility
+    target_stream_hz: Optional[float]  # kept for backwards compatibility
 
 
 RECORDING_MODES: Dict[str, RecordingMode] = {
     "low_fidelity": RecordingMode(
         key="low_fidelity",
-        label="Low fidelity (25 Hz)",
-        target_record_hz=25.0,
-        target_stream_hz=25.0,
+        label="Low fidelity (single-rate)",
+        target_record_hz=None,
+        target_stream_hz=None,
     ),
     "high_fidelity": RecordingMode(
         key="high_fidelity",
-        label="High fidelity (50 Hz)",
-        target_record_hz=50.0,
-        target_stream_hz=25.0,
+        label="High fidelity (single-rate)",
+        target_record_hz=None,
+        target_stream_hz=None,
     ),
     "raw": RecordingMode(
         key="raw",
         label="Raw (device rate)",
-        target_record_hz=None,  # means record at device_rate_hz
-        target_stream_hz=25.0,
+        target_record_hz=None,
+        target_stream_hz=None,
     ),
 }
 
@@ -52,30 +54,43 @@ class SamplingConfig:
         """Return the resolved recording mode (defaults to high_fidelity)."""
         return RECORDING_MODES.get(self.mode_key, RECORDING_MODES["high_fidelity"])
 
+    @property
+    def record_decimate(self) -> int:
+        """Recording decimation is fixed to 1 (single sampling rate)."""
+
+        return 1
+
+    @property
+    def stream_decimate(self) -> int:
+        """Streaming decimation is fixed to 1 (single sampling rate)."""
+
+        return 1
+
+    @property
+    def record_rate_hz(self) -> float:
+        """Alias for the single sampling rate used for recording."""
+
+        return float(self.device_rate_hz)
+
+    @property
+    def stream_rate_hz(self) -> float:
+        """Alias for the single sampling rate used for streaming."""
+
+        return float(self.device_rate_hz)
+
     def compute_decimation(self) -> dict:
         """
-        Compute integer decimation factors and resulting effective rates
-        for recording and streaming, based on device_rate_hz + mode.
+        Legacy helper returning decimation/rate info.
+
+        All decimations are forced to 1 so recording and streaming use the
+        same physical sampling rate as the device.
         """
 
-        mode = self.mode
-
-        # Recording decimation
-        if mode.target_record_hz is None:  # raw mode
-            record_decimate = 1
-        else:
-            record_decimate = max(1, round(self.device_rate_hz / mode.target_record_hz))
-        record_rate_hz = self.device_rate_hz / record_decimate
-
-        # GUI stream decimation
-        stream_decimate = max(1, round(self.device_rate_hz / mode.target_stream_hz))
-        stream_rate_hz = self.device_rate_hz / stream_decimate
-
         return {
-            "record_decimate": record_decimate,
-            "record_rate_hz": record_rate_hz,
-            "stream_decimate": stream_decimate,
-            "stream_rate_hz": stream_rate_hz,
+            "record_decimate": self.record_decimate,
+            "record_rate_hz": self.record_rate_hz,
+            "stream_decimate": self.stream_decimate,
+            "stream_rate_hz": self.stream_rate_hz,
         }
 
     @classmethod
@@ -142,10 +157,9 @@ class GuiSamplingDisplay:
 
     @classmethod
     def from_sampling(cls, sampling: SamplingConfig) -> "GuiSamplingDisplay":
-        dec = sampling.compute_decimation()
         return cls(
             device_rate_hz=sampling.device_rate_hz,
-            record_rate_hz=dec["record_rate_hz"],
-            stream_rate_hz=dec["stream_rate_hz"],
+            record_rate_hz=sampling.record_rate_hz,
+            stream_rate_hz=sampling.stream_rate_hz,
             mode_label=sampling.mode.label,
         )
