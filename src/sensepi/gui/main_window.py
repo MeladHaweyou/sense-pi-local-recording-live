@@ -75,6 +75,9 @@ class MainWindow(QMainWindow):
         self.recorder_tab.sensorSelectionChanged.connect(
             self._on_sensor_selection_changed
         )
+        self.settings_tab.sensorSelectionChanged.connect(
+            self._on_sensor_selection_changed
+        )
         self.signals_tab.acquisitionConfigChanged.connect(
             self._on_acquisition_config_changed
         )
@@ -82,10 +85,6 @@ class MainWindow(QMainWindow):
         if hasattr(self.settings_tab, "acquisitionConfigChanged"):
             self.settings_tab.acquisitionConfigChanged.connect(
                 self.fft_tab.update_acquisition_config
-            )
-        if hasattr(self.settings_tab, "sensorSelectionChanged"):
-            self.settings_tab.sensorSelectionChanged.connect(
-                self.fft_tab.update_sensor_selection
             )
 
         self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
@@ -106,6 +105,12 @@ class MainWindow(QMainWindow):
         stream_rate_hz = float(acquisition.effective_stream_rate_hz)
 
         sensor_selection = self._current_sensor_selection
+
+        # Example future usage when starting recording:
+        # gui_cfg = self.acquisition_widget.current_gui_acquisition_config(
+        #     sensor_selection=self._current_sensor_selection
+        # )
+        # self.recorder_tab.start_recording_with_config(gui_cfg)
 
         gui_cfg = GuiAcquisitionConfig(
             sampling=acquisition.sampling,
@@ -161,7 +166,7 @@ class MainWindow(QMainWindow):
     @Slot(SensorSelectionConfig)
     def _on_sensor_selection_changed(self, cfg: SensorSelectionConfig) -> None:
         self._current_sensor_selection = cfg
-        print("[MainWindow] SensorSelectionConfig:", cfg.summary())
+        print("Updated sensor selection:", cfg)
         self.signals_tab.set_sensor_selection(cfg)
         self.fft_tab.update_sensor_selection(cfg)
 
