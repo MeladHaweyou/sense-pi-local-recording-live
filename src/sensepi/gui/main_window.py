@@ -75,6 +75,8 @@ class MainWindow(QMainWindow):
         self.recorder_tab.sensorSelectionChanged.connect(
             self._on_sensor_selection_changed
         )
+        self.recorder_tab.streaming_started.connect(self.signals_tab.on_stream_started)
+        self.recorder_tab.streaming_stopped.connect(self.signals_tab.on_stream_stopped)
         self.settings_tab.sensorSelectionChanged.connect(
             self._on_sensor_selection_changed
         )

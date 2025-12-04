@@ -1659,7 +1659,7 @@ class SignalsTab(QWidget):
         self._ingest_timer = QTimer(self)
         self._ingest_timer.setInterval(20)
         self._ingest_timer.timeout.connect(self._drain_samples)
-        self._ingest_timer.start()
+        self._refresh_ingest_timer()
 
         # periodic redraw of the plot
         self._timer = QTimer(self)
@@ -1788,10 +1788,12 @@ class SignalsTab(QWidget):
             self._stream_active = False
             if hasattr(self, "_timer"):
                 self._timer.stop()
+            self._refresh_ingest_timer()
             self._set_status_text(
                 "Record-only mode: live streaming disabled.", source="manual"
             )
         else:
+            self._refresh_ingest_timer()
             self._refresh_timer_state()
             self._refresh_mode_hint()
 
@@ -2149,19 +2151,20 @@ class SignalsTab(QWidget):
 
         latest_ts = data_buffer.latest_timestamp()
         if latest_ts is None:
+            print("[SignalsTab] _ingest_buffer_data: buffer has no data yet")
             return
 
         sensor_ids = data_buffer.get_sensor_ids()
         if not sensor_ids:
+            print("[SignalsTab] _ingest_buffer_data: no sensor IDs available")
             return
 
         channels = data_buffer.get_channels() if hasattr(data_buffer, "get_channels") else []
 
-        if debug_enabled():
-            print(
-                f"[SignalsTab] buffer ingest: sensors={sensor_ids}, "
-                f"channels={channels}, latest_ts={latest_ts:.6f}"
-            )
+        print(
+            f"[SignalsTab] buffer ingest: sensors={sensor_ids}, "
+            f"channels={channels}, latest_ts={latest_ts:.6f}"
+        )
 
         window_s = self._plot.window_seconds
         for sensor_id in sensor_ids:
@@ -2365,12 +2368,14 @@ class SignalsTab(QWidget):
         RecorderTab fills in _on_samples_batch. If that buffer is not available
         for some reason, we fall back to the legacy sample_queue path.
         """
+        print(f"[SignalsTab] _drain_samples tick: active={self._stream_active}")
         if not self._stream_active:
             return
 
         # --- Preferred path: use StreamingDataBuffer ------------------------
         buf = self._active_data_buffer()
         if buf is not None:
+            print("[SignalsTab] _drain_samples using StreamingDataBuffer")
             # This pulls all new samples since the last cursor position for each
             # sensor/channel and forwards them to the plot widget.
             self._ingest_buffer_data()
@@ -2380,6 +2385,8 @@ class SignalsTab(QWidget):
         queue_obj = self._recorder_sample_queue()
         if queue_obj is None:
             return
+
+        print("[SignalsTab] _drain_samples using legacy queue path")
 
         drained: list[MpuSample] = []
         while True:
@@ -2617,6 +2624,18 @@ class SignalsTab(QWidget):
         else:
             label.setText(f"Plot refresh: -- Hz{suffix}")
 
+    def _refresh_ingest_timer(self) -> None:
+        """Start/stop the ingest timer based on stream activity."""
+        if not hasattr(self, "_ingest_timer"):
+            return
+        should_run = self._stream_active or self._synthetic_active
+        if should_run and not self._ingest_timer.isActive():
+            print("[SignalsTab] starting ingest timer")
+            self._ingest_timer.start()
+        elif not should_run and self._ingest_timer.isActive():
+            print("[SignalsTab] stopping ingest timer")
+            self._ingest_timer.stop()
+
     def _refresh_timer_state(self) -> None:
         """Start/stop the redraw timer based on live or synthetic stream activity."""
         if not hasattr(self, "_timer"):
@@ -2717,6 +2736,7 @@ class SignalsTab(QWidget):
         timer.start()
         self._synthetic_timer = timer
         self._synthetic_active = True
+        self._refresh_ingest_timer()
         self._refresh_timer_state()
 
     def stop_synthetic_stream(self) -> None:
@@ -2726,6 +2746,7 @@ class SignalsTab(QWidget):
             timer.deleteLater()
         self._synthetic_timer = None
         self._synthetic_active = False
+        self._refresh_ingest_timer()
         self._refresh_timer_state()
 
     def _on_synthetic_tick(self) -> None:
@@ -2762,6 +2783,7 @@ class SignalsTab(QWidget):
 
     @Slot()
     def on_stream_started(self) -> None:
+        print("[SignalsTab] on_stream_started: enabling stream")
         self._plot.clear()
         self._buffer_cursors.clear()
         self._sampling_rate_hz = None
@@ -2774,6 +2796,7 @@ class SignalsTab(QWidget):
         self._set_stream_status("Streaming...", force=True)
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
+        self._refresh_ingest_timer()
         self._refresh_timer_state()
         self._refresh_mode_hint()
 
@@ -2791,6 +2814,7 @@ class SignalsTab(QWidget):
 
     @Slot()
     def on_stream_stopped(self) -> None:
+        print("[SignalsTab] on_stream_stopped: disabling stream")
         self._stream_active = False
         self._awaiting_first_sample = False
         self._stream_stalled = False
@@ -2800,6 +2824,7 @@ class SignalsTab(QWidget):
         self.stop_button.setEnabled(False)
         self._plot.clear()
         self._buffer_cursors.clear()
+        self._refresh_ingest_timer()
         self._refresh_timer_state()
         self._refresh_mode_hint()
 

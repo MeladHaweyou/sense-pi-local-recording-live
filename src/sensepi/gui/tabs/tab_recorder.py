@@ -918,10 +918,21 @@ class RecorderTab(QWidget):
 
     @Slot(list)
     def _on_samples_batch(self, samples: list[MpuSample]) -> None:
-        if not samples:
+        if samples:
+            first = samples[0]
+            print(
+                f"[RecorderTab] _on_samples_batch: n={len(samples)}, "
+                f"sensor_id={getattr(first, 'sensor_id', '?')}, "
+                f"ts={getattr(first, 'timestamp_ns', None)}"
+            )
+        else:
+            print("[RecorderTab] _on_samples_batch: received empty batch")
             return
 
-        self._data_buffer.add_samples(samples)
+        if self._data_buffer is not None:
+            self._data_buffer.add_samples(samples)
+        else:
+            print("[RecorderTab] _on_samples_batch: no data buffer; dropping samples")
         # Store the batch in the shared StreamingDataBuffer (for Signals/FFT)
         # and also push individual samples into the GUI queue for live plots.
 
