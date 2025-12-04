@@ -5,7 +5,7 @@ pis:
   - name: Pi06
     host: 192.168.0.6
     user: verwalter
-    password: "!66442200"
+    password: "66442200"
     base_path: "/home/verwalter/sensor"
     data_dir: "/home/verwalter/logs"
     pi_config_path: "/home/verwalter/sensor/pi_config.yaml"
