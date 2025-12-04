@@ -52,6 +52,7 @@ from ...core.timeseries_buffer import (
     ns_to_seconds,
 )
 from ...data import BufferConfig, StreamingDataBuffer
+from ...baseline import BaselineState, collect_baseline_samples
 from ...sensors.mpu6050 import MpuSample
 from ...perf_system import get_process_cpu_percent
 from ...tools.debug import debug_enabled
@@ -468,6 +469,14 @@ class SignalPlotWidgetBase(QWidget):
             if math.isnan(v):
                 continue
             self._append_point(sensor_id, ch, t_ns, v)
+
+    def add_samples(self, samples: Iterable[MpuSample]) -> None:
+        """Append multiple samples sequentially."""
+
+        for sample in samples:
+            if sample is None:
+                continue
+            self.add_sample(sample)
 
     def redraw(self) -> None:
         """Refresh the live plots (intended to be driven by a QTimer)."""
@@ -1281,6 +1290,8 @@ class SignalsTab(QWidget):
     acquisitionConfigChanged = Signal(GuiAcquisitionConfig)
     calibrationChanged = Signal(CalibrationOffsets)
 
+    BASELINE_DURATION_SEC = 3.0
+
     def __init__(
         self,
         recorder_tab: "RecorderTab | None" = None,
@@ -1326,6 +1337,11 @@ class SignalsTab(QWidget):
                 sample_rate_hz=self._sampling_rate_hz or 200.0,
             )
         )
+        self.baseline_state = BaselineState()
+        self._baseline_buffer: list[np.ndarray] = []
+        self._baseline_timer = QTimer(self)
+        self._baseline_timer.setSingleShot(True)
+        self._baseline_timer.timeout.connect(self._finish_baseline)
         self._data_buffer: StreamingDataBuffer | None = None
         self._buffer_cursors: Dict[int | str, float] = {}
         self._synthetic_active = False
@@ -1510,6 +1526,10 @@ class SignalsTab(QWidget):
 
         # Base correction controls
         self.base_correction_check = QCheckBox("Base correction", top_row_group)
+        self.baseline_button = QPushButton("Baseline correction", top_row_group)
+        self.baseline_button.setToolTip(
+            "Measure a short baseline and subtract it from live and recorded data."
+        )
         self.calibrate_button = QPushButton("Calibrate", top_row_group)
         self.reset_calibration_button = QPushButton("Reset calibration", top_row_group)
         self.calibration_duration_spin = QDoubleSpinBox(top_row_group)
@@ -1548,6 +1568,7 @@ class SignalsTab(QWidget):
         self.base_correction_check.stateChanged.connect(
             self._on_base_correction_toggled
         )
+        self.baseline_button.clicked.connect(self.start_baseline_correction)
         self.calibrate_button.clicked.connect(self._on_calibrate_clicked)
         self.reset_calibration_button.clicked.connect(
             self._on_reset_calibration_clicked
@@ -1591,6 +1612,7 @@ class SignalsTab(QWidget):
         self.calibration_group = QGroupBox("Calibration (gravity / offset)")
         calib_layout = QHBoxLayout(self.calibration_group)
 
+        calib_layout.addWidget(self.baseline_button)
         calib_layout.addWidget(QLabel("Calibration duration:"))
         calib_layout.addWidget(self.calibration_duration_spin)
         calib_layout.addWidget(self.calibrate_button)
@@ -2131,6 +2153,65 @@ class SignalsTab(QWidget):
         ]
         self._plot.set_visible_channels(visible)
 
+    # ------------------------------------------------------------------ baseline
+    def start_baseline_correction(self) -> None:
+        """
+        Collect raw samples for a short window before computing the baseline.
+        """
+
+        self.baseline_state.active = False
+        self.baseline_state.offset = None
+        self._baseline_buffer.clear()
+        self._baseline_timer.start(int(self.BASELINE_DURATION_SEC * 1000))
+
+    def _finish_baseline(self) -> None:
+        """Compute and store baseline offset after capture window."""
+
+        if not self._baseline_buffer:
+            return
+
+        offset = collect_baseline_samples(self._baseline_buffer)
+        self.baseline_state.offset = offset
+        self.baseline_state.active = True
+        self._baseline_buffer.clear()
+
+    def _sample_to_array(self, sample: MpuSample) -> np.ndarray:
+        values: list[float] = []
+        for axis in ("ax", "ay", "az", "gx", "gy", "gz"):
+            val = getattr(sample, axis, None)
+            if val is None:
+                values.append(float("nan"))
+            else:
+                try:
+                    values.append(float(val))
+                except (TypeError, ValueError):
+                    values.append(float("nan"))
+        return np.asarray(values, dtype=float)
+
+    def _apply_baseline_to_sample(self, sample: MpuSample) -> MpuSample:
+        raw_values = self._sample_to_array(sample)
+
+        if self._baseline_timer.isActive():
+            self._baseline_buffer.append(raw_values)
+            corrected_values = raw_values
+        elif self.base_correction_check.isChecked():
+            corrected_values = self.baseline_state.apply(raw_values)
+        else:
+            corrected_values = raw_values
+
+        ax, ay, az, gx, gy, gz = corrected_values.tolist()
+        return MpuSample(
+            timestamp_ns=sample.timestamp_ns,
+            ax=float(ax),
+            ay=float(ay),
+            az=float(az),
+            gx=float(gx),
+            gy=float(gy),
+            gz=float(gz),
+            sensor_id=sample.sensor_id,
+            t_s=sample.t_s,
+        )
+
     def set_refresh_mode(
         self, mode: str, stream_rate_hz: Optional[float] = None
     ) -> None:
@@ -2200,9 +2281,10 @@ class SignalsTab(QWidget):
                         sample.gui_receive_ts = time.perf_counter()
                     except Exception:
                         pass
-                self._plot.add_sample(sample)
+                corrected_sample = self._apply_baseline_to_sample(sample)
+                self._plot.add_sample(corrected_sample)
                 updated_last = ts_s
-                self._handle_ingested_sample(sample)
+                self._handle_ingested_sample(corrected_sample)
             if updated_last is not None:
                 self._buffer_cursors[sensor_id] = updated_last
 
@@ -2415,7 +2497,10 @@ class SignalsTab(QWidget):
         if not drained:
             return
 
-        self._plot.add_samples(drained)
+        corrected: list[MpuSample] = [
+            self._apply_baseline_to_sample(sample) for sample in drained
+        ]
+        self._plot.add_samples(corrected)
 
     def _recorder_sample_queue(self) -> queue.Queue[object] | None:
         recorder = getattr(self, "_recorder_tab", None)
