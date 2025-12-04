@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Tuple
 
-from ...config.sampling import SamplingConfig
+from sensepi.config.sampling import SamplingConfig
 
 CalibrationKey = Tuple[int, str]  # (sensor_id, channel_name), e.g. (1, "ax")
 
@@ -36,10 +36,11 @@ class CalibrationOffsets:
 @dataclass
 class SensorSelectionConfig:
     """
-    GUI-level description of which sensors & channels are active.
+    GUI-level description of which sensors and channels are active.
 
-    - active_sensors: sensor IDs as integers (e.g. [1, 2, 3])
-    - active_channels: logical channel names (e.g. ["ax", "ay", "az", "gx", "gy", "gz"])
+    - active_sensors: list of sensor IDs (e.g. [1, 2, 3])
+    - active_channels: list of channel names, e.g.:
+        ["ax", "ay", "az", "gx", "gy", "gz"]
     """
 
     active_sensors: List[int] = field(default_factory=list)
@@ -55,12 +56,10 @@ class SensorSelectionConfig:
 @dataclass
 class GuiAcquisitionConfig:
     """
-    GUI-level acquisition config that will later drive the backend.
+    Full acquisition configuration as seen from the GUI.
 
-    - sampling: low-level SamplingConfig (device rate + mode)
-    - stream_rate_hz: effective stream rate used for GUI/streaming
-    - record_only: if True, we will record but NOT stream to live plots
-    - sensor_selection: the SensorSelectionConfig above
+    This is what RecorderTab / SignalsTab / FftTab will use to
+    configure streaming and recording.
     """
 
     sampling: SamplingConfig
