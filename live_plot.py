@@ -4,7 +4,21 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Callable, Deque, Iterable, Optional, Protocol, Sequence, Tuple, Union, TYPE_CHECKING
+from typing import (
+    Any,
+    Callable,
+    Deque,
+    Iterable,
+    Optional,
+    Protocol,
+    Sequence,
+    Tuple,
+    Union,
+    TYPE_CHECKING,
+    runtime_checkable,
+)
+
+import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,6 +35,10 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from sensepi.config import SensePiConfig
 
 
+log = logging.getLogger(__name__)
+
+
+@runtime_checkable
 class PlotChunkLike(Protocol):  # pragma: no cover - structural typing helper
     """Subset of the PlotUpdate interface used by LivePlot."""
 
@@ -56,11 +74,14 @@ class LivePlot:
     spike_threshold: float = 0.5
     autoscale_margin: float = 0.05
 
-    fig: plt.Figure = field(init=False)
-    ax: plt.Axes = field(init=False)
-    line = None
-    envelope_coll = None
-    spike_scatter = None
+    # Optional injection of an existing Matplotlib Figure / Axes
+    fig: plt.Figure | None = None
+    ax: plt.Axes | None = None
+
+    # Matplotlib artists, initialised in __post_init__
+    line: Any = field(init=False, repr=False)
+    envelope_coll: Any = field(init=False, repr=False)
+    spike_scatter: Any = field(init=False, repr=False)
 
     _t: Deque[float] = field(init=False, default_factory=deque)
     _y_mean: Deque[float] = field(init=False, default_factory=deque)
@@ -71,9 +92,23 @@ class LivePlot:
 
     def __post_init__(self) -> None:
         self.window_seconds = max(0.1, float(self.window_seconds))
-        self.fig, self.ax = plt.subplots()
-        self.line, self.envelope_coll = init_envelope_plot(self.ax, color="C0", alpha=0.2)
-        self.spike_scatter = init_spike_markers(self.ax, color="red", marker="x", size=30.0)
+        if self.fig is None or self.ax is None:
+            self.fig, self.ax = plt.subplots()
+        else:
+            assert isinstance(self.fig, plt.Figure)
+            assert isinstance(self.ax, plt.Axes)
+
+        self.line, self.envelope_coll = init_envelope_plot(
+            self.ax,
+            color="C0",
+            alpha=0.2,
+        )
+        self.spike_scatter = init_spike_markers(
+            self.ax,
+            color="red",
+            marker="x",
+            size=30.0,
+        )
 
         self.ax.set_xlabel("Time [s]")
         self.ax.set_ylabel("Sensor value")
@@ -88,7 +123,7 @@ class LivePlot:
     ) -> "LivePlot":
         """Build a :class:`LivePlot` using the relevant values from ``cfg``.
 
-        ``overrides`` can supply extra keyword arguments (e.g. Matplotlib figure)
+        ``overrides`` can supply extra keyword arguments (e.g. ``fig`` / ``ax``)
         that are forwarded to :class:`LivePlot`'s constructor.
         """
 
@@ -105,11 +140,19 @@ class LivePlot:
             return
         t_latest = self._t[-1]
         t_min = t_latest - self.window_seconds
+        dropped = 0
         while self._t and self._t[0] < t_min:
             self._t.popleft()
             self._y_mean.popleft()
             self._y_min.popleft()
             self._y_max.popleft()
+            dropped += 1
+        if dropped and log.isEnabledFor(logging.DEBUG):
+            log.debug(
+                "LivePlot._trim_window: dropped %d samples older than %.3f s",
+                dropped,
+                float(t_min),
+            )
 
     def _extend_deque(self, dest: Deque[float], values: Iterable[float]) -> None:
         dest.extend(float(v) for v in values)
@@ -125,6 +168,16 @@ class LivePlot:
         if t_dec.size == 0:
             return
         has_envelope = y_min is not None and y_max is not None
+
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(
+                "LivePlot.add_data: %d samples, t=[%.3f, %.3f], envelope=%s",
+                int(t_dec.size),
+                float(t_dec[0]),
+                float(t_dec[-1]),
+                has_envelope,
+            )
+
         y_min_vals = y_min if has_envelope else y_mean
         y_max_vals = y_max if has_envelope else y_mean
 
@@ -172,8 +225,9 @@ class LivePlot:
         t_start = max(t_end - self.window_seconds, t_arr[0])
         self.ax.set_xlim(t_start, t_end)
 
-        y_low = float(np.nanmin([y_min_arr.min(), y_mean_arr.min()]))
-        y_high = float(np.nanmax([y_max_arr.max(), y_mean_arr.max()]))
+        # Autoscale with a configurable margin; clamp using element-wise min/max
+        y_low = float(np.nanmin(np.minimum(y_min_arr, y_mean_arr)))
+        y_high = float(np.nanmax(np.maximum(y_max_arr, y_mean_arr)))
         if not np.isfinite(y_low) or not np.isfinite(y_high):
             y_low, y_high = -1.0, 1.0
         if y_high <= y_low:
@@ -255,7 +309,11 @@ class LivePlot:
             result = fetch_data()
             if result is None:
                 return
-            if isinstance(result, Sequence) and result and not isinstance(result, tuple):
+            if (
+                isinstance(result, Sequence)
+                and result
+                and not isinstance(result, (tuple, PlotChunkLike))
+            ):
                 for item in result:
                     self.update_plot(item)
             else:
