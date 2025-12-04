@@ -1335,6 +1335,9 @@ class SignalsTab(QWidget):
             active_channels=["ax", "ay", "az", "gx", "gy", "gz"],
         )
         self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
+        self._active_channels: list[str] = list(
+            self._current_sensor_selection.active_channels or []
+        )
         if recorder_tab is not None:
             try:
                 self.set_data_buffer(recorder_tab.data_buffer())
@@ -1748,6 +1751,7 @@ class SignalsTab(QWidget):
         """
 
         self._current_gui_acquisition_config = cfg
+        self._active_channels = list(cfg.sensor_selection.active_channels or [])
         try:
             self._sampling_rate_hz = float(cfg.sampling.device_rate_hz)
         except (TypeError, ValueError):
@@ -1816,6 +1820,7 @@ class SignalsTab(QWidget):
             sensor_selection=sel,
         )
         self._current_gui_acquisition_config = cfg
+        self._active_channels = list(cfg.sensor_selection.active_channels or [])
         print("[SignalsTab] GuiAcquisitionConfig:", cfg.summary())
         self.acquisitionConfigChanged.emit(cfg)
 
@@ -2159,7 +2164,14 @@ class SignalsTab(QWidget):
             print("[SignalsTab] _ingest_buffer_data: no sensor IDs available")
             return
 
-        channels = data_buffer.get_channels() if hasattr(data_buffer, "get_channels") else []
+        channels = self._active_channels or [
+            "ax",
+            "ay",
+            "az",
+            "gx",
+            "gy",
+            "gz",
+        ]
 
         print(
             f"[SignalsTab] _ingest_buffer_data: sensor_ids={sensor_ids}, "
