@@ -69,7 +69,7 @@ class DeviceSensorsTab(QWidget):
 
         # Phase 2 behavior: UI only; print changes to stdout.
         self.host_combo.currentTextChanged.connect(self._on_ui_changed)
-        self.sensor_count_spin.valueChanged.connect(self._on_ui_changed)
+        self.sensor_count_spin.valueChanged.connect(self._on_sensor_count_changed)
         for cb in self.channel_checkboxes.values():
             cb.stateChanged.connect(self._on_ui_changed)
 
@@ -80,9 +80,32 @@ class DeviceSensorsTab(QWidget):
         print("[DeviceSensorsTab] sensor_count =", self.sensor_count_spin.value())
         print("[DeviceSensorsTab] active channels =", self._collect_active_channels())
 
+    def _on_sensor_count_changed(self, count: int) -> None:
+        """
+        Enable/disable sensor rows based on the selected count and clear any
+        channels for disabled sensors. Then log the updated UI state.
+        """
+        max_sensor = int(count)
+        channel_names = ["ax", "ay", "az", "gx", "gy", "gz"]
+
+        for sensor_id in (1, 2, 3):
+            enabled = sensor_id <= max_sensor
+            for ch in channel_names:
+                cb = self.channel_checkboxes[(sensor_id, ch)]
+                cb.setEnabled(enabled)
+                if not enabled:
+                    cb.setChecked(False)
+
+        # Reuse the existing logging helper so stdout reflects the new state
+        self._on_ui_changed()
+
     def _collect_active_channels(self) -> dict[int, list[str]]:
         active: dict[int, list[str]] = {}
+        max_sensor = self.sensor_count_spin.value()
         for (sensor_id, ch), cb in self.channel_checkboxes.items():
+            if sensor_id > max_sensor:
+                # Ignore sensors beyond the configured count
+                continue
             if cb.isChecked():
                 active.setdefault(sensor_id, []).append(ch)
         return active

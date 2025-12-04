@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -42,6 +42,11 @@ class LogsTab(QWidget):
         self._paths.ensure()
         self._log_files: list[Path] = []
 
+        # Timer used when “Follow tail” is enabled
+        self._timer = QTimer(self)
+        self._timer.setInterval(1000)  # ms; adjust if needed
+        self._timer.timeout.connect(self._on_timer_tick)
+
         layout = QVBoxLayout(self)
 
         control_row = QHBoxLayout()
@@ -67,8 +72,11 @@ class LogsTab(QWidget):
         self._file_combo.currentIndexChanged.connect(
             self._on_selection_changed
         )
+        self._follow_check.toggled.connect(self._on_follow_toggled)
 
         self._refresh_log_list()
+        # Start/stop timer based on initial checkbox state
+        self._on_follow_toggled(self._follow_check.isChecked())
 
     def _log_dir(self) -> Path:
         return self._paths.logs
@@ -114,6 +122,31 @@ class LogsTab(QWidget):
     def _on_selection_changed(self, index: int) -> None:
         if index < 0 or index >= len(self._log_files):
             self._view.clear()
+            return
+        self._load_log_file(self._log_files[index])
+
+    @Slot(bool)
+    def _on_follow_toggled(self, enabled: bool) -> None:
+        """
+        Start or stop periodic refresh of the current log file based on the
+        'Follow tail' checkbox.
+        """
+        if enabled and self._file_combo.currentIndex() >= 0:
+            self._timer.start()
+        else:
+            self._timer.stop()
+
+    @Slot()
+    def _on_timer_tick(self) -> None:
+        """
+        Timer callback: reload the currently selected file when following.
+
+        This reuses _load_log_file and keeps all truncation / cursor behavior.
+        """
+        if not self._follow_check.isChecked():
+            return
+        index = self._file_combo.currentIndex()
+        if index < 0 or index >= len(self._log_files):
             return
         self._load_log_file(self._log_files[index])
 
