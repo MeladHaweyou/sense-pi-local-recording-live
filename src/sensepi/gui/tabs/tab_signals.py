@@ -2162,13 +2162,17 @@ class SignalsTab(QWidget):
         channels = data_buffer.get_channels() if hasattr(data_buffer, "get_channels") else []
 
         print(
-            f"[SignalsTab] buffer ingest: sensors={sensor_ids}, "
+            f"[SignalsTab] _ingest_buffer_data: sensor_ids={sensor_ids}, "
             f"channels={channels}, latest_ts={latest_ts:.6f}"
         )
 
         window_s = self._plot.window_seconds
         for sensor_id in sensor_ids:
             samples = data_buffer.get_recent_samples(sensor_id, seconds=window_s)
+            print(
+                f"[SignalsTab] sensor={sensor_id} recent_samples={len(samples)} "
+                f"(window_s={window_s})"
+            )
             if not samples:
                 continue
             last_seen = self._buffer_cursors.get(sensor_id)
