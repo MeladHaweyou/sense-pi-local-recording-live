@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+import logging
 import math
 from typing import Deque, Iterable, Iterator, List, MutableMapping, Optional
 
 from ..sensors.mpu6050 import MpuSample
+
+logger = logging.getLogger(__name__)
 
 SensorKey = int | str
 
@@ -44,6 +47,11 @@ class StreamingDataBuffer:
 
     Instances are expected to be owned and mutated from the Qt main thread so
     simple Python containers are sufficient.
+
+    Per-sensor sample timestamps are assumed to be monotonically increasing.
+    If they are not, time-window queries (e.g. ``max_seconds`` windows) may
+    behave in unexpected ways because the buffer assumes that newer samples
+    always have timestamps greater than or equal to older ones.
     """
 
     def __init__(self, config: BufferConfig | None = None) -> None:
@@ -70,15 +78,20 @@ class StreamingDataBuffer:
             count += 1
 
         if count:
-            print(
-                f"[StreamingDataBuffer] add_samples: n={count}, "
-                f"sensors={sorted(sensor_ids, key=str)}"
+            logger.debug(
+                "StreamingDataBuffer.add_samples: n=%d, sensors=%s",
+                count,
+                sorted(sensor_ids, key=str),
             )
 
     # ------------------------------------------------------------------- query
     def get_sensor_ids(self) -> List[SensorKey]:
-        """Return a snapshot of all sensor IDs currently present in the buffer."""
-        return list(self._buffers.keys())
+        """Return a snapshot of all sensor IDs currently present in the buffer.
+
+        IDs are returned in a deterministic order to make calling code and
+        tests easier to reason about.
+        """
+        return sorted(self._buffers.keys(), key=str)
 
     def get_recent_samples(
         self,
@@ -106,7 +119,13 @@ class StreamingDataBuffer:
             return []
 
         window_s = self._resolve_window(seconds)
-        max_items = max_samples if max_samples is not None else 0
+
+        # Treat ``max_samples`` <= 0 as "no explicit limit".
+        if max_samples is not None and max_samples > 0:
+            max_items = int(max_samples)
+        else:
+            max_items = 0
+
         latest_time = self._sample_time(buf[-1])
         threshold = None if latest_time is None else latest_time - window_s
 
@@ -157,8 +176,8 @@ class StreamingDataBuffer:
         """
         Return synchronized timestamps and axis values for ``sensor_id``.
 
-        Missing or NaN axis values are included as-is so the caller can decide
-        how to handle them.
+        Samples with missing timestamps or axis values (``None``) are skipped.
+        NaN values are preserved so the caller can decide how to handle them.
         """
         attr = axis.lower()
         samples = self.get_recent_samples(sensor_id, seconds=seconds, max_samples=max_samples)
