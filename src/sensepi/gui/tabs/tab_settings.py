@@ -578,7 +578,9 @@ class SettingsTab(QWidget):
         """
         text = self.mpu_sensors_edit.text().strip()
         if not text:
-            active_sensors: list[int] = []
+            # Fallback to default sensors if user hasn't specified any.
+            # Adjust [1, 2, 3] to match your hardware configuration.
+            active_sensors: list[int] = [1, 2, 3]
         else:
             active_sensors = []
             for part in text.split(","):
