@@ -57,7 +57,9 @@ class StreamingDataBuffer:
         Each sensor_id gets its own ring-like deque; `_truncate` keeps the
         buffer size bounded so recent data is available without unbounded growth.
         """
-        for sample in samples:
+        materialized = list(samples)
+        print(f"[StreamingDataBuffer] add_samples: n={len(materialized)}")
+        for sample in materialized:
             if sample is None:
                 continue
             sensor_id = self._sensor_key_from_sample(sample)
