@@ -82,7 +82,27 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print the top cumulative functions after profiling",
     )
-    return parser.parse_args()
+
+    args = parser.parse_args()
+
+    # ---- basic validation / fail-fast checks ----
+    if args.bench_rate <= 0:
+        parser.error("--bench-rate must be positive")
+
+    if args.bench_duration <= 0:
+        parser.error("--bench-duration must be positive")
+
+    # The GUI currently supports 9 or 18 charts; keep users inside that set.
+    if args.bench_channels not in (9, 18):
+        parser.error("--bench-channels must be 9 or 18")
+
+    if args.bench_sensors <= 0:
+        parser.error("--bench-sensors must be positive")
+
+    if args.bench_log_interval <= 0:
+        parser.error("--bench-log-interval must be positive")
+
+    return args
 
 
 def _build_gui_argv(args: argparse.Namespace) -> List[str]:
@@ -118,14 +138,19 @@ def main() -> None:
     args = _parse_args()
     gui_argv = _build_gui_argv(args)
     prof_path = Path(args.prof_output).expanduser().resolve()
+    # Ensure the output directory exists if the user passed a nested path
+    prof_path.parent.mkdir(parents=True, exist_ok=True)
+
     profiler = cProfile.Profile()
     profiler.enable()
     try:
         _run_gui(gui_argv)
     finally:
         profiler.disable()
+
     profiler.dump_stats(str(prof_path))
     print(f"[profile] cProfile stats written to {prof_path}")
+
     if args.print_stats:
         stats = pstats.Stats(profiler)
         stats.sort_stats("cumulative").print_stats(20)
