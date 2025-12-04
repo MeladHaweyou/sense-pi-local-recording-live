@@ -2489,6 +2489,7 @@ class SignalsTab(QWidget):
         if queue_obj is None:
             return
 
+        # Fallback path kept for older ingestion flows when no buffer exists.
         logger.debug("SignalsTab: draining from legacy sample_queue")
 
         drained: list[MpuSample] = []

@@ -30,6 +30,19 @@ class SamplingSingleRateTest(unittest.TestCase):
         self.assertEqual(data["record_decimate"], 1)
         self.assertEqual(data["stream_decimate"], 1)
 
+    def test_sampling_config_prefers_top_level_block(self):
+        payload = {
+            "sampling": {"device_rate_hz": 200, "mode": "high_fidelity"},
+            "sensors": {"mpu6050": {"sample_rate_hz": 512}},
+        }
+        cfg = SamplingConfig.from_mapping(payload)
+        self.assertEqual(cfg.device_rate_hz, 200)
+        self.assertEqual(cfg.mode_key, "high_fidelity")
+
+    def test_sampling_config_defaults_to_200hz(self):
+        cfg = SamplingConfig.from_mapping(None)
+        self.assertEqual(cfg.device_rate_hz, 200.0)
+
 
 if __name__ == "__main__":
     unittest.main()
