@@ -59,6 +59,7 @@ from ...config.app_config import (
     HostInventory,
     SensorDefaults,
     build_pi_config_for_host,
+    normalize_remote_path,
 )
 from ...config.sampling import RECORDING_MODES, SamplingConfig
 from ...remote.ssh_client import SSHClient
@@ -483,29 +484,36 @@ class SettingsTab(QWidget):
             return
 
         try:
-            if not client.path_exists(str(host_cfg.data_dir)):
+            # Normalize remote paths to POSIX-style, independent of Windows host
+            remote_data_dir = normalize_remote_path(host_cfg.data_dir, host_cfg.user)
+            remote_scripts_dir = normalize_remote_path(host_cfg.base_path, host_cfg.user)
+            remote_pi_config_path = normalize_remote_path(
+                host_cfg.pi_config_path, host_cfg.user
+            )
+
+            if not client.path_exists(remote_data_dir):
                 QMessageBox.critical(
                     self,
                     "Validation failed",
-                    f"Remote data directory does not exist: {host_cfg.data_dir}",
+                    f"Remote data directory does not exist: {remote_data_dir}",
                 )
                 return
-            if not client.path_exists(str(host_cfg.base_path)):
+            if not client.path_exists(remote_scripts_dir):
                 QMessageBox.critical(
                     self,
                     "Validation failed",
-                    f"Remote scripts directory does not exist: {host_cfg.base_path}",
+                    f"Remote scripts directory does not exist: {remote_scripts_dir}",
                 )
                 return
 
             with client.sftp() as sftp:
-                with sftp.open(str(host_cfg.pi_config_path), "w") as fh:
+                with sftp.open(remote_pi_config_path, "w") as fh:
                     fh.write(contents)
         except Exception as exc:
             QMessageBox.critical(
                 self,
                 "Sync error",
-                f"Failed to upload config to {host_cfg.pi_config_path}:\n{exc}",
+                f"Failed to upload config to {host_cfg.name}:\n{exc}",
             )
             return
         finally:
@@ -514,7 +522,7 @@ class SettingsTab(QWidget):
         QMessageBox.information(
             self,
             "Config synced",
-            f"Uploaded configuration to {host_cfg.pi_config_path}.",
+            f"Uploaded configuration to {remote_pi_config_path}.",
         )
 
     # ------------------------------------------------------------------

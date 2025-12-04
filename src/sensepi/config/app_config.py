@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import yaml
@@ -420,6 +420,50 @@ class HostInventory:
 
 
 # ---------------------------------------------------------------------------
+# Remote path normalization
+# ---------------------------------------------------------------------------
+
+def normalize_remote_path(path: str | Path, user: str | None = None) -> str:
+    """
+    Normalize a remote (Raspberry Pi) path string so it is POSIX-style.
+
+    Rules:
+    - "~" or "~/..." is expanded to /home/<user>[/...], if *user* is given.
+    - Windows-style backslashes are converted to forward slashes.
+    - Windows drive letters like "C:/..." are stripped (we only keep the
+      path component).
+    - A bare relative path like "logs" becomes /home/<user>/logs if *user* is
+      available; otherwise it is left as-is.
+    """
+    s = str(path).strip()
+    if not s:
+        return s
+
+    # Handle "~" expansion for the *remote* user
+    if user:
+        if s == "~":
+            return f"/home/{user}"
+        if s.startswith("~/"):
+            tail = s[2:]
+            return f"/home/{user}/{tail}" if tail else f"/home/{user}"
+
+    # Normalize separators so Windows-style paths don't leak through
+    s = s.replace("\\", "/")
+
+    # Strip Windows drive letter "C:/..." -> "/..."
+    if len(s) >= 2 and s[1] == ":":
+        s = s[2:]
+        if not s.startswith("/"):
+            s = "/" + s
+
+    # If still relative and we know the user, interpret as under their home
+    if not s.startswith("/") and user:
+        s = f"/home/{user}/{s}"
+
+    return s
+
+
+# ---------------------------------------------------------------------------
 # CLI argument builders for the Pi loggers
 # ---------------------------------------------------------------------------
 
@@ -472,8 +516,12 @@ def build_pi_config_for_host(host_cfg: HostConfig, app_cfg: AppConfig) -> PiLogg
     if isinstance(sensors_list, str):
         sensors_list = [s.strip() for s in sensors_list.split(",") if s.strip()]
 
+    # Normalize remote paths for the Pi
+    data_root = normalize_remote_path(host_cfg.data_dir, host_cfg.user)
+    output_dir = str(PurePosixPath(data_root) / "mpu")
+
     mpu_cfg = {
-        "output_dir": str(host_cfg.data_dir / "mpu"),
+        "output_dir": output_dir,
         "sample_rate_hz": int(pi_cfg.device_rate_hz),
         "record_decimate": int(pi_cfg.record_decimate),
         "stream_every": int(pi_cfg.stream_decimate),
