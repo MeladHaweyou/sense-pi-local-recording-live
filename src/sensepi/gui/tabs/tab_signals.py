@@ -2134,9 +2134,21 @@ class SignalsTab(QWidget):
         if data_buffer is None:
             return
 
+        latest_ts = data_buffer.latest_timestamp()
+        if latest_ts is None:
+            return
+
         sensor_ids = data_buffer.get_sensor_ids()
         if not sensor_ids:
             return
+
+        channels = data_buffer.get_channels() if hasattr(data_buffer, "get_channels") else []
+
+        if debug_enabled():
+            print(
+                f"[SignalsTab] buffer ingest: sensors={sensor_ids}, "
+                f"channels={channels}, latest_ts={latest_ts:.6f}"
+            )
 
         window_s = self._plot.window_seconds
         for sensor_id in sensor_ids:
@@ -2333,24 +2345,36 @@ class SignalsTab(QWidget):
         return False
 
     def _drain_samples(self) -> None:
-        """Drain queued samples from RecorderTab and append them to the plots."""
+        """
+        Periodically called by _ingest_timer to transfer samples into the plot.
+
+        Newer architecture: we prefer the shared StreamingDataBuffer that
+        RecorderTab fills in _on_samples_batch. If that buffer is not available
+        for some reason, we fall back to the legacy sample_queue path.
+        """
         if not self._stream_active and not self._synthetic_active:
             return
 
-        queue_obj = self._recorder_sample_queue() if self._stream_active else None
-        if queue_obj is None:
-            # Fall back to the shared StreamingDataBuffer (synthetic data or tests)
+        # --- Preferred path: use StreamingDataBuffer ------------------------
+        buf = self._active_data_buffer()
+        if buf is not None:
+            # This pulls all new samples since the last cursor position for each
+            # sensor/channel and forwards them to the plot widget.
             self._ingest_buffer_data()
             return
 
-        # Pull as many samples as are currently queued by RecorderTab; this keeps
-        # ingest work in short bursts driven by the GUI timer instead of per-sample.
-        drained: list[object] = []
-        try:
-            while True:
-                drained.append(queue_obj.get_nowait())
-        except queue.Empty:
-            pass
+        # --- Fallback: legacy queue-based ingestion -------------------------
+        queue_obj = self._recorder_sample_queue() if self._stream_active else None
+        if queue_obj is None:
+            return
+
+        drained: list[MpuSample] = []
+        while True:
+            try:
+                sample = queue_obj.get_nowait()
+            except queue.Empty:
+                break
+            drained.append(sample)
 
         if not drained:
             return
