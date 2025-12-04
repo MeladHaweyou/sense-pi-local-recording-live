@@ -9,6 +9,7 @@ or ``python -m sensepi.gui.application``—flow through ``main()`` here.
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 from typing import Tuple
@@ -159,6 +160,12 @@ def create_app(
 
 
 def main(argv: list[str] | None = None) -> None:
+    # Basic logging so that GUI + benchmark messages are visible on the console.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s:%(name)s:%(message)s",
+    )
+
     raw_argv = argv if argv is not None else sys.argv
     args, qt_argv = _parse_cli_args(raw_argv)
     app_config = AppConfig(signal_backend=args.signal_backend)

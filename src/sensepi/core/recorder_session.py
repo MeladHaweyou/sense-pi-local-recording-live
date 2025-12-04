@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Coordinator for running remote loggers and writing data locally."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -28,7 +28,7 @@ class RecorderSession:
             name=session_name,
             sensor_type=sensor_type,
             sample_rate_hz=sample_rate_hz,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
             output_path=self.session_dir,
         )
 

@@ -168,16 +168,30 @@ def _dispatch_record(record: Mapping[str, Any], buffers: ChannelBufferStore) -> 
 
 
 def _extract_timestamp(record: Mapping[str, Any]) -> Optional[Number]:
-    t_raw = record.get("t_s")
-    if t_raw is not None:
-        ts = _coerce_number(t_raw)
-        if ts is not None:
-            return ts
+    """
+    Extract a timestamp in seconds from a JSON record.
+
+    Supported fields, in order of preference:
+    - t_s:        seconds (float or castable to float)
+    - timestamp:  seconds (float or castable to float)
+    - ts:         seconds (float or castable to float)
+    - timestamp_ns: nanoseconds (int/float, converted to seconds)
+    """
+    # Preferred: explicit seconds field
+    for key in ("t_s", "timestamp", "ts"):
+        raw = record.get(key)
+        if raw is not None:
+            ts = _coerce_number(raw)
+            if ts is not None:
+                return ts
+
+    # Fallback: nanoseconds -> seconds
     ts_ns = record.get("timestamp_ns")
     if ts_ns is not None:
         ns_val = _coerce_number(ts_ns)
         if ns_val is not None:
             return ns_val * 1e-9
+
     return None
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,8 @@ from PySide6.QtWidgets import QApplication
 
 from ..perf_system import get_process_cpu_percent
 from .main_window import MainWindow
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -74,17 +77,12 @@ class BenchmarkDriver(QObject):
 
         self._start_monotonic = time.perf_counter()
         self._timer.start()
-        print(
-            (
-                "[benchmark] running at %.1f Hz for %.1f s, GUI refresh %.1f Hz, "
-                "sensors=%d"
-            )
-            % (
-                self._options.rate_hz,
-                self._options.duration_s,
-                refresh_hz,
-                sensor_count,
-            )
+        logger.info(
+            "[benchmark] running at %.1f Hz for %.1f s, GUI refresh %.1f Hz, sensors=%d",
+            self._options.rate_hz,
+            self._options.duration_s,
+            refresh_hz,
+            sensor_count,
         )
         if self._options.duration_s <= 0.0:
             QTimer.singleShot(0, self._finish)
@@ -102,7 +100,12 @@ class BenchmarkDriver(QObject):
         if approx_drop is None:
             approx_drop = snap.get("approx_dropped_frames_per_sec", 0.0)
         approx_drop = float(approx_drop or 0.0)
-        cpu_percent = get_process_cpu_percent()
+
+        try:
+            cpu_percent = get_process_cpu_percent()
+        except Exception as exc:  # pragma: no cover - metrics are best-effort
+            logger.warning("Failed to read process CPU percent: %r", exc)
+            cpu_percent = 0.0
 
         row = {
             "t": elapsed,
@@ -117,22 +120,20 @@ class BenchmarkDriver(QObject):
         }
         self._rows.append(row)
 
-        print(
+        logger.info(
             (
                 "[benchmark] t=%5.1fs fps=%5.1f/%5.1f timer=%4.1fHz frame=%5.2fms "
                 "lat=%5.2f/%5.2fms drop=%5.2f cpu=%5.1f%%"
-            )
-            % (
-                elapsed,
-                fps,
-                target_fps,
-                timer_hz,
-                avg_frame_ms,
-                avg_latency_ms,
-                max_latency_ms,
-                approx_drop,
-                cpu_percent,
-            )
+            ),
+            elapsed,
+            fps,
+            target_fps,
+            timer_hz,
+            avg_frame_ms,
+            avg_latency_ms,
+            max_latency_ms,
+            approx_drop,
+            cpu_percent,
         )
 
         if elapsed >= self._options.duration_s:
@@ -148,7 +149,7 @@ class BenchmarkDriver(QObject):
         signals_tab.on_stream_stopped()
         if self._options.csv_path and self._rows:
             self._write_csv(self._options.csv_path)
-        print("[benchmark] completed; duration %.1f s" % self._options.duration_s)
+        logger.info("[benchmark] completed; duration %.1f s", self._options.duration_s)
         if not self._options.keep_open:
             self._app.quit()
 
@@ -169,4 +170,4 @@ class BenchmarkDriver(QObject):
             writer = csv.DictWriter(fh, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows({k: row.get(k, 0.0) for k in fieldnames} for row in self._rows)
-        print(f"[benchmark] metrics written to {path}")
+        logger.info("[benchmark] metrics written to %s", path)

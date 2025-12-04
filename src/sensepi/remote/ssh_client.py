@@ -165,7 +165,8 @@ class SSHClient:
                     except Exception:
                         self.close()
                         raise StopIteration
-                    if raw == "":
+                    # EOF for both bytes and str (and guard against None)
+                    if not raw:
                         self.close()
                         raise StopIteration
                     if isinstance(raw, bytes):

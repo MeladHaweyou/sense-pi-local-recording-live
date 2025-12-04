@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 import numpy as np
 import pyqtgraph as pg
@@ -41,8 +42,14 @@ class LiveSignalsTab(QWidget):
             curve = self.plot_widget.plot(self._x, np.zeros_like(self._x), name=ch)
             self._curves[ch] = curve
 
-        # TODO: Phase 3+ – connect to QTimer and real buffers.
-        # For now, optionally create a basic timer with fake data, or leave static.
+        # Time state for dummy animation
+        self._t = 0.0
+
+        # QTimer driving the fake live data
+        self._timer = QTimer(self)
+        self._timer.setInterval(40)  # ~25 Hz GUI update
+        self._timer.timeout.connect(self._advance_dummy_data)
+        self._timer.start()
 
     def _on_channel_visibility_changed(self) -> None:
         for ch, cb in self.channel_checks.items():
@@ -51,3 +58,22 @@ class LiveSignalsTab(QWidget):
             "[LiveSignalsTab] visible channels =",
             [ch for ch, cb in self.channel_checks.items() if cb.isChecked()],
         )
+
+    def _advance_dummy_data(self) -> None:
+        """
+        Advance dummy sine-wave data over time for all channels.
+
+        Phase 2: this is purely fake data for the GUI; later phases will
+        replace this with real streaming buffers.
+        """
+        # Advance “time” based on timer interval
+        if self._timer is None:
+            return
+        self._t += self._timer.interval() / 1000.0  # seconds
+
+        base_freq_hz = 2.0
+        for i, (ch, curve) in enumerate(self._curves.items()):
+            # Different phase per channel, just for visual separation
+            phase = i * np.pi / 3.0
+            y = np.sin(2 * np.pi * base_freq_hz * self._x + phase + self._t)
+            curve.setData(self._x, y)

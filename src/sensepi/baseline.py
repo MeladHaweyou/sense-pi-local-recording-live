@@ -27,6 +27,8 @@ def collect_baseline_samples(samples: List[np.ndarray]) -> np.ndarray:
 
     ``samples``: list of arrays shaped ``(n_channels,)`` or ``(n_axes,)``.
     """
+    if not samples:
+        raise ValueError("collect_baseline_samples() requires at least one sample")
 
     stacked = np.stack(samples, axis=0)  # shape: (N, n_channels)
     return stacked.mean(axis=0)

@@ -14,11 +14,28 @@ TimeSeriesSample = tuple[int, float]
 BufferKey = Tuple[int, str]
 
 
-def calculate_capacity(window_seconds: float, max_rate_hz: float, *, margin: float = 1.1) -> int:
+def calculate_capacity(
+    window_seconds: float,
+    max_rate_hz: float,
+    *,
+    margin: float = 1.1,
+) -> int:
     """
     Compute how many samples are needed to cover ``window_seconds`` at
     ``max_rate_hz`` with an optional ``margin``.
+
+    Raises
+    ------
+    ValueError
+        If any of the inputs are non-positive.
     """
+    if window_seconds <= 0.0:
+        raise ValueError("window_seconds must be positive")
+    if max_rate_hz <= 0.0:
+        raise ValueError("max_rate_hz must be positive")
+    if margin <= 0.0:
+        raise ValueError("margin must be positive")
+
     samples = window_seconds * max_rate_hz * margin
     return max(1, int(math.ceil(samples)))
 

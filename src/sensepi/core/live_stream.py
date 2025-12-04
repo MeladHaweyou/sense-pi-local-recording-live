@@ -1,8 +1,11 @@
 """Helpers for consuming live data from remote loggers."""
 
 from typing import Any, Callable, Iterable
+import logging
 
 from ..sensors.mpu6050 import parse_line as parse_mpu
+
+logger = logging.getLogger(__name__)
 
 
 def stream_lines(
@@ -10,14 +13,33 @@ def stream_lines(
     parser: Callable[[str], Any],
     callback: Callable[[Any], None],
 ) -> None:
-    """Parse incoming lines and forward decoded samples to a callback."""
-    for line in lines:
+    """
+    Parse incoming lines and forward decoded samples to a callback.
+
+    This function is intentionally defensive:
+    - It strips whitespace from each line.
+    - It skips empty lines.
+    - It logs and skips malformed lines instead of raising.
+    - It logs callback errors instead of crashing the stream loop.
+    """
+    for raw_line in lines:
+        line = raw_line.strip()
         if not line:
             continue
-        sample = parser(line)
+
+        try:
+            sample = parser(line)
+        except Exception as exc:  # pragma: no cover - defensive guard
+            logger.exception("Error parsing line %r: %s", line, exc)
+            continue
+
         if sample is None:
             continue
-        callback(sample)
+
+        try:
+            callback(sample)
+        except Exception as exc:  # pragma: no cover - defensive guard
+            logger.exception("Error in stream callback for sample %r: %s", sample, exc)
 
 
 def select_parser(sensor_type: str) -> Callable[[str], Any]:

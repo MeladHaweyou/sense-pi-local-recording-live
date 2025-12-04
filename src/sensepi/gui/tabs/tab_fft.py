@@ -35,7 +35,7 @@ from ...config.app_config import AppConfig, PlotPerformanceConfig
 from ...core.ringbuffer import RingBuffer
 from ...data import StreamingDataBuffer
 from ...tools.debug import debug_enabled
-from . import SampleKey
+from . import LayoutSignature, SampleKey
 
 if TYPE_CHECKING:  # pragma: no cover - circular import guard
     from .tab_recorder import RecorderTab
@@ -96,7 +96,7 @@ class FftTab(QWidget):
         self._force_next_update: bool = True
         self._fft_axes: Dict[SampleKey, Axes] = {}
         self._fft_lines: Dict[SampleKey, Line2D] = {}
-        self._current_layout: Tuple[Tuple[int, ...], Tuple[str, ...]] | None = None
+        self._current_layout: LayoutSignature | None = None
         # Bound how many samples each FFT uses so the GUI stays responsive.
         self._max_fft_samples = 4096
         self._fft_decimation_target = 2048
@@ -182,6 +182,20 @@ class FftTab(QWidget):
         self._timer.timeout.connect(self._on_fft_timer)
         self._debug_fft_ema_ms: float = 0.0
         self._debug_fft_last_log: float = time.perf_counter()
+
+        # After basic fields are initialized, wire FFT refresh interval from SignalsTab
+        if self._signals_tab is not None:
+            try:
+                self._signals_tab.fft_refresh_interval_changed.connect(
+                    self.set_refresh_interval_ms
+                )
+                logger.debug(
+                    "FftTab: connected fft_refresh_interval_changed from SignalsTab"
+                )
+            except Exception:
+                logger.exception(
+                    "FftTab: failed to connect fft_refresh_interval_changed signal"
+                )
 
         # Wiring
         self.view_mode_combo.currentIndexChanged.connect(self._on_controls_changed)
@@ -340,7 +354,7 @@ class FftTab(QWidget):
         if sensor_type != "mpu6050":
             return
         self._stream_rate_hz = float(hz) if hz > 0.0 else 0.0
-        print(f"[FftTab] update_stream_rate: {self._stream_rate_hz:.2f} Hz")
+        logger.info("FftTab: update_stream_rate %.2f Hz", self._stream_rate_hz)
         self._ensure_fft_frequency_axis(self._stream_rate_hz)
         self._request_full_refresh()
 
@@ -365,7 +379,7 @@ class FftTab(QWidget):
 
     @Slot()
     def on_stream_started(self) -> None:
-        print("[FftTab] on_stream_started")
+        logger.info("FftTab: on_stream_started")
         self._clear_layout()
         self._draw_waiting()
         self._status_label.setText("Streaming...")
@@ -373,16 +387,18 @@ class FftTab(QWidget):
         self._request_full_refresh()
         self._stream_active = True
         if not self._timer.isActive() and not self._is_record_only():
-            print(f"[FftTab] starting FFT timer at {self._refresh_interval_ms} ms")
+            logger.debug(
+                "FftTab: starting FFT timer at %d ms", self._refresh_interval_ms
+            )
             self._timer.start(self._refresh_interval_ms)
 
     @Slot()
     def on_stream_stopped(self) -> None:
-        print("[FftTab] on_stream_stopped")
+        logger.info("FftTab: on_stream_stopped")
         # Keep last spectrum visible but update status.
         self._stream_active = False
         if self._timer.isActive():
-            print("[FftTab] stopping FFT timer")
+            logger.debug("FftTab: stopping FFT timer")
             self._timer.stop()
         self._status_label.setText("Stopped")
         self._last_rendered_latest_ts = None
@@ -407,12 +423,14 @@ class FftTab(QWidget):
         if self._stream_rate_hz > 0.0:
             expected = self._stream_rate_hz * window_s
             min_samples = max(4, int(expected * 0.25))
-            print(
-                f"[FftTab] min_samples_required: window_s={window_s}, "
-                f"stream_rate={self._stream_rate_hz:.2f}, min_samples={min_samples}"
+            logger.debug(
+                "FftTab: min_samples_required window_s=%.3f stream_rate=%.2f -> %d",
+                window_s,
+                self._stream_rate_hz,
+                min_samples,
             )
             return min_samples
-        print("[FftTab] min_samples_required: stream_rate=0, using 4")
+        logger.debug("FftTab: min_samples_required with unknown stream_rate; using 4")
         return 4
 
     def _decimate_signal_for_fft(
@@ -531,11 +549,11 @@ class FftTab(QWidget):
         return np.abs(fft_vals)
 
     def _on_fft_timer(self) -> None:
-        print("[FftTab] _on_fft_timer tick")
         if not debug_enabled():
             self._update_fft()
             return
 
+        logger.debug("FftTab: _on_fft_timer tick")
         start = time.perf_counter()
         self._update_fft()
         elapsed_ms = (time.perf_counter() - start) * 1000.0
@@ -549,9 +567,10 @@ class FftTab(QWidget):
         now_perf = time.perf_counter()
         if now_perf - self._debug_fft_last_log >= 5.0:
             interval = self._timer.interval() if hasattr(self, "_timer") else 0
-            print(
-                f"[DEBUG] fft_redraw interval={interval} ms ema≈{self._debug_fft_ema_ms:.2f} ms",
-                flush=True,
+            logger.debug(
+                "FftTab: redraw interval=%d ms ema≈%.2f ms",
+                interval,
+                self._debug_fft_ema_ms,
             )
             self._debug_fft_last_log = now_perf
 
@@ -597,14 +616,16 @@ class FftTab(QWidget):
                 channels = ["ax", "ay", "az", "gx", "gy", "gz"]
 
         if not channels:
-            print("[FftTab] WARNING: channels list empty, falling back to ['ax','ay','gz']")
+            logger.warning(
+                "FftTab: channels list empty; falling back to ['ax', 'ay', 'gz']"
+            )
             channels = ["ax", "ay", "gz"]
 
         window_s = float(self.window_spin.value())
         min_samples = self._min_samples_required(window_s)
 
         if not self._ensure_fft_layout(sensor_ids, channels):
-            print("[FftTab] _ensure_fft_layout returned False; skipping update")
+            logger.debug("FftTab: _ensure_fft_layout returned False; skipping update")
             self._status_label.setText("Waiting for layout.")
             self._canvas.draw_idle()
             return
@@ -660,8 +681,7 @@ class FftTab(QWidget):
 
         if not have_data:
             logger.debug(
-                "[FftTab] no usable FFT data: sensor_ids=%s, channels=%s, "
-                "min_samples=%d, stream_rate=%.2f",
+                "FftTab: no usable FFT data sensor_ids=%s channels=%s min_samples=%d stream_rate=%.2f",
                 sensor_ids,
                 channels,
                 min_samples,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal
 
 from PySide6.QtCore import Qt, Signal, QSignalBlocker
 from PySide6.QtWidgets import (
@@ -23,6 +24,9 @@ from sensepi.config.sampling import (
 from ..config.acquisition_state import GuiAcquisitionConfig, SensorSelectionConfig
 
 
+SignalsMode = Literal["fixed", "adaptive"]
+
+
 DEFAULT_DEVICE_RATE_HZ = 200.0
 DEFAULT_SIGNALS_REFRESH_MS = 50
 DEFAULT_FFT_REFRESH_MS = 750
@@ -43,19 +47,20 @@ class AcquisitionSettings:
             mode_key=DEFAULT_MODE_KEY,
         )
     )
-    gui_sampling: GuiSamplingDisplay = field(
-        default_factory=lambda: GuiSamplingDisplay.from_sampling(
-            SamplingConfig(
-                device_rate_hz=DEFAULT_DEVICE_RATE_HZ,
-                mode_key=DEFAULT_MODE_KEY,
-            )
-        )
-    )
-    signals_mode: str = "fixed"  # "fixed" or "adaptive"
+    # Derived view of sampling for GUI labels; may start as None and is
+    # populated in __post_init__.
+    gui_sampling: GuiSamplingDisplay | None = None
+
+    signals_mode: SignalsMode = "fixed"  # "fixed" or "adaptive"
     signals_refresh_ms: int = DEFAULT_SIGNALS_REFRESH_MS
     fft_refresh_ms: int = DEFAULT_FFT_REFRESH_MS
     #: When True, we record to disk but do not stream live data to the GUI.
     record_only: bool = False
+
+    def __post_init__(self) -> None:
+        # If gui_sampling is not explicitly provided, derive it from sampling.
+        if self.gui_sampling is None:
+            self.gui_sampling = GuiSamplingDisplay.from_sampling(self.sampling)
 
     @property
     def stream_rate_hz(self) -> float:
@@ -64,7 +69,10 @@ class AcquisitionSettings:
 
         This is what the backend and plotting should use for stream/plot rate.
         """
-
+        if self.gui_sampling is None:
+            # Fallback; __post_init__ should normally ensure gui_sampling is set.
+            display = GuiSamplingDisplay.from_sampling(self.sampling)
+            return float(display.stream_rate_hz)
         return float(self.gui_sampling.stream_rate_hz)
 
     @property
@@ -86,10 +94,10 @@ class AcquisitionSettings:
 class AcquisitionSettingsWidget(QWidget):
     """Small form that lets the user tune sampling/stream and refresh rates."""
 
-    signalsModeChanged = Signal(str)
+    signalsModeChanged = Signal(str)  # still emits the normalized mode key
     signalsRefreshChanged = Signal(int)
     fftRefreshChanged = Signal(int)
-    samplingChanged = Signal(object)  # emits SamplingConfig
+    samplingChanged = Signal(SamplingConfig)  # more specific than object
     recordOnlyChanged = Signal(bool)
     settingsChanged = Signal(AcquisitionSettings)
 
@@ -184,12 +192,10 @@ class AcquisitionSettingsWidget(QWidget):
     def current_settings(self) -> AcquisitionSettings:
         sampling = self.current_sampling_config()
         self._sampling_config = sampling
-        gui_sampling = self._current_gui_sampling_display()
         mode = self.signals_mode_combo.currentData() or "fixed"
 
         settings = AcquisitionSettings(
             sampling=sampling,
-            gui_sampling=gui_sampling,
             signals_mode=str(mode),
             signals_refresh_ms=int(self.signals_refresh_spin.value()),
             fft_refresh_ms=int(self.fft_refresh_spin.value()),
@@ -228,11 +234,8 @@ class AcquisitionSettingsWidget(QWidget):
         can react (e.g. disable live plotting when enabled).
         """
 
-        settings = self.current_settings()
-        settings.record_only = bool(checked)
-        self.set_settings(settings)
         self.recordOnlyChanged.emit(bool(checked))
-        self.settingsChanged.emit(self.current_settings())
+        self._emit_settings_changed()
 
     def set_sampling_config(self, sampling: SamplingConfig) -> None:
         """Update the sampling controls from an external config."""
@@ -268,6 +271,7 @@ class AcquisitionSettingsWidget(QWidget):
         self._sampling_config = sampling
         self._update_sampling_labels()
         self.samplingChanged.emit(sampling)
+        self._emit_settings_changed()
 
     def _update_sampling_labels(self) -> None:
         display = GuiSamplingDisplay.from_sampling(self._sampling_config)
@@ -280,6 +284,7 @@ class AcquisitionSettingsWidget(QWidget):
         self.signals_refresh_spin.setEnabled(is_fixed)
         normalized = str(mode or "fixed")
         self.signalsModeChanged.emit(normalized)
+        self._emit_settings_changed()
 
     # Convenience helper for later phases
     def current_stream_rate_hz(self) -> float:
@@ -307,16 +312,22 @@ class AcquisitionSettingsWidget(QWidget):
 
     def _on_signals_refresh_value_changed(self, value: int) -> None:
         self.signalsRefreshChanged.emit(int(value))
+        self._emit_settings_changed()
 
     def _on_fft_refresh_value_changed(self, value: int) -> None:
         self.fftRefreshChanged.emit(int(value))
+        self._emit_settings_changed()
+
+    def _emit_settings_changed(self) -> None:
+        """Emit a fresh snapshot of the current settings."""
+        self.settingsChanged.emit(self.current_settings())
 
     def set_signals_refresh_interval(self, interval_ms: int) -> None:
         """Update the signals refresh spin box without emitting change signals."""
-        blocker = QSignalBlocker(self.signals_refresh_spin)
-        self.signals_refresh_spin.setValue(int(interval_ms))
+        with QSignalBlocker(self.signals_refresh_spin):
+            self.signals_refresh_spin.setValue(int(interval_ms))
 
     def set_fft_refresh_interval(self, interval_ms: int) -> None:
         """Update the FFT refresh spin box without emitting change signals."""
-        blocker = QSignalBlocker(self.fft_refresh_spin)
-        self.fft_refresh_spin.setValue(int(interval_ms))
+        with QSignalBlocker(self.fft_refresh_spin):
+            self.fft_refresh_spin.setValue(int(interval_ms))

@@ -52,7 +52,10 @@ def build_pi_session_dir(
     """Return the directory on the Pi where this session's logs will be stored."""
 
     root = Path(base_dir).expanduser() if base_dir is not None else DEFAULT_PI_LOG_ROOT
-    sensor_root = root / sensor_prefix
+
+    # Keep behaviour in sync with build_pc_session_root
+    sensor_prefix = sensor_prefix.strip("/ ")
+    sensor_root = root / sensor_prefix if sensor_prefix else root
 
     if not session_name:
         return sensor_root
@@ -64,7 +67,7 @@ def build_pi_session_dir(
 # ---- PC-side helpers ---------------------------------------------------
 
 def build_pc_session_root(
-    raw_root: Path,
+    raw_root: Path | str,
     host_slug: str,
     session_name: Optional[str],
     sensor_prefix: str,

@@ -35,10 +35,27 @@ class DecimationConfig:
                 raise ValueError("smoothing_alpha must be within (0, 1]; use None to disable.")
 
     def decimation_factor(self) -> int:
-        """Return integer decimation factor (number of samples per output)."""
-        D = int(self.sensor_fs / self.plot_fs)
+        """Return integer decimation factor (number of samples per output).
+
+        Notes
+        -----
+        * Returns at least 1. If ``plot_fs >= sensor_fs``, the decimator
+          effectively disables decimation and behaves like a pass-through.
+        * Uses floor on the ratio to avoid undersampling the stream.
+        """
+        ratio = self.sensor_fs / self.plot_fs
+        if ratio <= 0.0:
+            raise ValueError(
+                f"Invalid sampling/plot rates: sensor_fs={self.sensor_fs}, "
+                f"plot_fs={self.plot_fs}"
+            )
+
+        D = int(ratio)
         if D <= 0:
-            raise ValueError(f"Invalid decimation factor: {D}")
+            # Passthrough: sensor is already slower than or equal to the
+            # requested plot rate.
+            D = 1
+
         return D
 
     def window_step(self) -> int:
@@ -72,6 +89,26 @@ class Decimator:
         if self.config.window_mode == "sliding" and self._window_step > D:
             self._window_step = D
 
+    @property
+    def dt(self) -> float:
+        """Sensor sampling period in seconds."""
+        return self._dt
+
+    @property
+    def window_size(self) -> int:
+        """Number of samples per decimation window (D)."""
+        return self._buffer.size
+
+    @property
+    def window_step(self) -> int:
+        """Stride between successive windows in samples."""
+        return self._window_step
+
+    @property
+    def effective_plot_fs(self) -> float:
+        """Approximate decimated output rate in Hz."""
+        return self.config.sensor_fs / float(self._window_step)
+
     def reset(self) -> None:
         """Reset internal buffers and smoothing state."""
         self._idx = 0
@@ -100,10 +137,16 @@ class Decimator:
             Optional envelope arrays when `use_envelope=True`.
         """
         flat = np.asarray(samples)
+
+        # Accept scalars and 1-D arrays only; anything higher-dimensional
+        # is almost certainly a caller bug (e.g. mixing channels together).
         if flat.ndim == 0:
             flat = flat.reshape(1)
-        else:
-            flat = flat.reshape(-1)
+        elif flat.ndim != 1:
+            raise ValueError(
+                f"Decimator expects a 1-D array of samples, got shape {flat.shape!r}. "
+                "Run one Decimator per channel."
+            )
         n_samples = flat.size
         if n_samples == 0:
             empty_t = np.empty(0, dtype=np.float64)

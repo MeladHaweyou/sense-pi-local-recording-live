@@ -390,7 +390,7 @@ class RecorderTab(QWidget):
         cfg = self.current_sensor_selection()
         self._current_sensor_selection = cfg
         self.sensorSelectionChanged.emit(cfg)
-        print("[RecorderTab] Sensor selection:", cfg.summary())
+        logger.info("RecorderTab: sensor selection changed: %s", cfg.summary())
 
     def current_host_details(self) -> tuple[Host, HostConfig] | None:
         """Return the active host credentials and config if available."""
@@ -905,19 +905,23 @@ class RecorderTab(QWidget):
     @Slot(list)
     def _on_samples_batch(self, samples: list[MpuSample]) -> None:
         if not samples:
-            print("[RecorderTab] _on_samples_batch: empty batch")
+            logger.debug("RecorderTab: _on_samples_batch called with empty batch")
             return
 
         sensor_ids = {getattr(s, "sensor_id", None) for s in samples if s is not None}
-        print(
-            f"[RecorderTab] _on_samples_batch: n={len(samples)}, "
-            f"sensors={sorted(s for s in sensor_ids if s is not None)}"
+        logger.debug(
+            "RecorderTab: _on_samples_batch n=%d sensors=%s",
+            len(samples),
+            sorted(s for s in sensor_ids if s is not None),
         )
 
         if self._data_buffer is not None:
             self._data_buffer.add_samples(samples)
         else:
-            print("[RecorderTab] _on_samples_batch: no data buffer; dropping samples")
+            logger.warning(
+                "RecorderTab: _on_samples_batch has no data buffer; dropping %d samples",
+                len(samples),
+            )
         # Store the batch in the shared StreamingDataBuffer (for Signals/FFT)
         # and also push individual samples into the GUI queue for live plots.
 
