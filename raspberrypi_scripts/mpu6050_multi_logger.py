@@ -91,6 +91,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+DEBUG_STREAM = False
+
 from pi_logger_common import load_config
 from sensepi.config.log_paths import (
     LOG_SUBDIR_MPU,
@@ -427,6 +429,14 @@ def main():
         ),
     )
     ap.add_argument(
+        "--gui-mode",
+        action="store_true",
+        help=(
+            "Enable streaming to stdout and continue running even if file output fails. "
+            "Convenience flag for desktop GUI integrations."
+        ),
+    )
+    ap.add_argument(
         "--timing-warnings",
         action="store_true",
         help="Print overrun warnings to stderr (debugging only).",
@@ -451,6 +461,11 @@ def main():
 
     args = ap.parse_args()
     args.stream_every = max(1, int(args.stream_every))
+
+    # Normalize common Windows-style paths that might be passed from a GUI.
+    if "\\" in args.out and "/" not in args.out:
+        print(f"[WARN] Normalizing Windows-style path in --out: {args.out}", file=sys.stderr)
+        args.out = args.out.replace("\\", "/")
 
     if args.list:
         scan_buses()
@@ -536,6 +551,10 @@ def main():
     if cfg_out is not None and not _flag_present("--out"):
         args.out = str(cfg_out)
 
+    if "\\" in args.out and "/" not in args.out:
+        print(f"[WARN] Normalizing Windows-style path in --out: {args.out}", file=sys.stderr)
+        args.out = args.out.replace("\\", "/")
+
     # Optional behaviour flags
     if section.get("no_record") and not args.no_record:
         args.no_record = True
@@ -580,6 +599,10 @@ def main():
 
     args.rate = resolved_rate
     args.sample_rate_hz = resolved_rate
+
+    if args.gui_mode:
+        if not args.stream_stdout:
+            args.stream_stdout = True
     session_name = (args.session_name or "").strip()
     session_slug = slugify_session_name(session_name) if session_name else ""
     session_name_for_paths = session_name or None
@@ -639,6 +662,7 @@ def main():
         session_name=session_name_for_paths,
         base_dir=helper_base_dir,
     )
+    writers: Dict[int, AsyncWriter] = {}
     try:
         out_dir.mkdir(parents=True, exist_ok=True)
     except Exception as exc:
@@ -646,9 +670,16 @@ def main():
             f"[WARN] Unable to create output directory {out_dir}: {exc}",
             file=sys.stderr,
         )
-        return 1
-
-    writers: Dict[int, AsyncWriter] = {}
+        if not args.stream_stdout:
+            # No streaming requested: this is a real failure
+            return 1
+        # Streaming is requested: continue in streaming-only mode
+        print(
+            "[WARN] Falling back to streaming-only mode (--no-record forced).",
+            file=sys.stderr,
+        )
+        args.no_record = True
+        writers = {}
 
     # Optional aggregated JSONL log file (single file for all sensors)
     log_file_handle = None
@@ -661,7 +692,10 @@ def main():
             log_file_handle = open(log_file_path, "a", buffering=1, encoding="utf-8")
         except Exception as exc:
             print(f"[WARN] Unable to open log file {args.log_file}: {exc}", file=sys.stderr)
-            return 1
+            if not args.stream_stdout:
+                return 1
+            print("[WARN] Continuing without aggregated log file.", file=sys.stderr)
+            log_file_error = True
 
     # Header now includes time vector `t_s` (seconds since start)
     header = ["timestamp_ns", "t_s", "sensor_id"]
@@ -806,7 +840,14 @@ def main():
                         f"[WARN] Failed to initialize output at {out_dir} for sensor {sid}: {exc}",
                         file=sys.stderr,
                     )
-                    return 1
+                    if not args.stream_stdout:
+                        return 1
+                    print(
+                        f"[WARN] Sensor {sid}: disabling file recording; streaming only.",
+                        file=sys.stderr,
+                    )
+                    # Do not add a writer for this sensor, but keep the device
+                    continue
             # else:
             #     # In GUI streaming mode this is just noise, so keep it silent by default.
             #     # print(
@@ -955,9 +996,9 @@ def main():
                     if log_file_handle is not None and not log_file_error:
                         log_payload = {
                             "sensor_id": sid,
-                            "t_s": wall_ns,
+                            "wall_ns": wall_ns,
                             "timestamp_ns": ts_ns,
-                            "t_rel_s": t_s,
+                            "t_s": t_s,
                         }
                         for key in ("ax", "ay", "az", "gx", "gy", "gz", "temp_c"):
                             if key in row:
@@ -986,7 +1027,10 @@ def main():
                         for key in stream_fields:
                             if key in row:
                                 out_obj[key] = row[key]
-                        print(json.dumps(out_obj, separators=(",", ":")), flush=True)
+                        line = json.dumps(out_obj, separators=(",", ":"))
+                        if DEBUG_STREAM and samples_written[sid] % (args.stream_every * 50) == 0:
+                            print(f"[DEBUG][PI] sample sid={sid} t_s={t_s:.3f}", file=sys.stderr)
+                        print(line, flush=True)
                 except Exception as e:
                     errors[sid] += 1
                     if errors[sid] <= 10 or (errors[sid] % 100) == 0:
