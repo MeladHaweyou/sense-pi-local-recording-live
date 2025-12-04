@@ -144,7 +144,7 @@ class MainWindow(QMainWindow):
         self.fft_tab.update_acquisition_config(gui_cfg)
 
         self.signals_tab.set_sampling_rate_hz(gui_cfg.stream_rate_hz)
-        self.fft_tab.update_stream_rate(float(gui_cfg.stream_rate_hz))
+        self.fft_tab.set_sampling_rate_hz(gui_cfg.stream_rate_hz)
 
         self.fft_tab.set_refresh_interval_ms(acquisition_settings.fft_refresh_ms)
 
