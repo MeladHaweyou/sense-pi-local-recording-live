@@ -1329,7 +1329,11 @@ class SignalsTab(QWidget):
         self._data_buffer: StreamingDataBuffer | None = None
         self._buffer_cursors: Dict[int | str, float] = {}
         self._synthetic_active = False
-        self._current_sensor_selection = SensorSelectionConfig()
+        # Provide a sensible default before SettingsTab sends anything.
+        self._current_sensor_selection = SensorSelectionConfig(
+            active_sensors=[1, 2, 3],
+            active_channels=["ax", "ay", "az", "gx", "gy", "gz"],
+        )
         self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
         if recorder_tab is not None:
             try:
@@ -1792,17 +1796,26 @@ class SignalsTab(QWidget):
             self._refresh_mode_hint()
 
     def _rebuild_gui_acquisition_config(self) -> None:
-        acq = self._acquisition_widget.settings()
-        stream_rate = acq.effective_stream_rate_hz
-        gui_cfg = GuiAcquisitionConfig(
+        widget = self._acquisition_widget
+        if widget is None:
+            return
+
+        sel = self._current_sensor_selection
+
+        # If no sensors are selected, don't emit a bogus "empty" config.
+        if not sel.active_sensors:
+            return
+
+        acq = widget.current_settings()
+        cfg = GuiAcquisitionConfig(
             sampling=acq.sampling,
-            stream_rate_hz=float(stream_rate),
-            record_only=bool(getattr(acq, "record_only", False)),
-            sensor_selection=self._current_sensor_selection,
+            stream_rate_hz=acq.stream_rate_hz,
+            record_only=acq.record_only,
+            sensor_selection=sel,
         )
-        self._current_gui_acquisition_config = gui_cfg
-        print("[SignalsTab] GuiAcquisitionConfig:", gui_cfg.summary())
-        self.acquisitionConfigChanged.emit(gui_cfg)
+        self._current_gui_acquisition_config = cfg
+        print("[SignalsTab] GuiAcquisitionConfig:", cfg.summary())
+        self.acquisitionConfigChanged.emit(cfg)
 
     def set_data_buffer(
         self, data_buffer: Optional[StreamingDataBuffer]
@@ -2352,7 +2365,7 @@ class SignalsTab(QWidget):
         RecorderTab fills in _on_samples_batch. If that buffer is not available
         for some reason, we fall back to the legacy sample_queue path.
         """
-        if not self._stream_active and not self._synthetic_active:
+        if not self._stream_active:
             return
 
         # --- Preferred path: use StreamingDataBuffer ------------------------
@@ -2364,7 +2377,7 @@ class SignalsTab(QWidget):
             return
 
         # --- Fallback: legacy queue-based ingestion -------------------------
-        queue_obj = self._recorder_sample_queue() if self._stream_active else None
+        queue_obj = self._recorder_sample_queue()
         if queue_obj is None:
             return
 
@@ -2379,47 +2392,7 @@ class SignalsTab(QWidget):
         if not drained:
             return
 
-        debug_on = debug_enabled()
-        ingest_start = time.perf_counter() if debug_on else 0.0
-        processed_samples = 0
-
-        for sample in drained:
-            if not isinstance(sample, MpuSample):
-                continue
-            if ENABLE_PLOT_PERF_METRICS:
-                try:
-                    sample.gui_receive_ts = time.perf_counter()
-                except Exception:
-                    pass
-            self._plot.add_sample(sample)
-            self._handle_ingested_sample(sample)
-            processed_samples += 1
-
-        if debug_on and processed_samples > 0:
-            elapsed_ms = (time.perf_counter() - ingest_start) * 1000.0
-            self._queue_ingest_time_acc_ms += elapsed_ms
-            self._queue_ingest_batches += 1
-            self._queue_ingest_samples += processed_samples
-            now_perf = time.perf_counter()
-            if now_perf - self._queue_ingest_last_log >= 5.0:
-                avg_batch_ms = self._queue_ingest_time_acc_ms / max(
-                    1, self._queue_ingest_batches
-                )
-                avg_us_per_sample = (
-                    self._queue_ingest_time_acc_ms
-                    / max(1, self._queue_ingest_samples)
-                    * 1000.0
-                )
-                print(
-                    "[DEBUG] queue_ingest samples="
-                    f"{self._queue_ingest_samples} batches={self._queue_ingest_batches} "
-                    f"avg≈{avg_batch_ms:.3f} ms/batch ≈{avg_us_per_sample:.3f} µs/sample",
-                    flush=True,
-                )
-                self._queue_ingest_time_acc_ms = 0.0
-                self._queue_ingest_batches = 0
-                self._queue_ingest_samples = 0
-                self._queue_ingest_last_log = now_perf
+        self._plot.add_samples(drained)
 
     def _recorder_sample_queue(self) -> queue.Queue[object] | None:
         recorder = getattr(self, "_recorder_tab", None)
