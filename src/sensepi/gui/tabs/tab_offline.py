@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 )
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 
-from ...config.app_config import AppPaths
+from ...config.app_config import AppPaths, normalize_remote_path
 from ...config.log_paths import LOG_SUBDIR_MPU, build_pc_session_root
 from ...remote.ssh_client import SSHClient
 # Decimation helper used to downsample long recordings for plotting
@@ -264,7 +264,8 @@ class OfflineTab(QWidget):
         if not details:
             return None
         host, cfg = details
-        remote_dir = cfg.data_dir.expanduser().as_posix()
+        # Use POSIX-style remote path instead of local expanduser semantics
+        remote_dir = normalize_remote_path(cfg.data_dir, cfg.user)
         host_label = cfg.name or host.name or host.host
         return host, remote_dir, host_label
 
