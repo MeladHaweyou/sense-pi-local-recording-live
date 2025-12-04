@@ -62,6 +62,7 @@ from ...config.app_config import (
 )
 from ...config.sampling import RECORDING_MODES, SamplingConfig
 from ...remote.ssh_client import SSHClient
+from ..config.acquisition_state import SensorSelectionConfig
 
 
 class SettingsTab(QWidget):
@@ -80,6 +81,8 @@ class SettingsTab(QWidget):
     # Emitted after a successful save of the corresponding YAML file
     hostsUpdated = Signal(list)   # list[dict] – entries from hosts.yaml["pis"]
     sensorsUpdated = Signal(dict) # dict      – full sensors.yaml mapping
+    # New signal emitted whenever the sensor selection changes.
+    sensorSelectionChanged = Signal(SensorSelectionConfig)
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -174,6 +177,18 @@ class SettingsTab(QWidget):
         sensors_group = QGroupBox("Sensor defaults", self)
         sensors_layout = QVBoxLayout(sensors_group)
 
+        sensor_selection_form = QFormLayout()
+        self.mpu_sensors_edit = QLineEdit(sensors_group)
+        self.mpu_sensors_edit.setPlaceholderText("1,2,3")
+        self.mpu_sensors_edit.setText("1,2,3")
+        sensor_selection_form.addRow("Sensors (e.g. 1,2,3):", self.mpu_sensors_edit)
+
+        self.mpu_channels_combo = QComboBox(sensors_group)
+        self.mpu_channels_combo.addItem("Accel only (3 channels)")
+        self.mpu_channels_combo.addItem("Accel + Gyro (6 channels)")
+        sensor_selection_form.addRow("Channels:", self.mpu_channels_combo)
+        sensors_layout.addLayout(sensor_selection_form)
+
         # Sampling (single source of truth)
         sampling_group = QGroupBox("Sampling", sensors_group)
         sampling_form = QFormLayout(sampling_group)
@@ -224,8 +239,13 @@ class SettingsTab(QWidget):
         self.btn_sync_pi.clicked.connect(self._on_sync_to_pi)
         self.btn_save_hosts.clicked.connect(self._on_save_hosts_clicked)
         self.btn_save_sensors.clicked.connect(self._on_save_sensors_clicked)
+        self.mpu_sensors_edit.textChanged.connect(self._on_sensor_ui_changed)
+        self.mpu_channels_combo.currentIndexChanged.connect(
+            self._on_sensor_ui_changed
+        )
 
         self._set_host_fields_enabled(False)
+        self._on_sensor_ui_changed()
 
     # ------------------------------------------------------------------
     # Host helpers
@@ -549,6 +569,42 @@ class SettingsTab(QWidget):
         sensors_model.pop("adxl203_ads1115", None)
         return sensors_model, sampling_cfg
 
+    def current_sensor_selection(self) -> SensorSelectionConfig:
+        """
+        Build a SensorSelectionConfig from the current UI state.
+
+        - Parses sensor IDs from self.mpu_sensors_edit.
+        - Chooses active_channels based on the channels combo.
+        """
+        text = self.mpu_sensors_edit.text().strip()
+        if not text:
+            active_sensors: list[int] = []
+        else:
+            active_sensors = []
+            for part in text.split(","):
+                part = part.strip()
+                if not part:
+                    continue
+                try:
+                    active_sensors.append(int(part))
+                except ValueError:
+                    # Ignore invalid entries; optionally log.
+                    continue
+
+        # Map combo selection to channels; you can adjust later if needed.
+        idx = self.mpu_channels_combo.currentIndex()
+        if idx == 0:
+            # "Accel only (3 channels)"
+            active_channels = ["ax", "ay", "az"]
+        else:
+            # "Accel + Gyro (6 channels)" or any other extended mode
+            active_channels = ["ax", "ay", "az", "gx", "gy", "gz"]
+
+        return SensorSelectionConfig(
+            active_sensors=active_sensors,
+            active_channels=active_channels,
+        )
+
     @Slot()
     def _on_save_sensors_clicked(self) -> None:
         sensors, _ = self._build_sensor_defaults_payload()
@@ -562,6 +618,15 @@ class SettingsTab(QWidget):
         self._sensors = self._sensor_defaults.load()
         QMessageBox.information(self, "Saved", "Sensor defaults saved to sensors.yaml.")
         self.sensorsUpdated.emit(dict(self._sensors))
+
+    @Slot()
+    def _on_sensor_ui_changed(self) -> None:
+        """
+        Handle any change to the sensors/channels widgets and emit
+        the updated SensorSelectionConfig.
+        """
+        sel = self.current_sensor_selection()
+        self.sensorSelectionChanged.emit(sel)
 
     # ------------------------------------------------------------------
     # Public helpers for RecorderTab (API points)
