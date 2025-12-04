@@ -56,7 +56,7 @@ from ...baseline import BaselineState, collect_baseline_samples
 from ...sensors.mpu6050 import MpuSample
 from ...perf_system import get_process_cpu_percent
 from ...tools.debug import debug_enabled
-from . import SampleKey
+from . import LayoutSignature, SampleKey
 
 if TYPE_CHECKING:
     from .tab_recorder import RecorderTab
@@ -127,7 +127,7 @@ class SignalPlotWidgetBase(QWidget):
         self._target_refresh_hz: Optional[float] = None
 
         self._lines: Dict[SampleKey, Any] = {}
-        self._layout_signature: tuple[tuple[int, ...], tuple[str, ...]] | tuple[()] = ()
+        self._layout_signature: LayoutSignature | tuple[()] = ()
         self._needs_layout: bool = True
 
         self._nominal_sample_rate_hz: float = 200.0
@@ -699,7 +699,7 @@ class SignalPlotWidgetBase(QWidget):
         if not sensor_ids or not limited_channels:
             self._clear_canvas()
             return
-        signature: tuple[tuple[int, ...], tuple[str, ...]] = (
+        signature: LayoutSignature = (
             tuple(sensor_ids),
             tuple(limited_channels),
         )
@@ -1843,7 +1843,7 @@ class SignalsTab(QWidget):
         )
         self._current_gui_acquisition_config = cfg
         self._active_channels = list(cfg.sensor_selection.active_channels or [])
-        print("[SignalsTab] GuiAcquisitionConfig:", cfg.summary())
+        logger.debug("SignalsTab: rebuilt GuiAcquisitionConfig: %s", asdict(cfg))
         self.acquisitionConfigChanged.emit(cfg)
 
     def set_data_buffer(
@@ -2237,12 +2237,12 @@ class SignalsTab(QWidget):
 
         latest_ts = data_buffer.latest_timestamp()
         if latest_ts is None:
-            print("[SignalsTab] _ingest_buffer_data: buffer has no data yet")
+            logger.debug("SignalsTab: _ingest_buffer_data buffer has no data yet")
             return
 
         sensor_ids = data_buffer.get_sensor_ids()
         if not sensor_ids:
-            print("[SignalsTab] _ingest_buffer_data: no sensor IDs available")
+            logger.warning("SignalsTab: _ingest_buffer_data no sensor IDs available")
             return
 
         channels = self._active_channels or [
@@ -2254,17 +2254,21 @@ class SignalsTab(QWidget):
             "gz",
         ]
 
-        print(
-            f"[SignalsTab] _ingest_buffer_data: sensor_ids={sensor_ids}, "
-            f"channels={channels}, latest_ts={latest_ts:.6f}"
+        logger.debug(
+            "SignalsTab: _ingest_buffer_data sensor_ids=%s channels=%s latest_ts=%.6f",
+            sensor_ids,
+            channels,
+            latest_ts,
         )
 
         window_s = self._plot.window_seconds
         for sensor_id in sensor_ids:
             samples = data_buffer.get_recent_samples(sensor_id, seconds=window_s)
-            print(
-                f"[SignalsTab] sensor={sensor_id} recent_samples={len(samples)} "
-                f"(window_s={window_s})"
+            logger.debug(
+                "SignalsTab: sensor=%s recent_samples=%d window_s=%.3f",
+                sensor_id,
+                len(samples),
+                window_s,
             )
             if not samples:
                 continue
@@ -2354,9 +2358,10 @@ class SignalsTab(QWidget):
             now_perf = time.perf_counter()
             if now_perf - self._redraw_debug_last_log >= 5.0:
                 interval_ms = self._timer.interval() if hasattr(self, "_timer") else 0
-                print(
-                    f"[DEBUG] signals_redraw interval={interval_ms} ms ema≈{self._redraw_debug_ema_ms:.2f} ms",
-                    flush=True,
+                logger.debug(
+                    "SignalsTab: redraw interval=%d ms ema≈%.2f ms",
+                    interval_ms,
+                    self._redraw_debug_ema_ms,
                 )
                 self._redraw_debug_last_log = now_perf
         self._record_refresh_tick()
@@ -2466,14 +2471,14 @@ class SignalsTab(QWidget):
         RecorderTab fills in _on_samples_batch. If that buffer is not available
         for some reason, we fall back to the legacy sample_queue path.
         """
-        print(f"[SignalsTab] _drain_samples tick: active={self._stream_active}")
+        logger.debug("SignalsTab: _drain_samples tick active=%s", self._stream_active)
         if not self._stream_active:
             return
 
         # --- Preferred path: use StreamingDataBuffer ------------------------
         buf = self._active_data_buffer()
         if buf is not None:
-            print("[SignalsTab] _drain_samples using StreamingDataBuffer")
+            logger.debug("SignalsTab: draining from StreamingDataBuffer")
             # This pulls all new samples since the last cursor position for each
             # sensor/channel and forwards them to the plot widget.
             self._ingest_buffer_data()
@@ -2484,15 +2489,15 @@ class SignalsTab(QWidget):
         if queue_obj is None:
             return
 
-        print("[SignalsTab] _drain_samples using legacy queue path")
+        logger.debug("SignalsTab: draining from legacy sample_queue")
 
         drained: list[MpuSample] = []
-        while True:
-            try:
-                sample = queue_obj.get_nowait()
-            except queue.Empty:
-                break
-            drained.append(sample)
+        start = time.perf_counter()
+        try:
+            while True:
+                drained.append(queue_obj.get_nowait())
+        except queue.Empty:
+            pass
 
         if not drained:
             return
@@ -2501,6 +2506,8 @@ class SignalsTab(QWidget):
             self._apply_baseline_to_sample(sample) for sample in drained
         ]
         self._plot.add_samples(corrected)
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        self._record_ingest_stats(len(drained), elapsed_ms)
 
     def _recorder_sample_queue(self) -> queue.Queue[object] | None:
         recorder = getattr(self, "_recorder_tab", None)
@@ -2665,6 +2672,29 @@ class SignalsTab(QWidget):
         self._last_refresh_timestamp = now
         self._update_plot_refresh_label()
 
+    def _record_ingest_stats(self, samples: int, elapsed_ms: float | None = None) -> None:
+        if not ENABLE_PLOT_PERF_METRICS or samples <= 0:
+            return
+        self._queue_ingest_samples += int(samples)
+        self._queue_ingest_batches += 1
+        if elapsed_ms is not None:
+            self._queue_ingest_time_acc_ms += float(elapsed_ms)
+
+        now = time.perf_counter()
+        if now - self._queue_ingest_last_log >= 5.0:
+            batches = max(1, self._queue_ingest_batches)
+            avg_samples = self._queue_ingest_samples / batches
+            avg_time_ms = self._queue_ingest_time_acc_ms / batches
+            logger.debug(
+                "SignalsTab: ingest avg %.1f samples/batch avg_time≈%.2f ms",
+                avg_samples,
+                avg_time_ms,
+            )
+            self._queue_ingest_samples = 0
+            self._queue_ingest_batches = 0
+            self._queue_ingest_time_acc_ms = 0.0
+            self._queue_ingest_last_log = now
+
     def _update_perf_summary(self) -> None:
         label = getattr(self, "_perf_summary_label", None)
         if label is None:
@@ -2731,10 +2761,10 @@ class SignalsTab(QWidget):
             return
         should_run = self._stream_active or self._synthetic_active
         if should_run and not self._ingest_timer.isActive():
-            print("[SignalsTab] starting ingest timer")
+            logger.debug("SignalsTab: starting ingest timer")
             self._ingest_timer.start()
         elif not should_run and self._ingest_timer.isActive():
-            print("[SignalsTab] stopping ingest timer")
+            logger.debug("SignalsTab: stopping ingest timer")
             self._ingest_timer.stop()
 
     def _refresh_timer_state(self) -> None:
@@ -2884,7 +2914,7 @@ class SignalsTab(QWidget):
 
     @Slot()
     def on_stream_started(self) -> None:
-        print("[SignalsTab] on_stream_started: enabling stream")
+        logger.info("SignalsTab: stream started")
         self._plot.clear()
         self._buffer_cursors.clear()
         self._sampling_rate_hz = None
@@ -2915,7 +2945,7 @@ class SignalsTab(QWidget):
 
     @Slot()
     def on_stream_stopped(self) -> None:
-        print("[SignalsTab] on_stream_stopped: disabling stream")
+        logger.info("SignalsTab: stream stopped")
         self._stream_active = False
         self._awaiting_first_sample = False
         self._stream_stalled = False
