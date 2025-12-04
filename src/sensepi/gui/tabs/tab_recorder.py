@@ -918,16 +918,15 @@ class RecorderTab(QWidget):
 
     @Slot(list)
     def _on_samples_batch(self, samples: list[MpuSample]) -> None:
-        if samples:
-            first = samples[0]
-            print(
-                f"[RecorderTab] _on_samples_batch: n={len(samples)}, "
-                f"sensor_id={getattr(first, 'sensor_id', '?')}, "
-                f"ts={getattr(first, 'timestamp_ns', None)}"
-            )
-        else:
-            print("[RecorderTab] _on_samples_batch: received empty batch")
+        if not samples:
+            print("[RecorderTab] _on_samples_batch: empty batch")
             return
+
+        sensor_ids = {getattr(s, "sensor_id", None) for s in samples if s is not None}
+        print(
+            f"[RecorderTab] _on_samples_batch: n={len(samples)}, "
+            f"sensors={sorted(s for s in sensor_ids if s is not None)}"
+        )
 
         if self._data_buffer is not None:
             self._data_buffer.add_samples(samples)
