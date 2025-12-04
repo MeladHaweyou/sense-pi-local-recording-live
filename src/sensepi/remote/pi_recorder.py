@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path, PurePosixPath
 from typing import Callable, Iterable, Optional
 
 from ..config.app_config import DEFAULT_BASE_PATH
+from ..config.pi_logger_config import PiLoggerConfig
 from .ssh_client import Host, SSHClient
 
 
@@ -89,26 +91,33 @@ class PiRecorder:
 
     def stream_mpu6050(
         self,
-        extra_args: str = "",
-        *,
-        recording: bool = False,
-        on_stderr: Optional[Callable[[str], None]] = None,
+        cfg: PiLoggerConfig,
+        recording_enabled: bool,
     ) -> Iterable[str]:
         """
-        Start the MPU6050 logger in streaming mode.
+        Start the mpu logger on the Pi and stream samples via stdout.
 
-        Internally builds a command like:
-
-            python3 mpu6050_multi_logger.py --rate ... --stream-stdout --no-record ...
-
-        and returns an iterable of JSON lines.
+        If ``recording_enabled`` is False, ``--no-record`` is appended. The
+        stream always includes ``--stream-stdout``.
         """
-        return self._stream_logger(
-            "mpu6050_multi_logger.py",
-            extra_args,
-            on_stderr=on_stderr,
-            recording=recording,
-        )
+
+        extra = []
+        if not recording_enabled:
+            extra.append("--no-record")
+        extra.append("--stream-stdout")
+
+        cmd_parts = cfg.build_command(extra_cli=" ".join(extra))
+        cmd = " ".join(shlex.quote(part) for part in cmd_parts)
+        return self.client.exec_stream(cmd, cwd=self.base_path.as_posix())
+
+    def start_record_only(self, cfg: PiLoggerConfig) -> Iterable[str]:
+        """
+        Start the logger on the Pi in record-only mode (no stdout streaming).
+        """
+
+        cmd_parts = cfg.build_command()
+        cmd = " ".join(shlex.quote(part) for part in cmd_parts)
+        return self.client.exec_stream(cmd, cwd=self.base_path.as_posix())
 
     # ------------------------------------------------------------------ convenience
     def stop(self) -> None:
