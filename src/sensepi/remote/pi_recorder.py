@@ -43,9 +43,15 @@ class PiRecorder:
         This is mainly useful for short-lived commands or testing; for live
         streaming use :meth:`stream_mpu6050`.
         """
-        command = f"python3 {self.base_path / script_name}"
+        cmd_parts: list[str] = [
+            "python3",
+            str(self.base_path / script_name),
+        ]
         if args:
-            command = " ".join([command, *args])
+            cmd_parts.extend(args)
+
+        # Safely quote each part for the remote shell
+        command = " ".join(shlex.quote(part) for part in cmd_parts)
 
         self.connect()
         _, stdout, stderr = self.client.run(command)
@@ -68,7 +74,8 @@ class PiRecorder:
         """
         self.connect()
 
-        parts = extra_args.strip().split() if extra_args.strip() else []
+        extra_args = extra_args.strip()
+        parts = shlex.split(extra_args) if extra_args else []
 
         if "--stream-stdout" not in parts:
             parts.append("--stream-stdout")
@@ -81,9 +88,8 @@ class PiRecorder:
         if not wants_recording and "--no-record" not in parts:
             parts.append("--no-record")
 
-        cmd = f"python3 {script_name}"
-        if parts:
-            cmd = f"{cmd} {' '.join(parts)}"
+        cmd_parts = ["python3", script_name, *parts]
+        cmd = " ".join(shlex.quote(part) for part in cmd_parts)
 
         # Use cwd so the script can rely on relative paths.
         cwd = self.base_path.as_posix()

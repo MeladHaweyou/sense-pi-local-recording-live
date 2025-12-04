@@ -42,6 +42,7 @@ class SensorIngestWorker(QObject):
         self._max_latency_ms = max(0.0, float(max_latency_ms))
         self._running = False
         self._stream_label = stream_label or "stream"
+        self._lines: Iterable[str] | None = None  # track current stream, if any
 
     @Slot()
     def start(self) -> None:
@@ -58,6 +59,7 @@ class SensorIngestWorker(QObject):
         try:
             try:
                 lines = self._stream_factory()
+                self._lines = lines  # track the current stream iterator
             except Exception as exc:  # pragma: no cover - best-effort guard
                 self.error.emit(f"Failed to start sensor stream: {exc}")
                 return
@@ -116,6 +118,7 @@ class SensorIngestWorker(QObject):
             self.error.emit(str(exc))
         finally:
             self._running = False
+            self._lines = None
             try:
                 self._recorder.close()
             except Exception:
@@ -126,6 +129,16 @@ class SensorIngestWorker(QObject):
     def stop(self) -> None:
         """Request the reading loop to terminate."""
         self._running = False
+        
+        # Try to actively close the current stream iterator, if it supports it.
+        lines = self._lines
+        close_fn = getattr(lines, "close", None) if lines is not None else None
+        if callable(close_fn):
+            try:
+                close_fn()
+            except Exception:
+                pass
+
         try:
             self._recorder.close()
         except Exception:
