@@ -340,6 +340,7 @@ class FftTab(QWidget):
         if sensor_type != "mpu6050":
             return
         self._stream_rate_hz = float(hz) if hz > 0.0 else 0.0
+        print(f"[FftTab] update_stream_rate: {self._stream_rate_hz:.2f} Hz")
         self._ensure_fft_frequency_axis(self._stream_rate_hz)
         self._request_full_refresh()
 
@@ -364,6 +365,7 @@ class FftTab(QWidget):
 
     @Slot()
     def on_stream_started(self) -> None:
+        print("[FftTab] on_stream_started")
         self._clear_layout()
         self._draw_waiting()
         self._status_label.setText("Streaming...")
@@ -371,15 +373,20 @@ class FftTab(QWidget):
         self._request_full_refresh()
         self._stream_active = True
         if not self._timer.isActive() and not self._is_record_only():
+            print(f"[FftTab] starting FFT timer at {self._refresh_interval_ms} ms")
             self._timer.start(self._refresh_interval_ms)
 
     @Slot()
     def on_stream_stopped(self) -> None:
+        print("[FftTab] on_stream_stopped")
         # Keep last spectrum visible but update status.
-        self._status_label.setText("Stream stopped.")
         self._stream_active = False
         if self._timer.isActive():
+            print("[FftTab] stopping FFT timer")
             self._timer.stop()
+        self._status_label.setText("Stopped")
+        self._last_rendered_latest_ts = None
+        self._canvas.draw_idle()
 
     # --------------------------------------------------------------- internals
     @staticmethod
@@ -393,15 +400,20 @@ class FftTab(QWidget):
 
     def _min_samples_required(self, window_s: float) -> int:
         """
-        Return the minimum number of samples needed before running the FFT.
-
-        We require at least half of the expected samples for the window, or
-        a modest constant so short windows still work.
+        Return the minimum number of samples required to attempt an FFT.
+        For debugging we are a bit more permissive: ~25% of the expected
+        samples, but at least 4.
         """
         if self._stream_rate_hz > 0.0:
             expected = self._stream_rate_hz * window_s
-            return max(8, int(expected * 0.5))
-        return 8
+            min_samples = max(4, int(expected * 0.25))
+            print(
+                f"[FftTab] min_samples_required: window_s={window_s}, "
+                f"stream_rate={self._stream_rate_hz:.2f}, min_samples={min_samples}"
+            )
+            return min_samples
+        print("[FftTab] min_samples_required: stream_rate=0, using 4")
+        return 4
 
     def _decimate_signal_for_fft(
         self,
@@ -519,6 +531,7 @@ class FftTab(QWidget):
         return np.abs(fft_vals)
 
     def _on_fft_timer(self) -> None:
+        print("[FftTab] _on_fft_timer tick")
         if not debug_enabled():
             self._update_fft()
             return
@@ -574,21 +587,26 @@ class FftTab(QWidget):
             return
 
         view_mode = self.view_mode_combo.currentData()
-        if self._sensor_selection is not None:
-            channels = list(self._sensor_selection.active_channels)
-            if not channels:
-                channels = ["ax", "ay", "gz"]
+        selection = self._sensor_selection
+        if selection is not None and selection.active_channels:
+            channels = list(selection.active_channels)
         else:
             if view_mode == "default3":
                 channels = ["ax", "ay", "gz"]
             else:
                 channels = ["ax", "ay", "az", "gx", "gy", "gz"]
 
+        if not channels:
+            print("[FftTab] WARNING: channels list empty, falling back to ['ax','ay','gz']")
+            channels = ["ax", "ay", "gz"]
+
         window_s = float(self.window_spin.value())
         min_samples = self._min_samples_required(window_s)
 
         if not self._ensure_fft_layout(sensor_ids, channels):
-            self._draw_waiting()
+            print("[FftTab] _ensure_fft_layout returned False; skipping update")
+            self._status_label.setText("Waiting for layout.")
+            self._canvas.draw_idle()
             return
 
         stats_samples = None
@@ -641,6 +659,14 @@ class FftTab(QWidget):
                     stats_fs = axis_sample_rate
 
         if not have_data:
+            logger.debug(
+                "[FftTab] no usable FFT data: sensor_ids=%s, channels=%s, "
+                "min_samples=%d, stream_rate=%.2f",
+                sensor_ids,
+                channels,
+                min_samples,
+                self._stream_rate_hz,
+            )
             self._status_label.setText("Waiting for data...")
             self._last_rendered_latest_ts = latest_ts
             self._force_next_update = False

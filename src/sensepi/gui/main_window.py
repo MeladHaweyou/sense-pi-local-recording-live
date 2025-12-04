@@ -75,8 +75,10 @@ class MainWindow(QMainWindow):
         self.recorder_tab.sensorSelectionChanged.connect(
             self._on_sensor_selection_changed
         )
-        self.recorder_tab.streaming_started.connect(self.signals_tab.on_stream_started)
-        self.recorder_tab.streaming_stopped.connect(self.signals_tab.on_stream_stopped)
+        self.recorder_tab.stream_started.connect(self.signals_tab.on_stream_started)
+        self.recorder_tab.stream_stopped.connect(self.signals_tab.on_stream_stopped)
+        self.recorder_tab.stream_started.connect(self.fft_tab.on_stream_started)
+        self.recorder_tab.stream_stopped.connect(self.fft_tab.on_stream_stopped)
         self.settings_tab.sensorSelectionChanged.connect(
             self._on_sensor_selection_changed
         )
@@ -84,6 +86,10 @@ class MainWindow(QMainWindow):
             self._on_acquisition_config_changed
         )
         self.signals_tab.calibrationChanged.connect(self._on_calibration_changed)
+        self.recorder_tab.stream_rate_updated.connect(
+            self.signals_tab.update_stream_rate
+        )
+        self.recorder_tab.stream_rate_updated.connect(self.fft_tab.update_stream_rate)
         if hasattr(self.settings_tab, "acquisitionConfigChanged"):
             self.settings_tab.acquisitionConfigChanged.connect(
                 self.fft_tab.update_acquisition_config

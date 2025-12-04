@@ -74,8 +74,11 @@ class RecorderTab(QWidget):
     sample_received = Signal(object)
     streaming_started = Signal()
     streaming_stopped = Signal()
+    stream_started = Signal()
+    stream_stopped = Signal()
     error_reported = Signal(str)
     rate_updated = Signal(str, float)
+    stream_rate_updated = Signal(str, float)
     sampling_config_changed = Signal(object)
     recording_started = Signal()
     recording_stopped = Signal()
@@ -851,6 +854,7 @@ class RecorderTab(QWidget):
         self.overall_status.setText("Streaming.")
         self.recording_started.emit()
         self.streaming_started.emit()
+        self.stream_started.emit()
 
     def _start_stream(
         self,
@@ -915,6 +919,7 @@ class RecorderTab(QWidget):
         self.overall_status.setText("Streaming.")
         self.recording_started.emit()
         self.streaming_started.emit()
+        self.stream_started.emit()
 
     @Slot(list)
     def _on_samples_batch(self, samples: list[MpuSample]) -> None:
@@ -950,6 +955,7 @@ class RecorderTab(QWidget):
 
         if rc is not None and updated_rate:
             self.rate_updated.emit("mpu6050", rc.estimated_hz)
+            self.stream_rate_updated.emit("mpu6050", rc.estimated_hz)
 
     @Slot(str)
     def _on_ingest_error(self, message: str) -> None:
@@ -983,6 +989,7 @@ class RecorderTab(QWidget):
                 )
             self.overall_status.setText("Stream ended.")
             self.streaming_stopped.emit()
+            self.stream_stopped.emit()
             self.recording_stopped.emit()
             self.mpu_rate_label.setText("MPU6050 rate: --")
 
