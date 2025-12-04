@@ -143,7 +143,7 @@ class MainWindow(QMainWindow):
         self.fft_tab.update_sensor_selection(gui_cfg.sensor_selection)
         self.fft_tab.update_acquisition_config(gui_cfg)
 
-        self.signals_tab.set_sampling_rate_hz(float(gui_cfg.sampling.device_rate_hz))
+        self.signals_tab.set_sampling_rate_hz(gui_cfg.stream_rate_hz)
         self.signals_tab.update_stream_rate(float(gui_cfg.stream_rate_hz))
         self.fft_tab.update_stream_rate(float(gui_cfg.stream_rate_hz))
 

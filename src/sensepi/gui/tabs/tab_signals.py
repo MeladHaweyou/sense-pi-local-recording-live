@@ -1978,6 +1978,26 @@ class SignalsTab(QWidget):
         else:
             self._update_perf_summary()
 
+    def set_sampling_rate_hz(self, hz: float) -> None:
+        """
+        Manually set the nominal sampling/stream rate used by the
+        live plots and timers.
+
+        This is used when we already know the target stream/plot rate
+        from the GUI (GuiAcquisitionConfig) before RecorderTab has
+        measured and reported a rate.
+
+        Internally it just routes through update_stream_rate().
+        """
+        try:
+            value = float(hz)
+        except (TypeError, ValueError):
+            # Ignore invalid values; keep existing rate
+            return
+
+        # Reuse the existing logic that already updates labels, timers, etc.
+        self.update_stream_rate("mpu6050", value)
+
     @property
     def fixed_interval_ms(self) -> int:
         return self.refresh_interval_ms
