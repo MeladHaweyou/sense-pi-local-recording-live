@@ -1832,7 +1832,24 @@ class SignalsTab(QWidget):
         return self._plot.get_time_series_window(sensor_id, channel, window_seconds)
 
     def _active_data_buffer(self) -> Optional[StreamingDataBuffer]:
-        """Return the current data buffer (external or fallback)."""
+        """
+        Return the current data buffer (external or fallback).
+
+        Prefer the RecorderTab's shared StreamingDataBuffer, so that when
+        RecorderTab recreates the buffer for a new stream, the Live Signals
+        tab automatically sees the new data.
+        """
+        # If we have a RecorderTab, always ask it for the latest buffer.
+        recorder = getattr(self, "_recorder_tab", None)
+        if recorder is not None:
+            try:
+                buf = recorder.data_buffer()
+            except Exception:
+                buf = None
+            if buf is not None:
+                return buf
+
+        # Fallback: use any explicitly injected buffer, or the local fallback.
         return self._data_buffer or self._fallback_data_buffer
 
     def get_perf_snapshot(self) -> dict[str, float]:
