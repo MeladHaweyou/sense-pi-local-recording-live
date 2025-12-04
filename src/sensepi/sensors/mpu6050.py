@@ -45,6 +45,10 @@ def _parse_json_line(text: str) -> MpuSample | None:
         logger.warning("Bad JSON from sensor stream: %r (%s)", text, exc)
         return None
 
+    # Stream configuration metadata lines don't represent sensor samples.
+    if obj.get("meta") == "mpu6050_stream_config":
+        return None
+
     ts_raw = obj.get("timestamp_ns")
     if ts_raw is None:
         logger.warning("Missing field %s in sensor line: %r", "timestamp_ns", obj)
