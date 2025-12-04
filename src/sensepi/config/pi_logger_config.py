@@ -16,10 +16,10 @@ class PiLoggerConfig:
     """
 
     device_rate_hz: float
-    record_decimate: int
-    stream_decimate: int
-    record_rate_hz: float
-    stream_rate_hz: float
+    record_decimate: int = 1
+    stream_decimate: int = 1
+    record_rate_hz: float = 0.0
+    stream_rate_hz: float = 0.0
     sections: Dict[str, Any] | None = None
     logger_script: str = "mpu6050_multi_logger.py"
     extra_cli: Dict[str, Any] | None = None
@@ -30,13 +30,13 @@ class PiLoggerConfig:
         Construct a PiLoggerConfig from the SamplingConfig source of truth.
         """
 
-        decimation = sampling.compute_decimation()
+        rate = float(sampling.device_rate_hz)
         return cls(
-            device_rate_hz=float(sampling.device_rate_hz),
-            record_decimate=int(decimation["record_decimate"]),
-            stream_decimate=int(decimation["stream_decimate"]),
-            record_rate_hz=float(decimation["record_rate_hz"]),
-            stream_rate_hz=float(decimation["stream_rate_hz"]),
+            device_rate_hz=rate,
+            record_decimate=1,
+            stream_decimate=1,
+            record_rate_hz=rate,
+            stream_rate_hz=rate,
             **kwargs,
         )
 
@@ -46,12 +46,14 @@ class PiLoggerConfig:
         Convert into a mapping suitable for YAML serialization.
         """
 
+        rate = float(self.device_rate_hz)
         data: Dict[str, Any] = {
-            "device_rate_hz": float(self.device_rate_hz),
-            "record_decimate": int(self.record_decimate),
-            "stream_decimate": int(self.stream_decimate),
-            "record_rate_hz": float(self.record_rate_hz),
-            "stream_rate_hz": float(self.stream_rate_hz),
+            # Single-rate invariant: device/record/stream all share the same rate and decimation=1
+            "device_rate_hz": rate,
+            "record_decimate": 1,
+            "stream_decimate": 1,
+            "record_rate_hz": rate,
+            "stream_rate_hz": rate,
         }
         extra_sections = self.sections or {}
         for key, value in extra_sections.items():
@@ -117,8 +119,6 @@ def build_logger_args(pi_cfg: PiLoggerConfig) -> List[str]:
     args: List[str] = [
         "--sample-rate-hz",
         f"{pi_cfg.device_rate_hz:.0f}",
-        "--stream-every",
-        str(int(pi_cfg.stream_decimate)),
     ]
 
     args.extend(_format_extra_flags(pi_cfg.extra_cli))

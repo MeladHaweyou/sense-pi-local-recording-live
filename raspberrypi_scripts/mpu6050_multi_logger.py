@@ -424,8 +424,7 @@ def main():
         type=int,
         default=1,
         help=(
-            "Only stream every N-th sample per sensor (default: 1 = every sample). "
-            "Effective GUI stream rate ≈ device_rate_hz / N."
+            "Deprecated: stream every sample; this flag is kept for compatibility and forced to 1."
         ),
     )
     ap.add_argument(
@@ -460,7 +459,6 @@ def main():
     )
 
     args = ap.parse_args()
-    args.stream_every = max(1, int(args.stream_every))
 
     # Normalize common Windows-style paths that might be passed from a GUI.
     if "\\" in args.out and "/" not in args.out:
@@ -562,11 +560,11 @@ def main():
         args.stream_stdout = True
 
     cfg_stream_every = section.get("stream_every")
-    if cfg_stream_every is not None and not _flag_present("--stream-every"):
-        try:
-            args.stream_every = max(1, int(cfg_stream_every))
-        except Exception:
-            print(f"[WARN] Invalid mpu6050.stream_every in config: {cfg_stream_every!r}", file=sys.stderr)
+    if cfg_stream_every not in (None, 1):
+        print(
+            f"[WARN] Ignoring mpu6050.stream_every={cfg_stream_every!r}; streaming uses every sample.",
+            file=sys.stderr,
+        )
 
     cfg_stream_fields = section.get("stream_fields")
     if cfg_stream_fields and not _flag_present("--stream-fields"):
@@ -600,6 +598,13 @@ def main():
     args.rate = resolved_rate
     args.sample_rate_hz = resolved_rate
 
+    if args.stream_every != 1:
+        print(
+            f"[WARN] Forcing --stream-every from {args.stream_every} to 1 (single-rate streaming)",
+            file=sys.stderr,
+        )
+    args.stream_every = 1
+
     if args.gui_mode:
         if not args.stream_stdout:
             args.stream_stdout = True
@@ -611,14 +616,12 @@ def main():
     req_rate = max(4.0, min(float(resolved_rate), 1000.0))
 
     # ------------------------------------------------------------------
-    # Rates overview
+    # Rates overview (single-rate pipeline)
     # ------------------------------------------------------------------
     # - args.rate / mpu6050.sample_rate_hz:
-    #     Device sampling + recording rate (Hz) on the Pi. Every enabled
-    #     MPU6050 sensor runs at this cadence and records every sample.
-    # - args.stream_every:
-    #     Stream decimation factor; only every N-th sample per sensor is
-    #     emitted over stdout for remote GUIs to keep bandwidth manageable.
+    #     Device sampling + recording + streaming rate (Hz) on the Pi. Every
+    #     enabled MPU6050 sensor runs at this cadence and records/streams
+    #     every sample.
     # - GUI refresh rate:
     #     Controlled on the desktop side (SignalsTab QTimer). This timer
     #     controls how frequently the plots redraw and is independent from
@@ -815,6 +818,8 @@ def main():
                         "fs_gyro": "±250dps",
                         "smplrt_div": div,
                         "device_rate_hz": round(actual, 6),
+                        "record_rate_hz": round(actual, 6),
+                        "stream_rate_hz": round(actual, 6),
                         "channels": ch_mode,
                         "format": args.format,
                         "header": header,
@@ -822,15 +827,13 @@ def main():
                         "session_name": session_name,
                         "session_slug": session_slug,
                         "session_dir": str(out_dir),
-                        "stream_every": int(args.stream_every),
+                        "stream_every": 1,
                         "stream_fields": list(stream_fields),
                         "version": 3
                     }
                     meta["pi_device_sample_rate_hz"] = meta["device_rate_hz"]
-                    meta["pi_stream_decimation"] = meta["stream_every"]
-                    meta["pi_stream_rate_hz"] = (
-                        meta["pi_device_sample_rate_hz"] / meta["pi_stream_decimation"]
-                    )
+                    meta["pi_stream_decimation"] = 1
+                    meta["pi_stream_rate_hz"] = meta["pi_device_sample_rate_hz"]
                     writer.write_metadata(meta)
                     writers[sid] = writer
                     bw_str = f"DLPF={args.dlpf} (gyro≈{gyro_bw}Hz, accel≈{acc_bw}Hz)" if gyro_bw else f"DLPF={args.dlpf}"
@@ -864,13 +867,12 @@ def main():
         return 2
 
     if args.stream_stdout:
-        # args.stream_every already has a default of 1
-        pi_stream_decimation = int(args.stream_every or 1)
+        pi_stream_decimation = 1
 
         for sid in sorted(devices.keys()):
             # Actual per-sensor rate if available, otherwise fall back to requested
             pi_device_sample_rate_hz = float(actual_rates.get(sid, req_rate))
-            pi_stream_rate_hz = pi_device_sample_rate_hz / pi_stream_decimation
+            pi_stream_rate_hz = pi_device_sample_rate_hz
 
             print(
                 "[INFO][PI] streaming: "
@@ -894,10 +896,7 @@ def main():
             "pi_device_sample_rate_hz": float(avg_device_rate),
             "pi_stream_decimation": pi_stream_decimation,
         }
-        meta_header["pi_stream_rate_hz"] = (
-            meta_header["pi_device_sample_rate_hz"]
-            / meta_header["pi_stream_decimation"]
-        )
+        meta_header["pi_stream_rate_hz"] = meta_header["pi_device_sample_rate_hz"]
 
         # Advertise the Pi-side stream configuration as an initial JSON header so
         # the desktop GUI knows the device rate and how many samples are skipped
@@ -1017,8 +1016,8 @@ def main():
                     # 3) Update per-sensor sample counter
                     samples_written[sid] += 1
 
-                    # 4) Optional stdout streaming (decimated per sensor)
-                    if args.stream_stdout and (samples_written[sid] % max(1, args.stream_every) == 0):
+                    # 4) Optional stdout streaming (every sample)
+                    if args.stream_stdout:
                         out_obj = {
                             "timestamp_ns": ts_ns,
                             "t_s": t_s,
@@ -1028,7 +1027,7 @@ def main():
                             if key in row:
                                 out_obj[key] = row[key]
                         line = json.dumps(out_obj, separators=(",", ":"))
-                        if DEBUG_STREAM and samples_written[sid] % (args.stream_every * 50) == 0:
+                        if DEBUG_STREAM and samples_written[sid] % 50 == 0:
                             print(f"[DEBUG][PI] sample sid={sid} t_s={t_s:.3f}", file=sys.stderr)
                         print(line, flush=True)
                 except Exception as e:

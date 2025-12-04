@@ -497,31 +497,12 @@ class RecorderTab(QWidget):
         """
         Compatibility shim for older code that expects RecorderTab.compute_stream_every().
 
-        Modern code should call :meth:`SamplingConfig.compute_decimation` directly, but
-        this keeps historical call sites working by routing everything through the
-        shared SamplingConfig state.
+        Streaming now always uses every sample; this helper is preserved as an
+        alias that always returns ``1``.
         """
         # Swallow legacy keyword arguments such as "recording".
         if _legacy_kwargs:
             _legacy_kwargs.pop("recording", None)
-
-        sampling = getattr(self, "_sampling_config", None)
-        if isinstance(sampling, SamplingConfig):
-            try:
-                decimation = sampling.compute_decimation()
-                stream_every = int(decimation.get("stream_decimate", 0))
-            except Exception:
-                stream_every = 0
-            else:
-                stream_every = max(stream_every, 1)
-            if stream_every >= 1:
-                return stream_every
-
-        if fallback_every is not None and fallback_every >= 1:
-            return int(fallback_every)
-
-        if sample_rate_hz and sample_rate_hz > 0:
-            return max(1, int(round(float(sample_rate_hz) / 25.0)))
 
         return 1
 
