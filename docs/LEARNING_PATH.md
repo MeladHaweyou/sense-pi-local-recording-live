@@ -114,6 +114,12 @@ Each milestone includes:
 
 **Observe:** The label should show a much higher stream rate (equal to the device rate), confirming that the decimation setting – and thus the “stream every Nth sample” value – was updated.
 
+### Recommended streaming rates
+
+- The single source of truth for device and streaming rate defaults is the top-level `sampling.device_rate_hz` in `src/sensepi/config/sensors.yaml`. The same value is surfaced as the “Device rate [Hz]” control in `AcquisitionSettingsWidget`.
+- On most Pi Zero 2 + MPU6050 setups, a 100–200 Hz stream rate keeps the GUI responsive while still producing smooth plots. The default is 200 Hz.
+- If you ever need a higher device rate for recording but want a slower live stream, extend `SamplingConfig` to add decimation again; today both recording and streaming share the same rate.
+
 ---
 
 ## Milestone 7 – Performance HUD and refresh modes

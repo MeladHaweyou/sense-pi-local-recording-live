@@ -120,6 +120,9 @@ class RecorderTab(QWidget):
         self._sample_queue: queue.Queue[object] = queue.Queue(maxsize=10_000)
         self._current_sensor_selection = SensorSelectionConfig()
         self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
+        # Legacy GUI queue is disabled by default; SignalsTab/FftTab use
+        # StreamingDataBuffer.
+        self._legacy_queue_enabled: bool = False
 
         self._build_ui()
         self._load_hosts()
@@ -472,6 +475,13 @@ class RecorderTab(QWidget):
     def _refresh_sampling_labels(self) -> None:
         sampling = self._current_sampling()
         display = GuiSamplingDisplay.from_sampling(sampling)
+        if display.stream_rate_hz > 300.0 and logger.isEnabledFor(logging.WARNING):
+            logger.warning(
+                "RecorderTab: GUI stream rate %.1f Hz is quite high; "
+                "consider reducing device_rate_hz towards 100–200 Hz "
+                "for smoother plots.",
+                display.stream_rate_hz,
+            )
         self.device_rate_label.setText(f"{display.device_rate_hz:.1f} Hz")
         self.record_rate_label.setText(f"{display.record_rate_hz:.1f} Hz")
         self.stream_rate_label.setText(f"{display.stream_rate_hz:.1f} Hz")
@@ -936,7 +946,10 @@ class RecorderTab(QWidget):
                 if t is not None:
                     rc.add_sample_time(t)
                     updated_rate = True
-            self._enqueue_sample(sample)
+            # Legacy queue ingestion is disabled by default; SignalsTab drains directly
+            # from StreamingDataBuffer instead.
+            if getattr(self, "_legacy_queue_enabled", False):
+                self._enqueue_sample(sample)
 
         if rc is not None and updated_rate:
             self.rate_updated.emit("mpu6050", rc.estimated_hz)
@@ -1040,7 +1053,13 @@ class RecorderTab(QWidget):
 
     @property
     def sample_queue(self) -> queue.Queue[object]:
-        """Return the queue carrying recent samples for GUI ingestion."""
+        """
+        Legacy queue carrying recent samples for GUI ingestion.
+
+        Newer tabs (SignalsTab/FftTab) should prefer StreamingDataBuffer.
+        The queue is kept for compatibility with older code paths and can
+        be re-enabled via _legacy_queue_enabled.
+        """
         return self._sample_queue
 
     def _enqueue_sample(self, sample: object) -> None:
