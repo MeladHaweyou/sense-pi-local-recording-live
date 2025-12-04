@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import datetime
+import shutil
 import stat
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Optional, TYPE_CHECKING
@@ -43,7 +45,7 @@ class OfflineTab(QWidget):
       ``Spectrum`` tabs.
     """
 
-    recordingImported = Signal(Path)
+    recordingsImported = Signal(list)
 
     def __init__(
         self,
@@ -113,7 +115,7 @@ class OfflineTab(QWidget):
         self.setLayout(layout)
 
         self.refresh_button.clicked.connect(self.refresh_recordings_list)
-        self.import_button.clicked.connect(self._on_import_clicked)
+        self.import_button.clicked.connect(self.import_recordings)
         self.btn_browse.clicked.connect(self._on_browse)
         self.btn_sync.clicked.connect(self._on_sync_from_pi_clicked)
         self.btn_sync_open.clicked.connect(self._on_sync_and_open_latest_clicked)
@@ -178,8 +180,6 @@ class OfflineTab(QWidget):
 
         stat_result = path.stat()
         timestamp = stat_result.st_mtime
-        from datetime import datetime
-
         ts_dt = datetime.fromtimestamp(timestamp)
         meta = {
             "path": path,
@@ -191,44 +191,45 @@ class OfflineTab(QWidget):
 
         return meta
 
-    def _on_import_clicked(self) -> None:
+    def import_recordings(self) -> None:
         """
-        Let the user select external recording files and copy them into the
-        project recordings directory.
+        Import external recording files into the project recordings directory.
         """
 
-        dialog = QFileDialog(self)
-        dialog.setFileMode(QFileDialog.ExistingFiles)
-        dialog.setNameFilter("CSV files (*.csv);;All files (*.*)")
-        dialog.setDirectory(str(self._recordings_dir()))
-        if not dialog.exec():
+        paths_str, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Import recordings",
+            "",
+            "CSV files (*.csv);;All files (*)",
+        )
+        if not paths_str:
             return
-
-        selected_paths = [Path(p) for p in dialog.selectedFiles()]
-        self.import_recordings(selected_paths)
-        self.refresh_recordings_list()
-
-    def import_recordings(self, paths: list[Path]) -> None:
-        """
-        Copy external recording files into the project recordings directory.
-
-        If a file with the same name exists, append a numeric suffix.
-        """
 
         dest_dir = self._recordings_dir()
         dest_dir.mkdir(parents=True, exist_ok=True)
 
-        for src in paths:
+        imported_paths: list[Path] = []
+
+        for p_str in paths_str:
+            src = Path(p_str)
             if not src.is_file():
                 continue
             dest = dest_dir / src.name
-            counter = 1
-            while dest.exists():
-                dest = dest_dir / f"{src.stem}_{counter}{src.suffix}"
-                counter += 1
-            data = src.read_bytes()
-            dest.write_bytes(data)
-            self.recordingImported.emit(dest)
+            if dest.exists():
+                reply = QMessageBox.question(
+                    self,
+                    "Overwrite file?",
+                    f"{dest.name} already exists. Overwrite?",
+                    QMessageBox.Yes | QMessageBox.No,
+                )
+                if reply != QMessageBox.Yes:
+                    continue
+            shutil.copy2(src, dest)
+            imported_paths.append(dest)
+
+        if imported_paths:
+            self.refresh_recordings_list()
+            self.recordingsImported.emit(imported_paths)
 
     def _on_table_selection_changed(self) -> None:
         selected_rows = self.table.selectionModel().selectedRows()

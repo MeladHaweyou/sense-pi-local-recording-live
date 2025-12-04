@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
+import shlex
 
 from .sampling import SamplingConfig
 
@@ -84,6 +85,15 @@ class PiLoggerConfig:
         if path.parent and not path.parent.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.render_pi_config_yaml())
+
+    def build_command(self, extra_cli: str | None = None) -> List[str]:
+        """Construct the logger command including any additional CLI flags."""
+
+        cmd = build_logger_command(self)
+        extra = extra_cli.strip() if isinstance(extra_cli, str) else ""
+        if extra:
+            cmd.extend(shlex.split(extra))
+        return cmd
 
 
 def _format_extra_flags(extra: Dict[str, Any] | None) -> List[str]:

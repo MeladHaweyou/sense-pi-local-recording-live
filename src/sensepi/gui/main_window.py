@@ -8,7 +8,7 @@ from PySide6.QtCore import Slot
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
 
-from ..config.app_config import AppConfig, AppPaths
+from ..config.app_config import AppConfig, AppPaths, HostInventory
 from .config.acquisition_state import (
     CalibrationOffsets,
     GuiAcquisitionConfig,
@@ -101,28 +101,38 @@ class MainWindow(QMainWindow):
 
     @Slot(bool)
     def _on_start_stream_requested(self, recording: bool) -> None:
-        acquisition = self.signals_tab.current_acquisition_settings()
-        stream_rate_hz = float(acquisition.effective_stream_rate_hz)
+        acquisition_settings = self.signals_tab.current_acquisition_settings()
+        acquisition_widget = getattr(self.signals_tab, "_acquisition_widget", None)
 
-        sensor_selection = self._current_sensor_selection
+        sensor_selection = getattr(self, "_current_sensor_selection", None)
+        if sensor_selection is None:
+            sensor_selection = SensorSelectionConfig(active_sensors=[], active_channels=[])
 
-        # Example future usage when starting recording:
-        # gui_cfg = self.acquisition_widget.current_gui_acquisition_config(
-        #     sensor_selection=self._current_sensor_selection
-        # )
-        # self.recorder_tab.start_recording_with_config(gui_cfg)
+        if acquisition_widget is not None:
+            gui_cfg = acquisition_widget.current_gui_acquisition_config(
+                sensor_selection=sensor_selection
+            )
+        else:
+            stream_rate_hz = float(acquisition_settings.effective_stream_rate_hz)
+            gui_cfg = GuiAcquisitionConfig(
+                sampling=acquisition_settings.sampling,
+                stream_rate_hz=stream_rate_hz,
+                record_only=bool(getattr(acquisition_settings, "record_only", False)),
+                sensor_selection=sensor_selection,
+            )
 
-        gui_cfg = GuiAcquisitionConfig(
-            sampling=acquisition.sampling,
-            stream_rate_hz=stream_rate_hz,
-            record_only=bool(getattr(acquisition, "record_only", False)),
-            sensor_selection=sensor_selection,
-            calibration=self._current_calibration_offsets,
-        )
+        gui_cfg.calibration = self._current_calibration_offsets
         self._current_gui_acquisition_config = gui_cfg
         self._logger.info(
             "Starting stream with GuiAcquisitionConfig: %s", gui_cfg.summary()
         )
+
+        host_cfg_raw = self.settings_tab.current_host_config()
+        if host_cfg_raw is None:
+            self.recorder_tab.report_error("No Raspberry Pi host selected.")
+            return
+
+        host_cfg = HostInventory().to_host_config(host_cfg_raw)
 
         self.recorder_tab.apply_sensor_selection(gui_cfg.sensor_selection)
         self.recorder_tab.apply_gui_acquisition_config(gui_cfg)
@@ -134,10 +144,10 @@ class MainWindow(QMainWindow):
         self.fft_tab.update_acquisition_config(gui_cfg)
 
         self.signals_tab.set_sampling_rate_hz(float(gui_cfg.sampling.device_rate_hz))
-        self.signals_tab.update_stream_rate(stream_rate_hz)
-        self.fft_tab.update_stream_rate(stream_rate_hz)
+        self.signals_tab.update_stream_rate(float(gui_cfg.stream_rate_hz))
+        self.fft_tab.update_stream_rate(float(gui_cfg.stream_rate_hz))
 
-        self.fft_tab.set_refresh_interval_ms(acquisition.fft_refresh_ms)
+        self.fft_tab.set_refresh_interval_ms(acquisition_settings.fft_refresh_ms)
 
         record_only = gui_cfg.record_only
         recording_flag = bool(recording or record_only)
@@ -150,11 +160,10 @@ class MainWindow(QMainWindow):
         if record_only:
             self._logger.info("Record-only mode active: live streaming disabled.")
 
-        session_name = self.signals_tab.session_name() or None
         self.recorder_tab.start_live_stream(
-            recording=recording_flag,
-            acquisition=acquisition,
-            session_name=session_name,
+            recording_enabled=recording_flag,
+            gui_config=gui_cfg,
+            host_cfg=host_cfg,
         )
 
     @Slot()

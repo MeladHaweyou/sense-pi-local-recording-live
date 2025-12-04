@@ -329,6 +329,22 @@ class RecorderTab(QWidget):
         self.host_status_label.setText(f"Connected to {host.name}")
         return recorder
 
+    def _create_pi_recorder_for_host(self, host_cfg: HostConfig) -> PiRecorder:
+        """Instantiate and connect a PiRecorder for the provided host config."""
+
+        host = Host(
+            name=host_cfg.name,
+            host=host_cfg.host,
+            user=host_cfg.user,
+            password=host_cfg.password,
+            port=host_cfg.port,
+        )
+        recorder = PiRecorder(host, host_cfg.base_path)
+        recorder.connect()
+        self._pi_recorder = recorder
+        self.host_status_label.setText(f"Connected to {host.name}")
+        return recorder
+
     def current_sensor_selection(self) -> SensorSelectionConfig:
         """
         Parse the sensor list + channel combo into a SensorSelectionConfig.
@@ -615,7 +631,16 @@ class RecorderTab(QWidget):
     @Slot()
     def _on_start_clicked(self) -> None:
         try:
-            self.start_live_stream(recording=False)
+            cfg = self._current_gui_acquisition_config
+            host_details = self.current_host_details()
+            if cfg is None or host_details is None:
+                raise RuntimeError("Missing GUI or host configuration for streaming.")
+            _, host_cfg = host_details
+            self.start_live_stream(
+                recording_enabled=False,
+                gui_config=cfg,
+                host_cfg=host_cfg,
+            )
         except Exception as exc:
             self._emit_error(str(exc))
 
@@ -625,52 +650,53 @@ class RecorderTab(QWidget):
 
     def start_live_stream(
         self,
-        recording: bool,
-        acquisition: AcquisitionSettings | None = None,
         *,
-        session_name: str | None = None,
+        recording_enabled: bool,
+        gui_config: GuiAcquisitionConfig,
+        host_cfg: HostConfig,
     ) -> None:
-        """
-        Called by MainWindow when the live stream should start.
+        """Start live streaming and/or recording based on GUI config."""
 
-        Uses the current GUI configuration and forwards `recording` down to
-        the Pi logger.
-        """
-        gui_cfg = self._current_gui_acquisition_config
-        if gui_cfg is not None:
-            logger.info(
-                "Starting live stream with GUI config: %s",
-                gui_cfg.summary(),
-            )
-        self._recording_mode = bool(recording)
-        normalized_session = (session_name or "").strip()
-        self._last_session_name = normalized_session
+        self._current_gui_acquisition_config = gui_config
+        logger.info("RecorderTab received GuiAcquisitionConfig: %s", gui_config.summary())
 
-        if acquisition is not None:
-            self._apply_sampling_config(acquisition.sampling, notify=True)
+        record_only = bool(gui_config.record_only)
+        self._recording_mode = bool(recording_enabled or record_only)
+        self._current_sensor_selection = gui_config.sensor_selection
 
-        mpu_cfg = self.current_mpu_gui_config()
-
-        if not mpu_cfg.enabled:
-            raise RuntimeError("Enable the MPU6050 sensor to start streaming.")
-
-        recorder = self._ensure_recorder()
-
-        if self._ingest_worker is not None:
-            raise RuntimeError("MPU6050 streaming is already running.")
-
-        pi_logger_cfg = self._build_pi_logger_config(
-            acquisition, session_name=normalized_session or None
+        self._apply_sampling_config(gui_config.sampling, notify=True)
+        self._last_session_name = (
+            gui_config.sampling.mode_key if hasattr(gui_config, "sampling") else ""
         )
-        logger_cmd = build_logger_command(pi_logger_cfg)
-        logger.debug("mpu6050 command: %s", shlex.join(logger_cmd))
-        if len(logger_cmd) > 3:
-            cli_tokens = logger_cmd[3:]
-        else:
-            cli_tokens = build_logger_args(pi_logger_cfg)
-        mpu_extra_args = " ".join(shlex.quote(a) for a in cli_tokens)
 
-        self._start_stream(recorder, sensor_type="mpu6050", extra_args=mpu_extra_args)
+        extra_cli: dict[str, object] = {}
+        if gui_config.sensor_selection.active_sensors:
+            extra_cli["sensors"] = ",".join(
+                str(s) for s in gui_config.sensor_selection.active_sensors
+            )
+        if gui_config.sensor_selection.active_channels:
+            extra_cli["channels"] = ",".join(gui_config.sensor_selection.active_channels)
+        dlpf = self._get_default_mpu_dlpf()
+        if dlpf is not None:
+            extra_cli["dlpf"] = dlpf
+        if self.mpu_temp_chk.isChecked():
+            extra_cli["temp"] = True
+        if self.mpu_limit_duration_chk.isChecked():
+            duration_s = float(self.mpu_duration_spin.value())
+            if duration_s > 0:
+                extra_cli["duration"] = f"{duration_s:.3f}"
+
+        pi_logger_cfg = PiLoggerConfig.from_sampling(
+            gui_config.sampling, extra_cli=extra_cli
+        )
+
+        self._start_mpu_stream(
+            host_cfg=host_cfg,
+            pi_logger_cfg=pi_logger_cfg,
+            selection=gui_config.sensor_selection,
+            recording_enabled=recording_enabled,
+            record_only=record_only,
+        )
 
     def stop_live_stream(
         self,
@@ -712,6 +738,8 @@ class RecorderTab(QWidget):
                     pass
                 self._pi_recorder = None
                 self.host_status_label.setText("Disconnected.")
+            if self._recording_mode:
+                self.recording_stopped.emit()
             self.start_btn.setEnabled(True)
             self.stop_btn.setEnabled(False)
             self.overall_status.setText("Idle.")
@@ -729,6 +757,97 @@ class RecorderTab(QWidget):
                 close()
             except Exception:
                 logger.exception("Failed to close active stream")
+
+    def _create_streaming_buffer(
+        self, selection: SensorSelectionConfig, stream_rate_hz: float
+    ) -> StreamingDataBuffer:
+        """Create a StreamingDataBuffer sized for the selected channels."""
+
+        rate = float(stream_rate_hz) if stream_rate_hz > 0 else self._sampling_config.compute_decimation().get("stream_rate_hz", 0.0)
+        return StreamingDataBuffer(
+            BufferConfig(
+                max_seconds=6.0,
+                sample_rate_hz=rate,
+            )
+        )
+
+    def _start_mpu_stream(
+        self,
+        *,
+        host_cfg: HostConfig,
+        pi_logger_cfg: PiLoggerConfig,
+        selection: SensorSelectionConfig,
+        recording_enabled: bool,
+        record_only: bool,
+    ) -> None:
+        """Start the MPU6050 stream or record-only session."""
+
+        if self._ingest_worker is not None:
+            raise RuntimeError("MPU6050 streaming is already running.")
+
+        self._close_active_stream()
+        self._clear_sample_queue()
+
+        recorder = self._create_pi_recorder_for_host(host_cfg)
+
+        if record_only:
+            logger.info("Starting record-only capture on %s", host_cfg.name)
+            stream = recorder.start_record_only(pi_logger_cfg)
+            self._active_stream = stream
+            self._data_buffer = None
+            self.start_btn.setEnabled(False)
+            self.stop_btn.setEnabled(True)
+            self.overall_status.setText("Recording (no live stream).")
+            self.recording_started.emit()
+            return
+
+        logger.info(
+            "Starting streaming capture on %s (recording_enabled=%s)",
+            host_cfg.name,
+            recording_enabled,
+        )
+        stream = recorder.stream_mpu6050(
+            cfg=pi_logger_cfg, recording_enabled=recording_enabled
+        )
+
+        self._data_buffer = self._create_streaming_buffer(selection, pi_logger_cfg.stream_rate_hz)
+        self._active_stream = stream
+        self._stop_requested = False
+        rc = self._rate_controllers["mpu6050"]
+        rc.reset()
+
+        parser = select_parser("mpu6050")
+
+        def _stream_factory():
+            return stream
+
+        thread = QThread(self)
+        worker = SensorIngestWorker(
+            recorder=recorder,
+            stream_factory=_stream_factory,
+            parser=parser,
+            batch_size=self._ingest_batch_size,
+            max_latency_ms=self._ingest_max_latency_ms,
+            stream_label="mpu6050",
+        )
+        worker.moveToThread(thread)
+        thread.started.connect(worker.start)
+        worker.samples_batch.connect(self._on_samples_batch)
+        worker.error.connect(self._on_ingest_error)
+        worker.finished.connect(self._on_ingest_finished)
+        worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(thread.quit)
+        thread.finished.connect(thread.deleteLater)
+        thread.start()
+
+        self._ingest_thread = thread
+        self._ingest_worker = worker
+
+        self.start_btn.setEnabled(False)
+        self.stop_btn.setEnabled(True)
+        self.overall_status.setText("Streaming.")
+        self.recording_started.emit()
+        self.streaming_started.emit()
 
     def _start_stream(
         self,
