@@ -6,7 +6,7 @@ import csv
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional  # List is no longer needed
 
 from PySide6.QtCore import QObject, QTimer, Qt
 from PySide6.QtWidgets import QApplication
@@ -22,7 +22,8 @@ class BenchmarkOptions:
     refresh_hz: float = 20.0
     channel_count: int = 18
     log_interval_s: float = 1.0
-    csv_path: Optional[Path] = Path("benchmark_results.csv")
+    # None means: "no CSV logging unless caller explicitly passes a Path"
+    csv_path: Optional[Path] = None
     sensor_count: int = 3
     keep_open: bool = False
 
@@ -46,7 +47,7 @@ class BenchmarkDriver(QObject):
         self._timer.setInterval(interval_ms)
         self._timer.timeout.connect(self._on_tick)
         self._start_monotonic: float = 0.0
-        self._rows: List[dict[str, float]] = []
+        self._rows: list[dict[str, float]] = []
         self._started = False
         self._finished = False
 

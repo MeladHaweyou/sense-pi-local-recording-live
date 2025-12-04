@@ -48,3 +48,15 @@ class PlotPerfStats:
         if not self.sample_to_draw_latencies:
             return 0.0
         return 1000.0 * max(self.sample_to_draw_latencies)
+
+    def snapshot_ms(self) -> dict[str, float]:
+        """Return a dict of the current performance statistics.
+
+        All time-based values are returned in milliseconds.
+        """
+        return {
+            "fps": self.compute_fps(),
+            "avg_frame_ms": self.avg_frame_ms(),
+            "avg_latency_ms": self.avg_latency_ms(),
+            "max_latency_ms": self.max_latency_ms(),
+        }
