@@ -42,7 +42,7 @@ Install (on Raspberry Pi OS)
 ----------------------------
 sudo apt-get update
 sudo apt-get install -y python3-pip python3-smbus i2c-tools
-pip3 install smbus2 numpy
+pip3 install smbus2
 sudo raspi-config nonint do_i2c 0   # ensure I2C enabled
 
 Examples
@@ -251,7 +251,8 @@ class AsyncWriter:
 
     def start(self):
         self.filepath.parent.mkdir(parents=True, exist_ok=True)
-        self._fh = open(self.filepath, "w", newline="")
+        # Be explicit about encoding; matches aggregated log file behavior.
+        self._fh = open(self.filepath, "w", newline="", encoding="utf-8")
         if self.fmt == "csv":
             self._writer = csv.DictWriter(self._fh, fieldnames=self.header)
             self._writer.writeheader()
@@ -273,16 +274,21 @@ class AsyncWriter:
                 self._fh.write(json.dumps(item, separators=(",", ":")) + "\n")
             self._lines_since_flush += 1
             now = time.monotonic()
-            if self._lines_since_flush >= self.flush_every or (now - self._last_flush) >= self.flush_seconds:
+            if (
+                self._lines_since_flush >= self.flush_every
+                or (now - self._last_flush) >= self.flush_seconds
+            ):
                 self._fh.flush()
                 if self.fsync_each_flush:
                     os.fsync(self._fh.fileno())
                 self._lines_since_flush = 0
                 self._last_flush = now
-        # final flush
-        self._fh.flush()
-        os.fsync(self._fh.fileno())  # ensure data hits storage at stop
-        self._fh.close()
+
+        # final flush – guard against rare cases where start() failed
+        if self._fh is not None:
+            self._fh.flush()
+            os.fsync(self._fh.fileno())  # ensure data hits storage at stop
+            self._fh.close()
 
     def stop(self):
         if not self._stopping:
@@ -291,7 +297,7 @@ class AsyncWriter:
             self._t.join()
 
     def write_metadata(self, meta: dict):
-        with open(self.meta_path, "w") as mfh:
+        with open(self.meta_path, "w", encoding="utf-8") as mfh:
             json.dump(meta, mfh, indent=2)
 
 
@@ -365,10 +371,20 @@ def monotonic_controller(rate_hz: float):
 
 
 def main():
+    def _normalize_out_path(path: str) -> str:
+        if "\\" in path and "/" not in path:
+            print(f"[WARN] Normalizing Windows-style path in --out: {path}", file=sys.stderr)
+            return path.replace("\\", "/")
+        return path
+
     ap = argparse.ArgumentParser(description="Multi‑MPU6050 local logger (CSV/JSONL). No MQTT.")
     ap.add_argument("--list", action="store_true", help="List detected 0x68/0x69 on bus 0 and 1 and exit")
-    ap.add_argument("--sample-rate-hz", type=int, default=None,
-                    help="Preferred sampling rate in Hz (50-1000)")
+    ap.add_argument(
+        "--sample-rate-hz",
+        type=int,
+        default=None,
+        help="Preferred sampling rate in Hz (4–1000, clamped on-device)",
+    )
     ap.add_argument("--rate", type=float, help="Sampling rate in Hz (e.g., 10, 20, 50, 100, 200)", required=False)
     ap.add_argument("--sensors", type=str, default="1,2,3", help="Comma‑separated sensor ids to enable (subset of 1,2,3)")
     ap.add_argument("--map", type=str, default="", help="Override mapping like '1:1-0x68,2:1-0x69,3:0-0x68'")
@@ -461,9 +477,7 @@ def main():
     args = ap.parse_args()
 
     # Normalize common Windows-style paths that might be passed from a GUI.
-    if "\\" in args.out and "/" not in args.out:
-        print(f"[WARN] Normalizing Windows-style path in --out: {args.out}", file=sys.stderr)
-        args.out = args.out.replace("\\", "/")
+    args.out = _normalize_out_path(args.out)
 
     if args.list:
         scan_buses()
@@ -549,9 +563,8 @@ def main():
     if cfg_out is not None and not _flag_present("--out"):
         args.out = str(cfg_out)
 
-    if "\\" in args.out and "/" not in args.out:
-        print(f"[WARN] Normalizing Windows-style path in --out: {args.out}", file=sys.stderr)
-        args.out = args.out.replace("\\", "/")
+    # Normalize again after config overrides
+    args.out = _normalize_out_path(args.out)
 
     # Optional behaviour flags
     if section.get("no_record") and not args.no_record:
@@ -567,8 +580,12 @@ def main():
         )
 
     cfg_stream_fields = section.get("stream_fields")
-    if cfg_stream_fields and not _flag_present("--stream-fields"):
-        args.stream_fields = str(cfg_stream_fields)
+    if cfg_stream_fields is not None and not _flag_present("--stream-fields"):
+        # Accept either a comma-separated string or a YAML list like [ax, gz]
+        if isinstance(cfg_stream_fields, (list, tuple)):
+            args.stream_fields = ",".join(str(f) for f in cfg_stream_fields)
+        else:
+            args.stream_fields = str(cfg_stream_fields)
 
     cfg_duration = section.get("duration_s")
     if cfg_duration is not None and args.duration is None and not _flag_present("--duration"):
