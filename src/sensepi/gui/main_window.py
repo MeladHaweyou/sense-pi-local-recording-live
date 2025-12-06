@@ -177,7 +177,8 @@ class MainWindow(QMainWindow):
     def _on_stop_stream_requested(self) -> None:
         if getattr(self.recorder_tab, "_recording_mode", False):
             self._log_recording_calibration("stopping")
-        self.recorder_tab.stop_live_stream()
+        # Ensure the ingest worker thread has fully stopped before allowing a new Start.
+        self.recorder_tab.stop_live_stream(wait=True)
 
     @Slot(SensorSelectionConfig)
     def _on_sensor_selection_changed(self, cfg: SensorSelectionConfig) -> None:

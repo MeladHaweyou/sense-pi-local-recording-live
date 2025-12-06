@@ -1760,10 +1760,21 @@ class SignalsTab(QWidget):
     def set_sensor_selection(self, selection: SensorSelectionConfig) -> None:
         """
         Called by MainWindow when the Device/Sensors tab changes selection.
-        For now we just store it and rebuild the GuiAcquisitionConfig.
+
+        Cache the selection, rebuild the GuiAcquisitionConfig and
+        auto-adjust the view preset so all selected channels are visible.
         """
 
         self._current_sensor_selection = selection
+
+        # NEW: auto-pick a view preset that can display all active sensors × channels.
+        # This makes 3 sensors × 6 channels automatically switch to the 18-chart layout.
+        active_sensors = selection.active_sensors or []
+        active_channels = selection.active_channels or []
+        if active_sensors and active_channels:
+            charts = len(active_sensors) * len(active_channels)
+            self.set_view_mode_by_channels(charts)
+
         self._rebuild_gui_acquisition_config()
 
     def apply_gui_acquisition_config(self, cfg: GuiAcquisitionConfig) -> None:
@@ -2027,15 +2038,24 @@ class SignalsTab(QWidget):
         """
         if sensor_type != "mpu6050":
             return
-        self._stream_rate_label.setText(f"Stream rate: {hz:.1f} Hz")
+        self._stream_rate_label.setText(f"Stream ≈ {hz:5.1f} Hz")
+
+        # Remember previous value so we can detect the first update after a stream start.
+        previous = self._sampling_rate_hz
         self._sampling_rate_hz = hz
-        self._plot.set_nominal_sample_rate(hz)
+
+        # Only reconfigure the plot's nominal sample rate once per stream.
+        # on_stream_started() sets _sampling_rate_hz back to None, so the first
+        # effective rate update after a start will pass through here and set the
+        # time axis; later small fluctuations in hz no longer clear the buffers.
+        if previous is None:
+            self._plot.set_nominal_sample_rate(hz)
+
         if self.refresh_mode == "follow_sampling_rate":
             # Rate updates from RecorderTab may frequently adjust the timer
             # interval when we're following the stream rate.
             self._apply_refresh_settings()
-        else:
-            self._update_perf_summary()
+        self._update_perf_summary()
 
     def set_sampling_rate_hz(self, hz: float) -> None:
         """
