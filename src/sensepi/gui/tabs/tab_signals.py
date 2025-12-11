@@ -1283,7 +1283,7 @@ class SignalsTab(QWidget):
     - Focused on live data; offline playback remains in :class:`OfflineTab`.
     """
 
-    start_stream_requested = Signal(bool)  # bool = recording mode
+    start_stream_requested = Signal(bool, str)  # (recording mode, session name)
     stop_stream_requested = Signal()
     fft_refresh_interval_changed = Signal(int)
     acquisitionConfigChanged = Signal(GuiAcquisitionConfig)
@@ -1655,7 +1655,8 @@ class SignalsTab(QWidget):
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self._set_stream_status("Streaming...", force=True)
-        self.start_stream_requested.emit(self.recording_check.isChecked())
+        session = self.session_name()
+        self.start_stream_requested.emit(self.recording_check.isChecked(), session)
         if self._recording_section is not None:
             self._recording_section.setCollapsed(True)
         if self._acquisition_section is not None:
