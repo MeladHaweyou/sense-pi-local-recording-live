@@ -10,7 +10,7 @@ import paramiko
 # ====== EDIT THESE IF NEEDED ======
 PI_HOST = "192.168.0.6"
 PI_USER = "verwalter"
-PI_PASSWORD = "!66442200"
+PI_PASSWORD = "66442200"
 PI_BASE_PATH = "~/sensor"  # same as hosts.yaml base_path
 LOGGER_SCRIPT = "mpu6050_multi_logger.py"
 PI_CONFIG = "pi_config.yaml"

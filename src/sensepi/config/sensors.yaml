@@ -1,9 +1,6 @@
-# Default sensor + sampling configuration
-# The authoritative sample rate lives under the top-level `sampling` block.
 sampling:
-  device_rate_hz: 200
+  device_rate_hz: 120.0
   mode: high_fidelity
-
 sensors:
   mpu6050:
     channels: default
