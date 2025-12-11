@@ -162,7 +162,7 @@ def create_app(
 def main(argv: list[str] | None = None) -> None:
     # Basic logging so that GUI + benchmark messages are visible on the console.
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.ERROR,
         format="%(levelname)s:%(name)s:%(message)s",
     )
 
