@@ -39,7 +39,6 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
     QComboBox,
-    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -64,6 +63,19 @@ from ...config.app_config import (
 from ...config.sampling import RECORDING_MODES, SamplingConfig
 from ...remote.ssh_client import SSHClient
 from ..config.acquisition_state import SensorSelectionConfig
+
+# Conservative device-rate options used by the Settings tab.
+BASE_DEVICE_RATES_HZ: list[float] = [50.0, 100.0, 125.0, 200.0, 250.0]
+
+# (sensor_count, channels_per_sensor) -> safe max device rate [Hz]
+SAFE_MAX_DEVICE_RATE_HZ: dict[tuple[int, int], float] = {
+    (1, 3): 250.0,
+    (1, 6): 250.0,
+    (2, 3): 125.0,
+    (2, 6): 125.0,
+    (3, 3): 100.0,
+    (3, 6): 100.0,
+}
 
 
 class SettingsTab(QWidget):
@@ -106,6 +118,9 @@ class SettingsTab(QWidget):
         self._sensors: Dict[str, Any] = {}
 
         self._current_host_index: Optional[int] = None
+
+        # Last sampling config loaded from sensors.yaml (used to preserve rate)
+        self._sampling_config: SamplingConfig | None = None
 
         self._build_ui()
         self._load_from_disk()
@@ -188,35 +203,42 @@ class SettingsTab(QWidget):
         sensors_group = QGroupBox("Sensor defaults", self)
         sensors_layout = QVBoxLayout(sensors_group)
 
+        # High-level sensor selection defaults (used as app-wide defaults)
         sensor_selection_form = QFormLayout()
-        self.mpu_sensors_edit = QLineEdit(sensors_group)
-        self.mpu_sensors_edit.setPlaceholderText("1,2,3")
-        self.mpu_sensors_edit.setText("1,2,3")
-        sensor_selection_form.addRow("Sensors (e.g. 1,2,3):", self.mpu_sensors_edit)
 
+        # 1/2/3 sensors instead of free-text "1,2,3"
+        self.mpu_sensor_count_combo = QComboBox(sensors_group)
+        self.mpu_sensor_count_combo.addItem("1 sensor", 1)
+        self.mpu_sensor_count_combo.addItem("2 sensors", 2)
+        self.mpu_sensor_count_combo.addItem("3 sensors", 3)
+        # Old default was "1,2,3" -> 3 sensors
+        self.mpu_sensor_count_combo.setCurrentIndex(2)
+        sensor_selection_form.addRow("Number of sensors:", self.mpu_sensor_count_combo)
+
+        # Keep labels identical, but attach channel count as userData
         self.mpu_channels_combo = QComboBox(sensors_group)
-        self.mpu_channels_combo.addItem("Accel only (3 channels)")
-        self.mpu_channels_combo.addItem("Accel + Gyro (6 channels)")
-        sensor_selection_form.addRow("Channels:", self.mpu_channels_combo)
+        self.mpu_channels_combo.addItem("Accel only (3 channels)", 3)
+        self.mpu_channels_combo.addItem("Accel + Gyro (6 channels)", 6)
+        sensor_selection_form.addRow("Channels per sensor:", self.mpu_channels_combo)
+
         sensors_layout.addLayout(sensor_selection_form)
 
         # Sampling (single source of truth)
-        sampling_group = QGroupBox("Sampling", sensors_group)
+        sampling_group = QGroupBox("Sampling (single source of truth)", sensors_group)
         sampling_form = QFormLayout(sampling_group)
 
-        self.device_rate_spin = QDoubleSpinBox(sampling_group)
-        self.device_rate_spin.setRange(1.0, 4000.0)
-        self.device_rate_spin.setDecimals(1)
-        self.device_rate_spin.setValue(200.0)
+        # Drop-down of allowed device rates driven by sensors/channels
+        self.device_rate_combo = QComboBox(sampling_group)
+        self.device_rate_combo.setEditable(False)
 
         self.mode_combo = QComboBox(sampling_group)
         for key, mode in RECORDING_MODES.items():
             self.mode_combo.addItem(mode.label, userData=key)
 
-        sampling_form.addRow("Device rate [Hz]:", self.device_rate_spin)
+        sampling_form.addRow("Sampling (device) rate [Hz]:", self.device_rate_combo)
         sampling_form.addRow("Mode:", self.mode_combo)
 
-        # MPU6050 defaults
+        # MPU6050 defaults (unchanged)
         mpu_group = QGroupBox("MPU6050", sensors_group)
         mpu_form = QFormLayout(mpu_group)
 
@@ -224,23 +246,14 @@ class SettingsTab(QWidget):
         # Same choices as the logger
         self.mpu_channels.addItems(["default", "acc", "gyro", "both"])
 
-        self.mpu_dlpf = QComboBox(mpu_group)
-        for value in range(7):
-            self.mpu_dlpf.addItem(str(value), userData=value)
-
-        idx_default = self.mpu_dlpf.findData(3)
-        if idx_default < 0:
-            idx_default = 3
-        self.mpu_dlpf.setCurrentIndex(idx_default)
-
-        self.mpu_dlpf_info = QLabel(mpu_group)
-        self.mpu_dlpf_info.setWordWrap(True)
+        self.mpu_dlpf = QSpinBox(mpu_group)
+        self.mpu_dlpf.setRange(0, 6)
+        self.mpu_dlpf.setValue(3)
 
         self.mpu_include_temp = QCheckBox("Include on-die temperature", mpu_group)
 
         mpu_form.addRow("Channels:", self.mpu_channels)
         mpu_form.addRow("DLPF:", self.mpu_dlpf)
-        mpu_form.addRow("", self.mpu_dlpf_info)
         mpu_form.addRow("", self.mpu_include_temp)
 
         sensors_layout.addWidget(sampling_group)
@@ -259,12 +272,28 @@ class SettingsTab(QWidget):
         self.btn_sync_pi.clicked.connect(self._on_sync_to_pi)
         self.btn_save_hosts.clicked.connect(self._on_save_hosts_clicked)
         self.btn_save_sensors.clicked.connect(self._on_save_sensors_clicked)
-        self.mpu_sensors_edit.textChanged.connect(self._on_sensor_ui_changed)
+
+        # Sensor selection (UI-level)
+        self.mpu_sensor_count_combo.currentIndexChanged.connect(
+            self._on_sensor_ui_changed
+        )
         self.mpu_channels_combo.currentIndexChanged.connect(
             self._on_sensor_ui_changed
         )
-        self.mpu_dlpf.currentIndexChanged.connect(self._update_mpu_dlpf_info)
-        self.mpu_dlpf.currentIndexChanged.connect(self._on_sensor_ui_changed)
+
+        # Sampling rate choices depend on number of sensors + channels
+        self.mpu_sensor_count_combo.currentIndexChanged.connect(
+            self._refresh_sampling_rate_choices
+        )
+        self.mpu_channels_combo.currentIndexChanged.connect(
+            self._refresh_sampling_rate_choices
+        )
+
+        # Populate initial sampling choices (will be refined once sensors.yaml loads)
+        self._refresh_sampling_rate_choices()
+
+        self.mpu_dlpf.valueChanged.connect(self._update_mpu_dlpf_info)
+        self.mpu_dlpf.valueChanged.connect(self._on_sensor_ui_changed)
 
         self._set_host_fields_enabled(False)
         self._on_sensor_ui_changed()
@@ -551,26 +580,31 @@ class SettingsTab(QWidget):
     # Sensor defaults helpers
     # ------------------------------------------------------------------
     def _update_mpu_dlpf_info(self) -> None:
-        idx = self.mpu_dlpf.currentIndex()
-        value = self.mpu_dlpf.itemData(idx)
         try:
-            dlpf_value = int(value)
+            dlpf_value = int(self.mpu_dlpf.value())
         except (TypeError, ValueError):
             dlpf_value = 3
         text = self._DLPF_DESCRIPTIONS.get(
             dlpf_value,
             f"DLPF {dlpf_value}: see datasheet for bandwidth and delay details.",
         )
-        self.mpu_dlpf_info.setText(text)
+        self.mpu_dlpf.setToolTip(text)
 
     def _load_sensor_widgets_from_model(self) -> None:
+        """
+        Populate sampling + MPU6050 widgets from the in-memory sensors.yaml mapping.
+        """
+        # Sampling config from sensors.yaml (single source of truth)
         sampling_cfg = SamplingConfig.from_mapping(self._sensors)
-        self.device_rate_spin.setValue(float(sampling_cfg.device_rate_hz))
+        self._sampling_config = sampling_cfg
+
+        # Mode combo: pick the saved mode or fall back to high_fidelity
         idx_mode = self.mode_combo.findData(sampling_cfg.mode_key)
         if idx_mode < 0:
             idx_mode = self.mode_combo.findData("high_fidelity")
         self.mode_combo.setCurrentIndex(max(0, idx_mode))
 
+        # Per-sensor MPU6050 defaults (YAML-backed)
         sensors = self._sensors.get("sensors", {}) if isinstance(self._sensors, dict) else {}
         mpu_cfg = dict(sensors.get("mpu6050", {}) or {})
 
@@ -580,22 +614,109 @@ class SettingsTab(QWidget):
             idx = self.mpu_channels.findText("default")
         self.mpu_channels.setCurrentIndex(idx)
 
-        dlpf_value = int(mpu_cfg.get("dlpf", 3))
-        idx = self.mpu_dlpf.findData(dlpf_value)
-        if idx < 0:
-            idx = self.mpu_dlpf.findData(3)
-        if idx < 0:
-            idx = 3
-        self.mpu_dlpf.setCurrentIndex(idx)
-        self._update_mpu_dlpf_info()
+        self.mpu_dlpf.setValue(int(mpu_cfg.get("dlpf", 3)))
         self.mpu_include_temp.setChecked(bool(mpu_cfg.get("include_temperature", False)))
 
+        # Rebuild the device-rate combo according to the loaded sampling config
+        self._refresh_sampling_rate_choices()
+
     def _current_sampling_from_widgets(self) -> SamplingConfig:
+        """
+        Build a SamplingConfig from the current Settings tab widgets.
+        """
         mode_key = self.mode_combo.currentData()
+
+        rate = self.device_rate_combo.currentData()
+        if rate is None:
+            # Fall back to last loaded sampling config or a conservative default
+            if isinstance(self._sampling_config, SamplingConfig):
+                rate = float(self._sampling_config.device_rate_hz)
+            else:
+                rate = max(BASE_DEVICE_RATES_HZ)
+
         return SamplingConfig(
-            device_rate_hz=float(self.device_rate_spin.value()),
+            device_rate_hz=float(rate),
             mode_key=str(mode_key or "high_fidelity"),
         )
+
+    def _refresh_sampling_rate_choices(self) -> None:
+        """
+        Update the device-rate combo based on the number of sensors and
+        channels-per-sensor, clamping to a conservative safe maximum.
+        """
+        # --- Determine current sensor/channels selection ----------------
+        try:
+            sensor_count = int(self.mpu_sensor_count_combo.currentData() or 3)
+        except (TypeError, ValueError):
+            sensor_count = 3
+
+        if sensor_count < 1:
+            sensor_count = 1
+        elif sensor_count > 3:
+            sensor_count = 3
+
+        idx = self.mpu_channels_combo.currentIndex()
+        channels_per_sensor = 3 if idx == 0 else 6
+
+        safe_max = SAFE_MAX_DEVICE_RATE_HZ.get(
+            (sensor_count, channels_per_sensor),
+            max(BASE_DEVICE_RATES_HZ),
+        )
+
+        allowed_rates = [r for r in BASE_DEVICE_RATES_HZ if r <= safe_max]
+        if not allowed_rates:
+            # Fallback to at least the lowest base rate
+            allowed_rates = [min(BASE_DEVICE_RATES_HZ)]
+            safe_max = allowed_rates[-1]
+
+        # --- Decide which rate we *want* to keep if possible -----------
+        desired_rate: float | None = None
+
+        if isinstance(self._sampling_config, SamplingConfig):
+            desired_rate = float(self._sampling_config.device_rate_hz)
+        else:
+            current_data = self.device_rate_combo.currentData()
+            if current_data is not None:
+                try:
+                    desired_rate = float(current_data)
+                except (TypeError, ValueError):
+                    desired_rate = None
+
+        if desired_rate is None:
+            desired_rate = safe_max
+
+        # --- Rebuild the combo without firing external slots -----------
+        self.device_rate_combo.blockSignals(True)
+        try:
+            self.device_rate_combo.clear()
+            for rate in allowed_rates:
+                if float(rate).is_integer():
+                    label = f"{int(rate)} Hz"
+                else:
+                    label = f"{rate:g} Hz"
+                self.device_rate_combo.addItem(label, rate)
+
+            # Prefer exact match; otherwise fall back to the highest allowed
+            selected_index = -1
+            for i, rate in enumerate(allowed_rates):
+                if abs(rate - desired_rate) < 1e-6:
+                    selected_index = i
+                    break
+            if selected_index < 0:
+                selected_index = len(allowed_rates) - 1
+
+            self.device_rate_combo.setCurrentIndex(selected_index)
+        finally:
+            self.device_rate_combo.blockSignals(False)
+
+        # Keep our cached sampling config in sync with the clamped rate
+        if isinstance(self._sampling_config, SamplingConfig):
+            effective_rate = self.device_rate_combo.currentData()
+            if effective_rate is not None:
+                self._sampling_config = SamplingConfig(
+                    device_rate_hz=float(effective_rate),
+                    mode_key=self._sampling_config.mode_key,
+                )
 
     def _build_sensor_defaults_payload(self) -> tuple[Dict[str, Any], SamplingConfig]:
         sensors_model = dict(self._sensors) if isinstance(self._sensors, dict) else {}
@@ -603,10 +724,8 @@ class SettingsTab(QWidget):
 
         sensors_block = dict(sensors_model.get("sensors", {}) or {})
         mpu_cfg = dict(sensors_block.get("mpu6050", {}) or {})
-        idx = self.mpu_dlpf.currentIndex()
-        dlpf_value = self.mpu_dlpf.itemData(idx)
         try:
-            dlpf_int = int(dlpf_value)
+            dlpf_int = int(self.mpu_dlpf.value())
         except (TypeError, ValueError):
             dlpf_int = 3
 
@@ -630,25 +749,20 @@ class SettingsTab(QWidget):
         """
         Build a SensorSelectionConfig from the current UI state.
 
-        - Parses sensor IDs from self.mpu_sensors_edit.
+        - Uses the sensor-count combo (1/2/3 sensors).
         - Chooses active_channels based on the channels combo.
         """
-        text = self.mpu_sensors_edit.text().strip()
-        if not text:
-            # Fallback to default sensors if user hasn't specified any.
-            # Adjust [1, 2, 3] to match your hardware configuration.
-            active_sensors: list[int] = [1, 2, 3]
-        else:
-            active_sensors = []
-            for part in text.split(","):
-                part = part.strip()
-                if not part:
-                    continue
-                try:
-                    active_sensors.append(int(part))
-                except ValueError:
-                    # Ignore invalid entries; optionally log.
-                    continue
+        try:
+            count = int(self.mpu_sensor_count_combo.currentData() or 3)
+        except (TypeError, ValueError):
+            count = 3
+
+        if count < 1:
+            count = 1
+        elif count > 3:
+            count = 3
+
+        active_sensors = list(range(1, count + 1))
 
         # Map combo selection to channels; you can adjust later if needed.
         idx = self.mpu_channels_combo.currentIndex()
@@ -768,4 +882,3 @@ mpu_args = build_mpu6050_cli_args(mpu_defaults)
 
 All ~ expansion happens right before use, not in the YAML itself.
 
-"""
