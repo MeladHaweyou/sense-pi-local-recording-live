@@ -1771,6 +1771,10 @@ class SignalsTab(QWidget):
         """
         Called from MainWindow when a new config is about to be used
         for streaming/recording.
+
+        The device sampling rate (cfg.sampling.device_rate_hz) is the single
+        source of truth for the SignalsTab x-axis. Stream rate measurements
+        are only used for display and refresh timing, not for the x-axis.
         """
 
         self._current_gui_acquisition_config = cfg
@@ -2037,31 +2041,33 @@ class SignalsTab(QWidget):
 
     @Slot(str, float)
     def update_stream_rate(self, sensor_type: str, hz: float) -> None:
-        """Update the GUI-side stream rate shown in the Signals tab.
+        """
+        Update the GUI-side *stream* rate shown in the Signals tab.
 
-        ``hz`` reflects the effective rate at which samples arrive in the GUI
-        after any Pi-side stream decimation (for example, ``mpu6050 --stream-every N``).
-        The Recorder tab emits this signal whenever it refreshes its rate estimate.
+        NOTE:
+            The live plot x-axis should be driven only by the device sampling
+            rate configured in Settings (SamplingConfig.device_rate_hz).
+            Therefore, this method must NOT modify the SignalPlotWidget's
+            nominal sample rate. It only updates display and (optionally)
+            the refresh behavior when in follow_sampling_rate mode.
         """
         if sensor_type != "mpu6050":
             return
+
+        # Display the effective GUI stream rate after decimation.
         self._stream_rate_label.setText(f"Stream ≈ {hz:5.1f} Hz")
 
-        # Remember previous value so we can detect the first update after a stream start.
-        previous = self._sampling_rate_hz
-        self._sampling_rate_hz = hz
+        # Keep this for perf/timer purposes only.
+        try:
+            self._sampling_rate_hz = float(hz)
+        except (TypeError, ValueError):
+            self._sampling_rate_hz = None
 
-        # Only reconfigure the plot's nominal sample rate once per stream.
-        # on_stream_started() sets _sampling_rate_hz back to None, so the first
-        # effective rate update after a start will pass through here and set the
-        # time axis; later small fluctuations in hz no longer clear the buffers.
-        if previous is None:
-            self._plot.set_nominal_sample_rate(hz)
-
+        # In follow_sampling_rate mode, we still adjust the GUI timer interval
+        # based on the measured stream rate, but we do NOT touch the x-axis rate.
         if self.refresh_mode == "follow_sampling_rate":
-            # Rate updates from RecorderTab may frequently adjust the timer
-            # interval when we're following the stream rate.
             self._apply_refresh_settings()
+
         self._update_perf_summary()
 
     def set_sampling_rate_hz(self, hz: float) -> None:
@@ -2907,10 +2913,14 @@ class SignalsTab(QWidget):
     @Slot()
     def on_stream_started(self) -> None:
         logger.info("SignalsTab: stream started")
+        # Clear plot data and cursors, but keep the nominal sample rate
+        # that was configured from SettingsTab via apply_gui_acquisition_config().
         self._plot.clear()
         self._buffer_cursors.clear()
+
+        # Reset the *measured* stream rate estimate (used for display/perf),
+        # but do NOT touch the plot's nominal sample rate.
         self._sampling_rate_hz = None
-        self._plot.set_nominal_sample_rate(None)
         self._stream_rate_label.setText("Stream rate: -- Hz")
         self._stream_active = True
         self._awaiting_first_sample = True
