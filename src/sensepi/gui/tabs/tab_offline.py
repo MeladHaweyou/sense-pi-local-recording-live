@@ -124,6 +124,17 @@ class OfflineTab(QWidget):
 
         self.refresh_recordings_list()
 
+    @Slot()
+    def sync_logs_from_pi(self) -> None:
+        """
+        Programmatic entry point for syncing logs from the Pi.
+
+        This delegates to the same handler used by the local button so other
+        tabs can trigger the sync without duplicating logic.
+        """
+
+        self._on_sync_from_pi_clicked()
+
     def _recordings_dir(self) -> Path:
         """
         Return the canonical directory where raw recordings live.

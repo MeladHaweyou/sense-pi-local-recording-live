@@ -1288,6 +1288,7 @@ class SignalsTab(QWidget):
     fft_refresh_interval_changed = Signal(int)
     acquisitionConfigChanged = Signal(GuiAcquisitionConfig)
     calibrationChanged = Signal(CalibrationOffsets)
+    sync_logs_requested = Signal()
 
     BASELINE_DURATION_SEC = 3.0
 
@@ -1568,11 +1569,17 @@ class SignalsTab(QWidget):
             "Approximate refresh/FPS rate achieved by the GUI plot."
         )
 
+        self.sync_logs_button = QPushButton("Sync logs from Pi", top_row_group)
+        self.sync_logs_button.setToolTip(
+            "Download recorded log files from the selected Raspberry Pi into the local raw data folder."
+        )
+
         self.start_button.clicked.connect(self._on_start_clicked)
         self.stop_button.clicked.connect(self._on_stop_clicked)
         self.recording_check.stateChanged.connect(self._on_recording_toggled)
         self.record_only_check.stateChanged.connect(self._on_record_only_toggled)
         self._session_name_edit.textChanged.connect(self._refresh_mode_hint)
+        self.sync_logs_button.clicked.connect(self._on_sync_logs_clicked)
 
         top_row.addWidget(self.recording_check)
         top_row.addWidget(self.record_only_check)
@@ -1582,6 +1589,7 @@ class SignalsTab(QWidget):
         top_row.addWidget(self.stop_button)
         top_row.addWidget(self._stream_rate_label)
         top_row.addWidget(self._plot_refresh_label)
+        top_row.addWidget(self.sync_logs_button)
         top_row.addStretch()
 
         group_layout = QVBoxLayout()
@@ -1673,6 +1681,17 @@ class SignalsTab(QWidget):
         if self._acquisition_section is not None:
             self._acquisition_section.setCollapsed(False)
         self._refresh_mode_hint()
+
+    @Slot()
+    def _on_sync_logs_clicked(self) -> None:
+        """
+        Emit a request to sync logs from the currently selected Pi.
+
+        The actual sync work is delegated to whichever slot is connected in
+        the main window (e.g. OfflineTab.sync_logs_from_pi).
+        """
+
+        self.sync_logs_requested.emit()
 
     @Slot(int)
     def _on_recording_toggled(self, state: int) -> None:
