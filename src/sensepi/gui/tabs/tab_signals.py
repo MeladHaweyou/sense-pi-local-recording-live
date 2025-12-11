@@ -1498,12 +1498,6 @@ class SignalsTab(QWidget):
             "AX / AY / GZ (9 charts)", userData="default3"
         )
         self.view_mode_combo.addItem(
-            "Accel only (AX / AY / AZ)", userData="acc3"
-        )
-        self.view_mode_combo.addItem(
-            "Gyro only (GX / GY / GZ)", userData="gyro3"
-        )
-        self.view_mode_combo.addItem(
             "All axes (18 charts)", userData="all6"
         )
         top_row.addWidget(self.view_mode_combo)
@@ -2910,7 +2904,7 @@ class SignalsTab(QWidget):
         self._refresh_mode_hint()
 
     def set_view_mode_by_channels(self, charts: int) -> None:
-        preset = "all6" if charts >= 18 else "default3"
+        preset = "default3" if charts <= 9 else "all6"
         self.set_view_mode_preset(preset)
 
     def set_view_mode_preset(self, preset: str) -> None:
