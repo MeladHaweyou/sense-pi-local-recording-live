@@ -1342,6 +1342,7 @@ class SignalsTab(QWidget):
         self._baseline_timer = QTimer(self)
         self._baseline_timer.setSingleShot(True)
         self._baseline_timer.timeout.connect(self._finish_baseline)
+        self._base_correction_enabled: bool = False
         self._data_buffer: StreamingDataBuffer | None = None
         self._buffer_cursors: Dict[int | str, float] = {}
         self._synthetic_active = False
@@ -1351,6 +1352,9 @@ class SignalsTab(QWidget):
             active_channels=["ax", "ay", "az", "gx", "gy", "gz"],
         )
         self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
+        self._active_sensors: list[int] = list(
+            self._current_sensor_selection.active_sensors or []
+        )
         self._active_channels: list[str] = list(
             self._current_sensor_selection.active_channels or []
         )
@@ -1371,9 +1375,14 @@ class SignalsTab(QWidget):
         self._channel_checkboxes: Dict[str, QCheckBox] = {}
         self._recording_section: CollapsibleSection | None = None
         self._host_section: CollapsibleSection | None = None
-        self._mpu_section: CollapsibleSection | None = None
         self._acquisition_section: CollapsibleSection | None = None
-        self._acquisition_widget = AcquisitionSettingsWidget(self)
+        self._acquisition_widget = AcquisitionSettingsWidget(
+            self,
+            show_device_rate=False,
+            show_mode=False,
+            show_record_only=False,
+            show_signals_mode=False,
+        )
         self._acquisition_widget.samplingChanged.connect(
             self._on_acquisition_widget_changed
         )
@@ -1504,32 +1513,27 @@ class SignalsTab(QWidget):
             self._on_refresh_profile_changed
         )
         top_row.addWidget(self.refresh_profile_combo)
-        self.adaptive_mode_check = QCheckBox("Adaptive performance", top_row_group)
-        self.adaptive_mode_check.setToolTip(
-            "Automatically lower plotting/streaming load if redraws become too slow."
-        )
-        top_row.addWidget(self.adaptive_mode_check)
 
         self.view_mode_combo.currentIndexChanged.connect(
             self._on_view_mode_changed
         )
+        self.view_mode_combo.setEnabled(False)
 
         self.recording_check = QCheckBox("Recording", top_row_group)
         self.recording_check.setToolTip(
             "Default is live streaming only. Tick this to also record every "
             "sample on the Pi at the configured rate."
         )
+        self.record_only_check = QCheckBox(
+            "Record only (no live streaming)", top_row_group
+        )
+        self.record_only_check.setToolTip(
+            "When enabled, data is recorded on the Pi but not streamed live to this GUI."
+        )
         self._session_name_edit = QLineEdit(top_row_group)
         self._session_name_edit.setPlaceholderText("Session name (optional)")
         self._session_name_edit.setClearButtonEnabled(True)
         self._session_name_edit.setMaximumWidth(200)
-
-        # Base correction controls
-        self.base_correction_check = QCheckBox("Base correction", top_row_group)
-        self.baseline_button = QPushButton("Baseline correction", top_row_group)
-        self.baseline_button.setToolTip(
-            "Measure a short baseline and subtract it from live and recorded data."
-        )
         self.calibrate_button = QPushButton("Calibrate", top_row_group)
         self.reset_calibration_button = QPushButton("Reset calibration", top_row_group)
         self.calibration_duration_spin = QDoubleSpinBox(top_row_group)
@@ -1565,21 +1569,18 @@ class SignalsTab(QWidget):
 
         self.start_button.clicked.connect(self._on_start_clicked)
         self.stop_button.clicked.connect(self._on_stop_clicked)
-        self.base_correction_check.stateChanged.connect(
-            self._on_base_correction_toggled
-        )
-        self.baseline_button.clicked.connect(self.start_baseline_correction)
         self.calibrate_button.clicked.connect(self._on_calibrate_clicked)
         self.reset_calibration_button.clicked.connect(
             self._on_reset_calibration_clicked
         )
         self.recording_check.stateChanged.connect(self._on_recording_toggled)
+        self.record_only_check.stateChanged.connect(self._on_record_only_toggled)
         self._session_name_edit.textChanged.connect(self._refresh_mode_hint)
 
         top_row.addWidget(self.recording_check)
+        top_row.addWidget(self.record_only_check)
         top_row.addWidget(QLabel("Session:", top_row_group))
         top_row.addWidget(self._session_name_edit)
-        top_row.addWidget(self.base_correction_check)
         top_row.addWidget(self.start_button)
         top_row.addWidget(self.stop_button)
         top_row.addWidget(self._stream_rate_label)
@@ -1608,11 +1609,10 @@ class SignalsTab(QWidget):
 
         top_row_group.setLayout(group_layout)
 
-        # --- Calibration / baseline correction UI -------------------------
+        # --- Calibration UI -------------------------
         self.calibration_group = QGroupBox("Calibration (gravity / offset)")
         calib_layout = QHBoxLayout(self.calibration_group)
 
-        calib_layout.addWidget(self.baseline_button)
         calib_layout.addWidget(QLabel("Calibration duration:"))
         calib_layout.addWidget(self.calibration_duration_spin)
         calib_layout.addWidget(self.calibrate_button)
@@ -1624,16 +1624,10 @@ class SignalsTab(QWidget):
         self._update_base_window_label()
         self._refresh_mode_hint()
 
-        # Channel selection -----------------------------------------------------
-        channel_group = QGroupBox("Channels", self)
-        self._channel_layout = QHBoxLayout()
-        channel_group.setLayout(self._channel_layout)
-
         recording_section = CollapsibleSection("Recording / stream controls", self)
         recording_layout = QVBoxLayout()
         recording_layout.setContentsMargins(0, 0, 0, 0)
         recording_layout.addWidget(top_row_group)
-        recording_layout.addWidget(channel_group)
         recording_section.setContentLayout(recording_layout)
         layout.addWidget(recording_section)
         self._recording_section = recording_section
@@ -1674,8 +1668,7 @@ class SignalsTab(QWidget):
         self._perf_summary_label = QLabel("", self)
         layout.addWidget(self._perf_summary_label)
         self._update_perf_summary()
-
-        self._rebuild_channel_checkboxes()
+        self.update_sensor_selection(self._current_sensor_selection)
 
         # NOTE: Legacy sample ingestion and redraw timers are decoupled to
         # respect the current buffer management behavior. Revisit during the
@@ -1695,10 +1688,6 @@ class SignalsTab(QWidget):
         self._perf_hud_timer.setInterval(1000)
         self._perf_hud_timer.timeout.connect(self._update_perf_hud)
         self._perf_hud_timer.start()
-        self._adaptive_timer = QTimer(self)
-        self._adaptive_timer.setInterval(2000)
-        self._adaptive_timer.timeout.connect(self._adaptive_step)
-        self._adaptive_timer.start()
 
     # --------------------------------------------------------------- slots
     @Slot()
@@ -1727,6 +1716,17 @@ class SignalsTab(QWidget):
     @Slot(int)
     def _on_recording_toggled(self, state: int) -> None:
         self._refresh_mode_hint()
+
+    @Slot(int)
+    def _on_record_only_toggled(self, _state: int) -> None:
+        """Mirror the record-only toggle into the acquisition settings widget."""
+
+        widget = self._acquisition_widget
+        if widget is None:
+            return
+        with QSignalBlocker(widget.record_only_checkbox):
+            widget.record_only_checkbox.setChecked(self.record_only_check.isChecked())
+        self._rebuild_gui_acquisition_config()
 
     def current_acquisition_settings(self) -> AcquisitionSettings:
         """Return the current sampling / refresh settings.
@@ -1765,15 +1765,30 @@ class SignalsTab(QWidget):
         auto-adjust the view preset so all selected channels are visible.
         """
 
+        self.update_sensor_selection(selection)
+
+    def update_sensor_selection(self, selection: SensorSelectionConfig) -> None:
+        """
+        Receive the latest sensor/channel selection so Live Signals
+        can configure its layout and plots.
+        """
         self._current_sensor_selection = selection
 
-        # NEW: auto-pick a view preset that can display all active sensors × channels.
-        # This makes 3 sensors × 6 channels automatically switch to the 18-chart layout.
         active_sensors = selection.active_sensors or []
         active_channels = selection.active_channels or []
+
+        self._active_sensors = list(active_sensors)
+        self._active_channels = list(active_channels)
+
         if active_sensors and active_channels:
             charts = len(active_sensors) * len(active_channels)
+            # This already decides between 9 and 18 charts internally.
             self.set_view_mode_by_channels(charts)
+
+            # Also propagate the channel layout directly to the plot widget.
+            self._plot.set_channel_layout(active_channels)
+            # Show all configured channels by default.
+            self._plot.set_visible_channels(active_channels)
 
         self._rebuild_gui_acquisition_config()
 
@@ -1789,6 +1804,12 @@ class SignalsTab(QWidget):
             self._sampling_rate_hz = float(cfg.sampling.device_rate_hz)
         except (TypeError, ValueError):
             self._sampling_rate_hz = None
+        with QSignalBlocker(self.record_only_check):
+            self.record_only_check.setChecked(bool(cfg.record_only))
+        with QSignalBlocker(self._acquisition_widget.record_only_checkbox):
+            self._acquisition_widget.record_only_checkbox.setChecked(
+                bool(cfg.record_only)
+            )
         if self._sampling_rate_hz:
             self._plot.set_nominal_sample_rate(self._sampling_rate_hz)
         self._apply_refresh_settings()
@@ -1809,6 +1830,12 @@ class SignalsTab(QWidget):
         return self._current_gui_acquisition_config
 
     def _on_acquisition_widget_changed(self, *_args) -> None:
+        widget = self._acquisition_widget
+        if widget is not None and hasattr(self, "record_only_check"):
+            with QSignalBlocker(self.record_only_check):
+                self.record_only_check.setChecked(
+                    bool(widget.record_only_checkbox.isChecked())
+                )
         self._rebuild_gui_acquisition_config()
 
     def set_record_only_mode(self, enabled: bool) -> None:
@@ -2121,57 +2148,18 @@ class SignalsTab(QWidget):
             self.set_refresh_mode("fixed")
 
     def _rebuild_channel_checkboxes(self) -> None:
-        # Clear previous
-        while self._channel_layout.count():
-            item = self._channel_layout.takeAt(0)
-            w = item.widget()
-            if w:
-                w.setParent(None)
-
+        # Channel toggles are driven by SettingsTab; this is now a no-op.
         self._channel_checkboxes.clear()
-
-        # Use view preset:
-        #   - "default3" => AX, AY, GZ (3 columns; matches Pi --channels default)
-        #   - "acc3"     => AX, AY, AZ (accelerometer only)
-        #   - "gyro3"    => GX, GY, GZ (gyro only)
-        #   - "all6"     => AX, AY, AZ, GX, GY, GZ (6 columns)
-        view_mode = (
-            self.view_mode_combo.currentData()
-            if hasattr(self, "view_mode_combo")
-            else "all6"
-        )
-        if view_mode == "default3":
-            channels = ["ax", "ay", "gz"]
-        elif view_mode == "acc3":
-            channels = ["ax", "ay", "az"]
-        elif view_mode == "gyro3":
-            channels = ["gx", "gy", "gz"]
-        else:
-            channels = ["ax", "ay", "az", "gx", "gy", "gz"]
-
-        for ch in channels:
-            cb = QCheckBox(ch)
-            cb.setChecked(True)
-            cb.stateChanged.connect(self._on_channel_toggles_changed)
-            self._channel_checkboxes[ch] = cb
-            self._channel_layout.addWidget(cb)
-
-        self._plot.set_channel_layout(channels)
-        self._channel_layout.addStretch(1)
-        self._on_channel_toggles_changed()
 
     @Slot()
     def _on_view_mode_changed(self) -> None:
         """Called when the view preset combo changes."""
-        self._rebuild_channel_checkboxes()
+        self._refresh_mode_hint()
 
     @Slot()
     def _on_channel_toggles_changed(self) -> None:
-        # Preserve the checkbox order as the column order
-        visible = [
-            ch for ch, cb in self._channel_checkboxes.items() if cb.isChecked()
-        ]
-        self._plot.set_visible_channels(visible)
+        # Plot visibility follows SettingsTab channel selection.
+        self._plot.set_visible_channels(None)
 
     # ------------------------------------------------------------------ baseline
     def start_baseline_correction(self) -> None:
@@ -2214,9 +2202,8 @@ class SignalsTab(QWidget):
         if self._baseline_timer.isActive():
             self._baseline_buffer.append(raw_values)
             corrected_values = raw_values
-        elif self.base_correction_check.isChecked():
-            corrected_values = self.baseline_state.apply(raw_values)
         else:
+            # Base correction UI is disabled; pass through raw values.
             corrected_values = raw_values
 
         ax, ay, az, gx, gy, gz = corrected_values.tolist()
@@ -2387,7 +2374,11 @@ class SignalsTab(QWidget):
         self._record_refresh_tick()
 
     def _adaptive_step(self) -> None:
-        """Periodic background check that nudges refresh/stream fidelity."""
+        """Periodic background check that nudges refresh/stream fidelity.
+
+        If the adaptive checkbox is absent (Signals tab UI), adaptive mode is
+        effectively disabled.
+        """
         self._update_perf_summary()
         checkbox = getattr(self, "adaptive_mode_check", None)
         if checkbox is None or not checkbox.isChecked():
@@ -2962,7 +2953,6 @@ class SignalsTab(QWidget):
             return
         with QSignalBlocker(self.view_mode_combo):
             self.view_mode_combo.setCurrentIndex(idx)
-        self._rebuild_channel_checkboxes()
 
     @Slot()
     def on_stream_stopped(self) -> None:
@@ -2987,6 +2977,7 @@ class SignalsTab(QWidget):
     @Slot(int)
     def _on_base_correction_toggled(self, state: int) -> None:
         enabled = state == Qt.Checked
+        self._base_correction_enabled = enabled
         self._plot.enable_base_correction(enabled)
         if enabled:
             self._set_manual_status("Base correction enabled.")
@@ -3025,14 +3016,12 @@ class SignalsTab(QWidget):
 
         self.calibrationChanged.emit(offsets)
 
-        if self.base_correction_check.isChecked():
+        if self._base_correction_enabled:
             self._set_manual_status(
                 "Calibration updated (base correction applied)."
             )
         else:
-            self._set_manual_status(
-                "Calibration stored (enable 'Base correction' to apply)."
-            )
+            self._set_manual_status("Calibration stored.")
 
     @Slot()
     def _on_reset_calibration_clicked(self) -> None:
@@ -3061,17 +3050,14 @@ class SignalsTab(QWidget):
             return
 
         host_group = getattr(recorder_tab, "host_group", None)
-        mpu_group = getattr(recorder_tab, "mpu_group", None)
-        if host_group is None or mpu_group is None:
+        if host_group is None:
             return
 
         parent_layout = recorder_tab.layout()
         if parent_layout is not None:
             parent_layout.removeWidget(host_group)
-            parent_layout.removeWidget(mpu_group)
 
         host_group.setParent(self)
-        mpu_group.setParent(self)
 
         layout = self.layout()
         if layout is not None:
@@ -3084,11 +3070,5 @@ class SignalsTab(QWidget):
             layout.insertWidget(0, host_section)
             self._host_section = host_section
 
-            mpu_group.setTitle("")
-            mpu_section = CollapsibleSection("MPU6050 settings", self)
-            mpu_layout = QVBoxLayout()
-            mpu_layout.setContentsMargins(0, 0, 0, 0)
-            mpu_layout.addWidget(mpu_group)
-            mpu_section.setContentLayout(mpu_layout)
-            layout.insertWidget(1, mpu_section)
-            self._mpu_section = mpu_section
+            # Intentionally do NOT embed the RecorderTab MPU6050 settings here.
+            # Sensor count and channels are configured only from the Settings tab.

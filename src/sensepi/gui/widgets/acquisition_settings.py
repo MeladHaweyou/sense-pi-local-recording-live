@@ -101,7 +101,15 @@ class AcquisitionSettingsWidget(QWidget):
     recordOnlyChanged = Signal(bool)
     settingsChanged = Signal(AcquisitionSettings)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        show_device_rate: bool = True,
+        show_mode: bool = True,
+        show_record_only: bool = True,
+        show_signals_mode: bool = True,
+    ) -> None:
         super().__init__(parent)
 
         self._sampling_config = SamplingConfig(
@@ -118,7 +126,8 @@ class AcquisitionSettingsWidget(QWidget):
         self.device_rate_spin.setDecimals(1)
         self.device_rate_spin.setSingleStep(1.0)
         self.device_rate_spin.setValue(float(self._sampling_config.device_rate_hz))
-        form.addRow("Device rate [Hz]:", self.device_rate_spin)
+        if show_device_rate:
+            form.addRow("Device rate [Hz]:", self.device_rate_spin)
 
         self.mode_combo = QComboBox(self)
         for key, mode in RECORDING_MODES.items():
@@ -126,7 +135,8 @@ class AcquisitionSettingsWidget(QWidget):
         idx = self.mode_combo.findData(self._sampling_config.mode_key)
         if idx >= 0:
             self.mode_combo.setCurrentIndex(idx)
-        form.addRow("Mode:", self.mode_combo)
+        if show_mode:
+            form.addRow("Mode:", self.mode_combo)
 
         self._record_rate_label = QLabel("—", self)
         self._record_rate_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
@@ -141,7 +151,9 @@ class AcquisitionSettingsWidget(QWidget):
         self.signals_mode_combo = QComboBox(self)
         self.signals_mode_combo.addItem("Fixed interval", "fixed")
         self.signals_mode_combo.addItem("Adaptive (follow stream rate)", "adaptive")
-        mode_row.addWidget(self.signals_mode_combo)
+        self.signals_mode_combo.setVisible(show_signals_mode)
+        if show_signals_mode:
+            mode_row.addWidget(self.signals_mode_combo)
 
         self.signals_refresh_spin = QSpinBox(self)
         self.signals_refresh_spin.setRange(10, 1000)
@@ -172,12 +184,15 @@ class AcquisitionSettingsWidget(QWidget):
         )
         self.record_only_checkbox.setChecked(False)
         self.record_only_checkbox.toggled.connect(self._on_record_only_toggled)
-        form.addRow(self.record_only_checkbox)
+        if show_record_only:
+            form.addRow(self.record_only_checkbox)
 
         # Wiring
         self.device_rate_spin.valueChanged.connect(self._on_sampling_control_changed)
         self.mode_combo.currentIndexChanged.connect(self._on_sampling_control_changed)
         self.signals_mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        if show_signals_mode:
+            form.addRow("Signals mode:", self.signals_mode_combo)
 
         self._update_sampling_labels()
         self._on_mode_changed()
@@ -190,7 +205,14 @@ class AcquisitionSettingsWidget(QWidget):
         return GuiSamplingDisplay.from_sampling(self.current_sampling_config())
 
     def current_settings(self) -> AcquisitionSettings:
-        sampling = self.current_sampling_config()
+        sampling = SamplingConfig(
+            device_rate_hz=float(self._sampling_config.device_rate_hz),
+            mode_key=str(self._sampling_config.mode_key),
+        )
+        if self.device_rate_spin.isVisible():
+            sampling.device_rate_hz = float(self.device_rate_spin.value())
+        if self.mode_combo.isVisible():
+            sampling.mode_key = str(self.mode_combo.currentData())
         self._sampling_config = sampling
         mode = self.signals_mode_combo.currentData() or "fixed"
 
@@ -244,15 +266,17 @@ class AcquisitionSettingsWidget(QWidget):
             mode_key=str(sampling.mode_key),
         )
         self._sampling_config = sampling
-        with QSignalBlocker(self.device_rate_spin):
-            self.device_rate_spin.setValue(float(sampling.device_rate_hz))
+        if self.device_rate_spin.isVisible():
+            with QSignalBlocker(self.device_rate_spin):
+                self.device_rate_spin.setValue(float(sampling.device_rate_hz))
         idx = self.mode_combo.findData(sampling.mode_key)
         if idx < 0:
             idx = self.mode_combo.findData(DEFAULT_MODE_KEY)
         if idx < 0:
             idx = 0
-        with QSignalBlocker(self.mode_combo):
-            self.mode_combo.setCurrentIndex(idx)
+        if self.mode_combo.isVisible():
+            with QSignalBlocker(self.mode_combo):
+                self.mode_combo.setCurrentIndex(idx)
         self._update_sampling_labels()
 
     def _build_sampling_config(self) -> SamplingConfig:
@@ -264,6 +288,10 @@ class AcquisitionSettingsWidget(QWidget):
         mode_key = str(self.mode_combo.itemData(idx) or DEFAULT_MODE_KEY)
         if mode_key not in RECORDING_MODES:
             mode_key = DEFAULT_MODE_KEY
+        if not self.device_rate_spin.isVisible():
+            rate = float(self._sampling_config.device_rate_hz)
+        if not self.mode_combo.isVisible():
+            mode_key = str(self._sampling_config.mode_key)
         return SamplingConfig(device_rate_hz=rate, mode_key=mode_key)
 
     def _on_sampling_control_changed(self, *_args) -> None:
