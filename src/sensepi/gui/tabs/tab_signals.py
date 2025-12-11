@@ -1414,6 +1414,23 @@ class SignalsTab(QWidget):
             int(self._plot_perf_config.fft_refresh_interval_ms()),
         )
         self._acquisition_widget.set_fft_refresh_interval(default_fft_interval)
+
+        # Initialize the acquisition widget's sampling config from AppConfig so
+        # the displayed rates reflect the canonical configuration loaded at
+        # startup.
+        try:
+            sampling_cfg = getattr(self._app_config, "sampling_config", None)
+        except Exception:
+            sampling_cfg = None
+
+        if sampling_cfg is not None:
+            try:
+                self._acquisition_widget.set_sampling_config(sampling_cfg)
+            except Exception:
+                logger.exception(
+                    "SignalsTab: failed to apply sampling_config from AppConfig to acquisition widget"
+                )
+
         self._rebuild_gui_acquisition_config()
         self._plot.set_display_slack_ns(DEFAULT_DISPLAY_SLACK_NS)
         # NOTE: This block implements the existing perf HUD. It will be revisited
@@ -1799,6 +1816,14 @@ class SignalsTab(QWidget):
         """
 
         self._current_gui_acquisition_config = cfg
+        widget = getattr(self, "_acquisition_widget", None)
+        if widget is not None:
+            try:
+                widget.set_sampling_config(cfg.sampling)
+            except Exception:
+                logger.exception(
+                    "SignalsTab: failed to apply sampling from GuiAcquisitionConfig to acquisition widget"
+                )
         self._active_channels = list(cfg.sensor_selection.active_channels or [])
         try:
             self._sampling_rate_hz = float(cfg.sampling.device_rate_hz)
