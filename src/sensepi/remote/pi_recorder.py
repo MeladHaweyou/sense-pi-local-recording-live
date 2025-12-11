@@ -99,6 +99,7 @@ class PiRecorder:
         self,
         cfg: PiLoggerConfig,
         recording_enabled: bool,
+        session_name: Optional[str] = None,
     ) -> Iterable[str]:
         """
         Start the mpu logger on the Pi and stream samples via stdout.
@@ -111,6 +112,14 @@ class PiRecorder:
         if not recording_enabled:
             extra.append("--no-record")
         extra.append("--stream-stdout")
+        has_session_flag = False
+        try:
+            has_session_flag = bool(getattr(cfg, "extra_cli", {}).get("session_name"))
+        except Exception:
+            has_session_flag = False
+
+        if session_name and not has_session_flag:
+            extra.extend(["--session-name", session_name])
 
         cmd_parts = cfg.build_command(extra_cli=" ".join(extra))
         cmd = " ".join(shlex.quote(part) for part in cmd_parts)

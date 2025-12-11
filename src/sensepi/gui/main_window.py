@@ -109,8 +109,8 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(container)
 
-    @Slot(bool)
-    def _on_start_stream_requested(self, recording: bool) -> None:
+    @Slot(bool, str)
+    def _on_start_stream_requested(self, recording: bool, session_name: str) -> None:
         acquisition_settings = self.signals_tab.current_acquisition_settings()
         acquisition_widget = getattr(self.signals_tab, "_acquisition_widget", None)
 
@@ -173,6 +173,7 @@ class MainWindow(QMainWindow):
             recording_enabled=recording_flag,
             gui_config=gui_cfg,
             host_cfg=host_cfg,
+            session_name=session_name,
         )
 
     @Slot()

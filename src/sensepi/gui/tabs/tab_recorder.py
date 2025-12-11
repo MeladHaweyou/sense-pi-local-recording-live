@@ -652,23 +652,29 @@ class RecorderTab(QWidget):
         recording_enabled: bool,
         gui_config: GuiAcquisitionConfig,
         host_cfg: HostConfig,
+        session_name: str | None = None,
     ) -> None:
         """Start live streaming and/or recording based on GUI config."""
 
         self._current_gui_acquisition_config = gui_config
         logger.info("RecorderTab received GuiAcquisitionConfig: %s", gui_config.summary())
 
+        session_name = (session_name or "").strip() or None
+
         record_only = bool(gui_config.record_only)
         self._recording_mode = bool(recording_enabled or record_only)
         self._current_sensor_selection = gui_config.sensor_selection
 
         self._apply_sampling_config(gui_config.sampling, notify=True)
-        self._last_session_name = (
+        self._last_session_name = session_name or (
             gui_config.sampling.mode_key if hasattr(gui_config, "sampling") else ""
         )
 
         extra_cli: dict[str, object] = {}
         sel = gui_config.sensor_selection
+
+        if session_name:
+            extra_cli["session_name"] = session_name
 
         if sel.active_sensors:
             extra_cli["sensors"] = ",".join(str(s) for s in sel.active_sensors)
@@ -705,6 +711,7 @@ class RecorderTab(QWidget):
             selection=gui_config.sensor_selection,
             recording_enabled=recording_enabled,
             record_only=record_only,
+            session_name=session_name,
         )
 
     def stop_live_stream(
@@ -788,6 +795,7 @@ class RecorderTab(QWidget):
         selection: SensorSelectionConfig,
         recording_enabled: bool,
         record_only: bool,
+        session_name: str | None = None,
     ) -> None:
         """Start the MPU6050 stream or record-only session."""
 
@@ -816,7 +824,9 @@ class RecorderTab(QWidget):
             recording_enabled,
         )
         stream = recorder.stream_mpu6050(
-            cfg=pi_logger_cfg, recording_enabled=recording_enabled
+            cfg=pi_logger_cfg,
+            recording_enabled=recording_enabled,
+            session_name=session_name,
         )
 
         self._data_buffer = self._create_streaming_buffer(selection, pi_logger_cfg.stream_rate_hz)
