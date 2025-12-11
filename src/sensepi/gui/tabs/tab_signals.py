@@ -2055,7 +2055,7 @@ class SignalsTab(QWidget):
             return
 
         # Display the effective GUI stream rate after decimation.
-        self._stream_rate_label.setText(f"Stream ≈ {hz:5.1f} Hz")
+        #self._stream_rate_label.setText(f"Stream ≈ {hz:5.1f} Hz")
 
         # Keep this for perf/timer purposes only.
         try:
@@ -2712,11 +2712,11 @@ class SignalsTab(QWidget):
             interval_ms = float(self._compute_refresh_interval())
         if interval_ms <= 0.0:
             interval_ms = float(self.refresh_interval_ms)
-        label.setText(
-            f"Perf: Stream ≈ {stream_hz:4.1f} Hz  |  "
-            f"Redraw EMA ≈ {redraw_ms:4.1f} ms  |  "
-            f"Refresh interval ≈ {interval_ms:.0f} ms"
-        )
+        #label.setText(
+        #    f"Perf: Stream ≈ {stream_hz:4.1f} Hz  |  "
+        #    f"Redraw EMA ≈ {redraw_ms:4.1f} ms  |  "
+        #    f"Refresh interval ≈ {interval_ms:.0f} ms"
+        #)
 
     def _update_plot_refresh_label(self) -> None:
         label = getattr(self, "_plot_refresh_label", None)
