@@ -14,7 +14,6 @@ from PySide6.QtCore import QSignalBlocker, QTimer, Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDoubleSpinBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -1551,28 +1550,14 @@ class SignalsTab(QWidget):
         self._session_name_edit.setPlaceholderText("Session name (optional)")
         self._session_name_edit.setClearButtonEnabled(True)
         self._session_name_edit.setMaximumWidth(200)
-        self.calibrate_button = QPushButton("Calibrate", top_row_group)
-        self.reset_calibration_button = QPushButton("Reset calibration", top_row_group)
-        self.calibration_duration_spin = QDoubleSpinBox(top_row_group)
-        self.calibration_duration_spin.setRange(1.0, 60.0)
-        self.calibration_duration_spin.setValue(5.0)
-        self.calibration_duration_spin.setSuffix(" s")
-        self.calibration_duration_spin.setToolTip(
-            "Duration of baseline window used to estimate gravity/offset."
-        )
-        self.calibration_status_label = QLabel("Not calibrated", top_row_group)
-        self.calibration_status_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.apply_calibration_to_recording_check = QCheckBox(
-            "Apply calibration to recorded data", top_row_group
-        )
-        self.apply_calibration_to_recording_check.setChecked(False)
+        # Calibration UI has been removed from the Signals tab.
 
         # Start/stop
         self.start_button = QPushButton("Start", top_row_group)
         self.stop_button = QPushButton("Stop", top_row_group)
         self.stop_button.setEnabled(False)
 
-        # Small info labels: stream rate + calibration window length
+        # Small info labels: stream rate + plot refresh
         self._stream_rate_label = QLabel("Stream rate: -- Hz", top_row_group)
         self._stream_rate_label.setToolTip(
             "Estimated rate at which samples arrive in this GUI tab after any "
@@ -1582,14 +1567,9 @@ class SignalsTab(QWidget):
         self._plot_refresh_label.setToolTip(
             "Approximate refresh/FPS rate achieved by the GUI plot."
         )
-        self._base_window_label = QLabel("", top_row_group)
 
         self.start_button.clicked.connect(self._on_start_clicked)
         self.stop_button.clicked.connect(self._on_stop_clicked)
-        self.calibrate_button.clicked.connect(self._on_calibrate_clicked)
-        self.reset_calibration_button.clicked.connect(
-            self._on_reset_calibration_clicked
-        )
         self.recording_check.stateChanged.connect(self._on_recording_toggled)
         self.record_only_check.stateChanged.connect(self._on_record_only_toggled)
         self._session_name_edit.textChanged.connect(self._refresh_mode_hint)
@@ -1602,7 +1582,6 @@ class SignalsTab(QWidget):
         top_row.addWidget(self.stop_button)
         top_row.addWidget(self._stream_rate_label)
         top_row.addWidget(self._plot_refresh_label)
-        top_row.addWidget(self._base_window_label)
         top_row.addStretch()
 
         group_layout = QVBoxLayout()
@@ -1626,19 +1605,7 @@ class SignalsTab(QWidget):
 
         top_row_group.setLayout(group_layout)
 
-        # --- Calibration UI -------------------------
-        self.calibration_group = QGroupBox("Calibration (gravity / offset)")
-        calib_layout = QHBoxLayout(self.calibration_group)
-
-        calib_layout.addWidget(QLabel("Calibration duration:"))
-        calib_layout.addWidget(self.calibration_duration_spin)
-        calib_layout.addWidget(self.calibrate_button)
-        calib_layout.addWidget(self.reset_calibration_button)
-        calib_layout.addStretch(1)
-        calib_layout.addWidget(self.apply_calibration_to_recording_check)
-        calib_layout.addWidget(self.calibration_status_label)
-
-        self._update_base_window_label()
+        # No calibration controls in this tab anymore.
         self._refresh_mode_hint()
 
         recording_section = CollapsibleSection("Recording / stream controls", self)
@@ -1648,30 +1615,6 @@ class SignalsTab(QWidget):
         recording_section.setContentLayout(recording_layout)
         layout.addWidget(recording_section)
         self._recording_section = recording_section
-
-        # Acquisition / refresh settings ---------------------------------------
-        acquisition_section = CollapsibleSection(
-            "Sampling / stream / refresh", self
-        )
-        acquisition_layout = QVBoxLayout()
-        acquisition_layout.setContentsMargins(0, 0, 0, 0)
-        acquisition_layout.addWidget(self._acquisition_widget)
-        help_label = QLabel(
-            "High refresh rates and 'Follow sampling rate' may be heavy on CPU, "
-            "especially when many channels are visible.\n"
-            "In 'Fixed refresh rate' mode the plot timer runs at the configured "
-            "interval regardless of the incoming stream rate.\n"
-            "In 'Follow sampling rate' mode the timer interval is derived from "
-            "the estimated stream rate reported by the Recorder tab."
-        )
-        help_label.setWordWrap(True)
-        acquisition_layout.addWidget(help_label)
-        acquisition_section.setContentLayout(acquisition_layout)
-        layout.addWidget(acquisition_section)
-        self._acquisition_section = acquisition_section
-
-        # Calibration group ---------------------------------------------------
-        layout.addWidget(self.calibration_group)
 
         # Plot widget -----------------------------------------------------------
         layout.addWidget(self._plot, stretch=1)
@@ -1769,10 +1712,11 @@ class SignalsTab(QWidget):
 
     def apply_calibration_to_recording(self) -> bool:
         """
-        Return True if the user wants calibration offsets applied to saved data.
+        Calibration controls have been removed from the Signals tab,
+        so calibration is never applied to recorded data.
         """
 
-        return bool(self.apply_calibration_to_recording_check.isChecked())
+        return False
 
     def set_sensor_selection(self, selection: SensorSelectionConfig) -> None:
         """
@@ -2058,10 +2002,6 @@ class SignalsTab(QWidget):
                 "}"
             )
         self.start_button.setStyleSheet(style)
-
-    def _update_base_window_label(self) -> None:
-        seconds = self._plot.window_seconds
-        self._base_window_label.setText(f"Base/cali window: last {seconds:.1f} s")
 
     def _extract_sample_timestamp_ns(self, sample: MpuSample) -> Optional[int]:
         if sample.t_s is not None:
@@ -3008,58 +2948,6 @@ class SignalsTab(QWidget):
             self._set_manual_status("Base correction enabled.")
         else:
             self._set_manual_status("Base correction disabled.")
-
-    @Slot()
-    def _on_calibrate_clicked(self) -> None:
-        """
-        Trigger a calibration using the last N seconds of live data.
-        """
-
-        try:
-            window_s = float(self.calibration_duration_spin.value())
-        except (TypeError, ValueError):
-            window_s = 5.0
-
-        self.calibrate_from_buffer(window_s=window_s)
-
-        offsets = CalibrationOffsets(
-            per_sensor_channel_offset=dict(getattr(self._plot, "_baseline_offsets", {})),
-            description=f"Calibrated over last {window_s:.1f} s",
-            timestamp=datetime.now(),
-        )
-
-        if offsets.is_empty():
-            self.calibration_status_label.setText("Calibration failed (no data).")
-            return
-
-        self.calibration_status_label.setText(
-            f"Calibrated at {offsets.timestamp:%Y-%m-%d %H:%M:%S}, "
-            f"{len(offsets.per_sensor_channel_offset)} channel(s)"
-        )
-
-        logger.debug("Calibration offsets updated: %s", asdict(offsets))
-
-        self.calibrationChanged.emit(offsets)
-
-        if self._base_correction_enabled:
-            self._set_manual_status(
-                "Calibration updated (base correction applied)."
-            )
-        else:
-            self._set_manual_status("Calibration stored.")
-
-    @Slot()
-    def _on_reset_calibration_clicked(self) -> None:
-        """
-        Clear all calibration offsets and update UI.
-        """
-
-        self.reset_calibration()
-        getattr(self._plot, "_baseline_offsets", {}).clear()
-        self.calibration_status_label.setText("Not calibrated")
-
-        offsets = CalibrationOffsets()
-        self.calibrationChanged.emit(offsets)
 
     def attach_recorder_controls(self, recorder_tab: "RecorderTab") -> None:
         """
