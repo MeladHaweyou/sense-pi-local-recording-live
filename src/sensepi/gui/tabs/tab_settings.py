@@ -829,7 +829,11 @@ class SettingsTab(QWidget):
         return dict(sensors)
 
 
-"""
+# Developer notes about what the SettingsTab currently provides and how to
+# integrate it with other components. Kept as a module-level constant so the
+# information remains close to the implementation without affecting runtime
+# behavior.
+SETTINGS_TAB_NOTES = """
 What this gives you:
 
 A full host editor (list/add/remove, edit name/host/user/password/base_path/port).
@@ -881,4 +885,4 @@ mpu_args = build_mpu6050_cli_args(mpu_defaults)
 
 
 All ~ expansion happens right before use, not in the YAML itself.
-
+"""
