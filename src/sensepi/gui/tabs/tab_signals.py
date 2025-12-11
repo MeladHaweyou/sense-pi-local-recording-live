@@ -1380,6 +1380,8 @@ class SignalsTab(QWidget):
             self,
             show_device_rate=False,
             show_mode=False,
+            # Hide the inner record-only checkbox so the top-level control is the
+            # single visible toggle on this tab.
             show_record_only=False,
             show_signals_mode=False,
         )
@@ -1682,13 +1684,15 @@ class SignalsTab(QWidget):
 
     @Slot(int)
     def _on_record_only_toggled(self, _state: int) -> None:
-        """Mirror the record-only toggle into the acquisition settings widget."""
+        """Keep acquisition settings in sync with the top-level record-only checkbox."""
 
         widget = self._acquisition_widget
         if widget is None:
             return
+
         with QSignalBlocker(widget.record_only_checkbox):
             widget.record_only_checkbox.setChecked(self.record_only_check.isChecked())
+
         self._rebuild_gui_acquisition_config()
         self._refresh_mode_hint()
 
