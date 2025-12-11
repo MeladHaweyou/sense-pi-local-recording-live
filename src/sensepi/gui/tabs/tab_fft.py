@@ -96,7 +96,7 @@ class FftTab(QWidget):
         self._force_next_update: bool = True
         self._fft_axes: Dict[SampleKey, Axes] = {}
         self._fft_lines: Dict[SampleKey, Line2D] = {}
-        self._current_layout: LayoutSignature | None = None
+        self._current_layout: tuple | None = None
         # Bound how many samples each FFT uses so the GUI stays responsive.
         self._max_fft_samples = 4096
         self._fft_decimation_target = 2048
@@ -123,6 +123,13 @@ class FftTab(QWidget):
         self.view_mode_combo.addItem(
             "All axes (18 charts)", userData="all6"
         )
+        self.view_mode_combo.addItem(
+            "Overlay (one chart)", userData="overlay"
+        )
+
+        idx = self.view_mode_combo.findData("overlay")
+        if idx >= 0:
+            self.view_mode_combo.setCurrentIndex(idx)
 
         top_row.addWidget(QLabel("View:"))
         top_row.addWidget(self.view_mode_combo)
@@ -413,6 +420,11 @@ class FftTab(QWidget):
         if ch in {"gx", "gy", "gz"}:
             return "deg/s"
         return ""
+
+    def _format_overlay_label(self, sensor_id: int, channel: str) -> str:
+        units = self._channel_units(channel)
+        base = f"S{sensor_id} {channel.upper()}"
+        return f"{base} [{units}]" if units else base
 
     def _min_samples_required(self, window_s: float) -> int:
         """
@@ -746,7 +758,12 @@ class FftTab(QWidget):
         if not sensor_list or not channel_list:
             return False
 
-        signature = (tuple(sensor_list), tuple(channel_list))
+        view_mode = self.view_mode_combo.currentData()
+        signature: tuple
+        if view_mode == "overlay":
+            signature = ("overlay", tuple(sensor_list), tuple(channel_list))
+        else:
+            signature = ("grid", tuple(sensor_list), tuple(channel_list))
         should_log_limits = (
             (trimmed_channels or trimmed_sensors)
             and signature != self._current_layout
@@ -777,29 +794,45 @@ class FftTab(QWidget):
         self._figure.clear()
         self._ensure_fft_frequency_axis()
 
-        nrows = len(sensor_list)
-        ncols = len(channel_list)
-        subplot_index = 1
-        for row_idx, sensor_id in enumerate(sensor_list):
-            for col_idx, ch in enumerate(channel_list):
-                ax = self._figure.add_subplot(nrows, ncols, subplot_index)
-                subplot_index += 1
-                zero_line = np.zeros_like(self._fft_freqs)
-                line, = ax.plot(self._fft_freqs, zero_line, lw=0.9)
-                key = self._make_key(sensor_id, ch)
-                self._fft_axes[key] = ax
-                self._fft_lines[key] = line
-                if row_idx == nrows - 1:
-                    ax.set_xlabel("Frequency [Hz]")
-                if col_idx == 0:
-                    ax.set_ylabel("Magnitude")
-                units = self._channel_units(ch)
-                title = f"S{sensor_id} {ch.upper()}"
-                if units:
-                    title = f"{title} [{units}]"
-                ax.set_title(title)
-                ax.grid(True)
-                self._apply_frequency_limits(ax)
+        if view_mode == "overlay":
+            ax = self._figure.add_subplot(111)
+            for sensor_id in sensor_list:
+                for ch in channel_list:
+                    zero_line = np.zeros_like(self._fft_freqs)
+                    label = self._format_overlay_label(sensor_id, ch)
+                    (line,) = ax.plot(self._fft_freqs, zero_line, lw=0.9, label=label)
+                    key = self._make_key(sensor_id, ch)
+                    self._fft_axes[key] = ax
+                    self._fft_lines[key] = line
+            ax.set_xlabel("Frequency [Hz]")
+            ax.set_ylabel("Magnitude")
+            ax.grid(True)
+            self._apply_frequency_limits(ax)
+            ax.legend(loc="upper right", fontsize="small")
+        else:
+            nrows = len(sensor_list)
+            ncols = len(channel_list)
+            subplot_index = 1
+            for row_idx, sensor_id in enumerate(sensor_list):
+                for col_idx, ch in enumerate(channel_list):
+                    ax = self._figure.add_subplot(nrows, ncols, subplot_index)
+                    subplot_index += 1
+                    zero_line = np.zeros_like(self._fft_freqs)
+                    line, = ax.plot(self._fft_freqs, zero_line, lw=0.9)
+                    key = self._make_key(sensor_id, ch)
+                    self._fft_axes[key] = ax
+                    self._fft_lines[key] = line
+                    if row_idx == nrows - 1:
+                        ax.set_xlabel("Frequency [Hz]")
+                    if col_idx == 0:
+                        ax.set_ylabel("Magnitude")
+                    units = self._channel_units(ch)
+                    title = f"S{sensor_id} {ch.upper()}"
+                    if units:
+                        title = f"{title} [{units}]"
+                    ax.set_title(title)
+                    ax.grid(True)
+                    self._apply_frequency_limits(ax)
 
         self._figure.tight_layout()
         self._canvas.draw_idle()
