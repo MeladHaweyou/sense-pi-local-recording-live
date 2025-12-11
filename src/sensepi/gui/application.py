@@ -21,7 +21,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 
 from .benchmark import BenchmarkDriver, BenchmarkOptions
 from .main_window import MainWindow
-from ..config.app_config import AppConfig
+from ..config.app_config import AppConfig, SensorDefaults
 
 _MPL_CONFIGURED = False
 
@@ -168,7 +168,15 @@ def main(argv: list[str] | None = None) -> None:
 
     raw_argv = argv if argv is not None else sys.argv
     args, qt_argv = _parse_cli_args(raw_argv)
-    app_config = AppConfig(signal_backend=args.signal_backend)
+    sensor_defaults = SensorDefaults()
+    sensors_mapping = sensor_defaults.load()
+    sampling_cfg = sensor_defaults.load_sampling_config(sensors_mapping)
+
+    app_config = AppConfig(
+        signal_backend=args.signal_backend,
+        sensor_defaults=sensors_mapping,
+        sampling_config=sampling_cfg,
+    )
     app, win = create_app(qt_argv, app_config=app_config)
 
     benchmark_driver: BenchmarkDriver | None = None

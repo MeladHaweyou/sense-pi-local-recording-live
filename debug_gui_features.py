@@ -131,10 +131,17 @@ def run_gui_smoke_test(root: Path, options: SmokeOptions) -> None:
         configure_matplotlib_for_realtime,
         create_app,
     )
-    from sensepi.config.app_config import AppConfig  # type: ignore
+    from sensepi.config.app_config import AppConfig, SensorDefaults  # type: ignore
 
     configure_matplotlib_for_realtime()
-    app_config = AppConfig()
+    sensor_defaults = SensorDefaults()
+    sensors_mapping = sensor_defaults.load()
+    sampling_cfg = sensor_defaults.load_sampling_config(sensors_mapping)
+
+    app_config = AppConfig(
+        sensor_defaults=sensors_mapping,
+        sampling_config=sampling_cfg,
+    )
     app, window = create_app(["debug_gui_features.py"], app_config=app_config)
 
     class GuiSmokeDriver(QObject):

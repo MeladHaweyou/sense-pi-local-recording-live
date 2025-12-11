@@ -41,6 +41,7 @@ from ..config.acquisition_state import (
     GuiAcquisitionConfig,
     SensorSelectionConfig,
 )
+from ...config.sampling import SamplingConfig
 from ...config.app_config import AppConfig, PlotPerformanceConfig
 from ...config.constants import ENABLE_PLOT_PERF_METRICS
 from ...core.timeseries_buffer import (
@@ -1725,6 +1726,11 @@ class SignalsTab(QWidget):
         """
 
         return False
+
+    def set_sampling_config(self, sampling_config: SamplingConfig) -> None:
+        """Update the acquisition widget with a new sampling configuration."""
+
+        self._acquisition_widget.set_sampling_config(sampling_config)
 
     def set_sensor_selection(self, selection: SensorSelectionConfig) -> None:
         """

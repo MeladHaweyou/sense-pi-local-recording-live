@@ -9,6 +9,7 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
 
 from ..config.app_config import AppConfig, AppPaths, HostInventory
+from ..config.sampling import SamplingConfig
 from .config.acquisition_state import (
     CalibrationOffsets,
     GuiAcquisitionConfig,
@@ -38,6 +39,9 @@ class MainWindow(QMainWindow):
         self._current_calibration_offsets: CalibrationOffsets | None = None
 
         self._build_tabs()
+
+        if isinstance(self._app_config.sampling_config, SamplingConfig):
+            self._on_sampling_changed(self._app_config.sampling_config)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         try:
@@ -80,6 +84,7 @@ class MainWindow(QMainWindow):
         self.settings_tab.sensorSelectionChanged.connect(
             self._on_sensor_selection_changed
         )
+        self.settings_tab.sensorsUpdated.connect(self._on_sensors_updated)
         # Keep RecorderTab in sync with the canonical selection.
         self.settings_tab.sensorSelectionChanged.connect(
             self.recorder_tab.apply_sensor_selection
@@ -208,6 +213,39 @@ class MainWindow(QMainWindow):
     def _on_calibration_changed(self, offsets: CalibrationOffsets) -> None:
         self._current_calibration_offsets = offsets
         self.fft_tab.set_calibration_offsets(offsets)
+
+    @Slot(dict)
+    def _on_sensors_updated(self, data: dict) -> None:
+        """Apply updated sampling settings emitted from the Settings tab."""
+
+        try:
+            sampling = SamplingConfig.from_mapping(data)
+        except Exception:
+            self._logger.exception("Failed to parse sampling config from sensorsUpdated")
+            return
+
+        self._app_config.sensor_defaults = dict(data or {})
+        self._on_sampling_changed(sampling)
+
+    @Slot(SamplingConfig)
+    def _on_sampling_changed(self, sampling: SamplingConfig) -> None:
+        """Propagate sampling configuration updates across tabs."""
+
+        normalized = SamplingConfig(
+            device_rate_hz=float(sampling.device_rate_hz),
+            mode_key=str(sampling.mode_key),
+        )
+        self._app_config.sampling_config = normalized
+
+        try:
+            self.signals_tab.set_sampling_config(normalized)
+        except Exception:
+            self._logger.exception("Failed to update Signals tab sampling config")
+
+        try:
+            self.recorder_tab.set_sampling_config(normalized)
+        except Exception:
+            self._logger.exception("Failed to update Recorder tab sampling config")
 
     def _log_recording_calibration(self, action: str) -> None:
         if not self.signals_tab.apply_calibration_to_recording():
