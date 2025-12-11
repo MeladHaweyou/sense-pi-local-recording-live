@@ -5,10 +5,11 @@ from __future__ import annotations
 import logging
 import math
 import queue
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 import shlex
-from typing import Dict, Iterable, Mapping, Optional
+from typing import Dict, Mapping, Optional
 
 from PySide6.QtCore import QMetaObject, QThread, Qt, Signal, Slot
 from PySide6.QtWidgets import (
@@ -382,7 +383,7 @@ class RecorderTab(QWidget):
         elif key in {"both", "accel_gyro", "all6"}:
             channels = ["ax", "ay", "az", "gx", "gy", "gz"]
         else:
-            channels = ["ax", "ay", "az", "gz"]
+            channels = ["ax", "ay", "gz"]
 
         return SensorSelectionConfig(
             active_sensors=active_sensors,
@@ -667,12 +668,23 @@ class RecorderTab(QWidget):
         )
 
         extra_cli: dict[str, object] = {}
-        if gui_config.sensor_selection.active_sensors:
-            extra_cli["sensors"] = ",".join(
-                str(s) for s in gui_config.sensor_selection.active_sensors
-            )
-        if gui_config.sensor_selection.active_channels:
-            extra_cli["channels"] = ",".join(gui_config.sensor_selection.active_channels)
+        sel = gui_config.sensor_selection
+
+        if sel.active_sensors:
+            extra_cli["sensors"] = ",".join(str(s) for s in sel.active_sensors)
+
+        # Map the selected channels -> mpu6050_multi_logger --channels mode
+        ch = set(sel.active_channels or [])
+        if ch == {"ax", "ay", "az"}:
+            extra_cli["channels"] = "acc"
+        elif ch == {"gx", "gy", "gz"}:
+            extra_cli["channels"] = "gyro"
+        elif ch == {"ax", "ay", "az", "gx", "gy", "gz"}:
+            extra_cli["channels"] = "both"
+        else:
+            # Weird/partial selection – let pi_config.yaml decide (mpu6050 default)
+            # which usually means AX, AY, GZ.
+            pass
         dlpf = self._get_default_mpu_dlpf()
         if dlpf is not None:
             extra_cli["dlpf"] = dlpf
