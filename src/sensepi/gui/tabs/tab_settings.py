@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import QSignalBlocker, Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -215,10 +215,12 @@ class SettingsTab(QWidget):
         self.mpu_sensor_count_combo.setCurrentIndex(2)
         sensor_selection_form.addRow("Number of sensors:", self.mpu_sensor_count_combo)
 
-        # Keep labels identical, but attach channel count as userData
+        # Axis-based presets; userData carries the channel count for rate limits
         self.mpu_channels_combo = QComboBox(sensors_group)
-        self.mpu_channels_combo.addItem("Accel only (3 channels)", 3)
-        self.mpu_channels_combo.addItem("Accel + Gyro (6 channels)", 6)
+        self.mpu_channels_combo.addItem("AX / AY / GZ (3 channels)", 3)
+        self.mpu_channels_combo.addItem(
+            "AX / AY / AZ / GX / GY / GZ (6 channels)", 6
+        )
         sensor_selection_form.addRow("Channels per sensor:", self.mpu_channels_combo)
 
         sensors_layout.addLayout(sensor_selection_form)
@@ -243,8 +245,12 @@ class SettingsTab(QWidget):
         mpu_form = QFormLayout(mpu_group)
 
         self.mpu_channels = QComboBox(mpu_group)
-        # Same choices as the logger
-        self.mpu_channels.addItems(["default", "acc", "gyro", "both"])
+        self.mpu_channels.addItem(
+            "AX / AY / GZ (default 3 channels)", userData="default"
+        )
+        self.mpu_channels.addItem(
+            "AX / AY / AZ / GX / GY / GZ (all 6 channels)", userData="both"
+        )
 
         self.mpu_dlpf = QSpinBox(mpu_group)
         self.mpu_dlpf.setRange(0, 6)
@@ -278,7 +284,7 @@ class SettingsTab(QWidget):
             self._on_sensor_ui_changed
         )
         self.mpu_channels_combo.currentIndexChanged.connect(
-            self._on_sensor_ui_changed
+            self._on_channels_per_sensor_changed
         )
 
         # Sampling rate choices depend on number of sensors + channels
@@ -608,11 +614,26 @@ class SettingsTab(QWidget):
         sensors = self._sensors.get("sensors", {}) if isinstance(self._sensors, dict) else {}
         mpu_cfg = dict(sensors.get("mpu6050", {}) or {})
 
-        mpu_ch = str(mpu_cfg.get("channels", "default"))
-        idx = self.mpu_channels.findText(mpu_ch)
+        mpu_ch_raw = str(mpu_cfg.get("channels", "default"))
+        if mpu_ch_raw in {"default", "both"}:
+            mpu_ch = mpu_ch_raw
+        elif mpu_ch_raw in {"acc", "gyro"}:
+            mpu_ch = "default"
+        else:
+            mpu_ch = "default"
+
+        idx = self.mpu_channels.findData(mpu_ch)
         if idx < 0:
-            idx = self.mpu_channels.findText("default")
+            idx = self.mpu_channels.findData("default")
+        if idx < 0:
+            idx = 0
         self.mpu_channels.setCurrentIndex(idx)
+
+        # Keep the UI-level selection combo aligned with the stored default.
+        with QSignalBlocker(self.mpu_channels_combo):
+            target_idx = 0 if mpu_ch == "default" else 1
+            target_idx = min(target_idx, max(0, self.mpu_channels_combo.count() - 1))
+            self.mpu_channels_combo.setCurrentIndex(target_idx)
 
         self.mpu_dlpf.setValue(int(mpu_cfg.get("dlpf", 3)))
         self.mpu_include_temp.setChecked(bool(mpu_cfg.get("include_temperature", False)))
@@ -718,6 +739,18 @@ class SettingsTab(QWidget):
                     mode_key=self._sampling_config.mode_key,
                 )
 
+    @Slot(int)
+    def _on_channels_per_sensor_changed(self, idx: int) -> None:
+        """
+        Keep the MPU channels preset (YAML-backed) aligned with the UI-level
+        "channels per sensor" combo so users see consistent selections.
+        """
+
+        with QSignalBlocker(self.mpu_channels):
+            if 0 <= idx < self.mpu_channels.count():
+                self.mpu_channels.setCurrentIndex(idx)
+        self._on_sensor_ui_changed()
+
     def _build_sensor_defaults_payload(self) -> tuple[Dict[str, Any], SamplingConfig]:
         sensors_model = dict(self._sensors) if isinstance(self._sensors, dict) else {}
         sampling_cfg = self._current_sampling_from_widgets()
@@ -731,7 +764,7 @@ class SettingsTab(QWidget):
 
         mpu_cfg.update(
             {
-                "channels": str(self.mpu_channels.currentText()),
+                "channels": str(self.mpu_channels.currentData() or "default"),
                 "dlpf": dlpf_int,
                 "include_temperature": bool(self.mpu_include_temp.isChecked()),
             }
@@ -767,10 +800,8 @@ class SettingsTab(QWidget):
         # Map combo selection to channels; you can adjust later if needed.
         idx = self.mpu_channels_combo.currentIndex()
         if idx == 0:
-            # "Accel only (3 channels)"
-            active_channels = ["ax", "ay", "az"]
+            active_channels = ["ax", "ay", "gz"]
         else:
-            # "Accel + Gyro (6 channels)" or any other extended mode
             active_channels = ["ax", "ay", "az", "gx", "gy", "gz"]
 
         return SensorSelectionConfig(
