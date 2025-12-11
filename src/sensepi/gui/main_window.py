@@ -111,8 +111,8 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(container)
 
-    @Slot(bool, str)
-    def _on_start_stream_requested(self, recording: bool, session_name: str) -> None:
+    @Slot(str)
+    def _on_start_stream_requested(self, session_name: str) -> None:
         acquisition_settings = self.signals_tab.current_acquisition_settings()
         acquisition_widget = getattr(self.signals_tab, "_acquisition_widget", None)
 
@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
         self.fft_tab.set_refresh_interval_ms(acquisition_settings.fft_refresh_ms)
 
         record_only = gui_cfg.record_only
-        recording_flag = bool(recording or record_only)
+        recording_flag = bool(record_only or self.recorder_tab.recording_requested())
 
         if recording_flag:
             self._log_recording_calibration("starting")
