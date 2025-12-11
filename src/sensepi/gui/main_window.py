@@ -72,15 +72,17 @@ class MainWindow(QMainWindow):
             self._on_start_stream_requested
         )
         self.signals_tab.stop_stream_requested.connect(self._on_stop_stream_requested)
-        self.recorder_tab.sensorSelectionChanged.connect(
-            self._on_sensor_selection_changed
-        )
         self.recorder_tab.stream_started.connect(self.signals_tab.on_stream_started)
         self.recorder_tab.stream_stopped.connect(self.signals_tab.on_stream_stopped)
         self.recorder_tab.stream_started.connect(self.fft_tab.on_stream_started)
         self.recorder_tab.stream_stopped.connect(self.fft_tab.on_stream_stopped)
+        # SettingsTab is the canonical source of sensor / channel selection.
         self.settings_tab.sensorSelectionChanged.connect(
             self._on_sensor_selection_changed
+        )
+        # Keep RecorderTab in sync with the canonical selection.
+        self.settings_tab.sensorSelectionChanged.connect(
+            self.recorder_tab.apply_sensor_selection
         )
         self.signals_tab.acquisitionConfigChanged.connect(
             self._on_acquisition_config_changed
