@@ -91,6 +91,16 @@ class SettingsTab(QWidget):
         self._host_inventory = HostInventory()
         self._sensor_defaults = SensorDefaults()
 
+        self._DLPF_DESCRIPTIONS = {
+            0: "DLPF 0: Accel BW 260 Hz, Gyro BW 256 Hz, typical delay ~1 ms",
+            1: "DLPF 1: Accel BW 184 Hz, Gyro BW 188 Hz, typical delay ~2 ms",
+            2: "DLPF 2: Accel BW 94 Hz, Gyro BW 98 Hz, typical delay ~3 ms",
+            3: "DLPF 3: Accel BW 44 Hz, Gyro BW 42 Hz, typical delay ~5 ms",
+            4: "DLPF 4: Accel BW 21 Hz, Gyro BW 20 Hz, typical delay ~8–9 ms",
+            5: "DLPF 5: Accel BW 10 Hz, Gyro BW 10 Hz, typical delay ~14 ms",
+            6: "DLPF 6: Accel BW 5 Hz, Gyro BW 5 Hz, typical delay ~19 ms",
+        }
+
         # In-memory models mirroring the YAML content
         self._hosts: List[Dict[str, Any]] = []
         self._sensors: Dict[str, Any] = {}
@@ -214,14 +224,23 @@ class SettingsTab(QWidget):
         # Same choices as the logger
         self.mpu_channels.addItems(["default", "acc", "gyro", "both"])
 
-        self.mpu_dlpf = QSpinBox(mpu_group)
-        self.mpu_dlpf.setRange(0, 6)
-        self.mpu_dlpf.setValue(3)
+        self.mpu_dlpf = QComboBox(mpu_group)
+        for value in range(7):
+            self.mpu_dlpf.addItem(str(value), userData=value)
+
+        idx_default = self.mpu_dlpf.findData(3)
+        if idx_default < 0:
+            idx_default = 3
+        self.mpu_dlpf.setCurrentIndex(idx_default)
+
+        self.mpu_dlpf_info = QLabel(mpu_group)
+        self.mpu_dlpf_info.setWordWrap(True)
 
         self.mpu_include_temp = QCheckBox("Include on-die temperature", mpu_group)
 
         mpu_form.addRow("Channels:", self.mpu_channels)
         mpu_form.addRow("DLPF:", self.mpu_dlpf)
+        mpu_form.addRow("", self.mpu_dlpf_info)
         mpu_form.addRow("", self.mpu_include_temp)
 
         sensors_layout.addWidget(sampling_group)
@@ -244,9 +263,12 @@ class SettingsTab(QWidget):
         self.mpu_channels_combo.currentIndexChanged.connect(
             self._on_sensor_ui_changed
         )
+        self.mpu_dlpf.currentIndexChanged.connect(self._update_mpu_dlpf_info)
+        self.mpu_dlpf.currentIndexChanged.connect(self._on_sensor_ui_changed)
 
         self._set_host_fields_enabled(False)
         self._on_sensor_ui_changed()
+        self._update_mpu_dlpf_info()
 
     # ------------------------------------------------------------------
     # Host helpers
@@ -528,6 +550,19 @@ class SettingsTab(QWidget):
     # ------------------------------------------------------------------
     # Sensor defaults helpers
     # ------------------------------------------------------------------
+    def _update_mpu_dlpf_info(self) -> None:
+        idx = self.mpu_dlpf.currentIndex()
+        value = self.mpu_dlpf.itemData(idx)
+        try:
+            dlpf_value = int(value)
+        except (TypeError, ValueError):
+            dlpf_value = 3
+        text = self._DLPF_DESCRIPTIONS.get(
+            dlpf_value,
+            f"DLPF {dlpf_value}: see datasheet for bandwidth and delay details.",
+        )
+        self.mpu_dlpf_info.setText(text)
+
     def _load_sensor_widgets_from_model(self) -> None:
         sampling_cfg = SamplingConfig.from_mapping(self._sensors)
         self.device_rate_spin.setValue(float(sampling_cfg.device_rate_hz))
@@ -545,7 +580,14 @@ class SettingsTab(QWidget):
             idx = self.mpu_channels.findText("default")
         self.mpu_channels.setCurrentIndex(idx)
 
-        self.mpu_dlpf.setValue(int(mpu_cfg.get("dlpf", 3)))
+        dlpf_value = int(mpu_cfg.get("dlpf", 3))
+        idx = self.mpu_dlpf.findData(dlpf_value)
+        if idx < 0:
+            idx = self.mpu_dlpf.findData(3)
+        if idx < 0:
+            idx = 3
+        self.mpu_dlpf.setCurrentIndex(idx)
+        self._update_mpu_dlpf_info()
         self.mpu_include_temp.setChecked(bool(mpu_cfg.get("include_temperature", False)))
 
     def _current_sampling_from_widgets(self) -> SamplingConfig:
@@ -561,10 +603,17 @@ class SettingsTab(QWidget):
 
         sensors_block = dict(sensors_model.get("sensors", {}) or {})
         mpu_cfg = dict(sensors_block.get("mpu6050", {}) or {})
+        idx = self.mpu_dlpf.currentIndex()
+        dlpf_value = self.mpu_dlpf.itemData(idx)
+        try:
+            dlpf_int = int(dlpf_value)
+        except (TypeError, ValueError):
+            dlpf_int = 3
+
         mpu_cfg.update(
             {
                 "channels": str(self.mpu_channels.currentText()),
-                "dlpf": int(self.mpu_dlpf.value()),
+                "dlpf": dlpf_int,
                 "include_temperature": bool(self.mpu_include_temp.isChecked()),
             }
         )
