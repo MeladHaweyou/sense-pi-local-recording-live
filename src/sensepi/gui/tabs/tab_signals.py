@@ -1283,7 +1283,7 @@ class SignalsTab(QWidget):
     - Focused on live data; offline playback remains in :class:`OfflineTab`.
     """
 
-    start_stream_requested = Signal(bool, str)  # (recording mode, session name)
+    start_stream_requested = Signal(str)  # session name
     stop_stream_requested = Signal()
     fft_refresh_interval_changed = Signal(int)
     acquisitionConfigChanged = Signal(GuiAcquisitionConfig)
@@ -1535,11 +1535,6 @@ class SignalsTab(QWidget):
         )
         self.view_mode_combo.setEnabled(False)
 
-        self.recording_check = QCheckBox("Recording", top_row_group)
-        self.recording_check.setToolTip(
-            "Default is live streaming only. Tick this to also record every "
-            "sample on the Pi at the configured rate."
-        )
         self.record_only_check = QCheckBox(
             "Record only (no live streaming)", top_row_group
         )
@@ -1570,11 +1565,9 @@ class SignalsTab(QWidget):
 
         self.start_button.clicked.connect(self._on_start_clicked)
         self.stop_button.clicked.connect(self._on_stop_clicked)
-        self.recording_check.stateChanged.connect(self._on_recording_toggled)
         self.record_only_check.stateChanged.connect(self._on_record_only_toggled)
         self._session_name_edit.textChanged.connect(self._refresh_mode_hint)
 
-        top_row.addWidget(self.recording_check)
         top_row.addWidget(self.record_only_check)
         top_row.addWidget(QLabel("Session:", top_row_group))
         top_row.addWidget(self._session_name_edit)
@@ -1656,7 +1649,7 @@ class SignalsTab(QWidget):
         self.stop_button.setEnabled(True)
         self._set_stream_status("Streaming...", force=True)
         session = self.session_name()
-        self.start_stream_requested.emit(self.recording_check.isChecked(), session)
+        self.start_stream_requested.emit(session)
         if self._recording_section is not None:
             self._recording_section.setCollapsed(True)
         if self._acquisition_section is not None:
@@ -1675,10 +1668,6 @@ class SignalsTab(QWidget):
         self._refresh_mode_hint()
 
     @Slot(int)
-    def _on_recording_toggled(self, state: int) -> None:
-        self._refresh_mode_hint()
-
-    @Slot(int)
     def _on_record_only_toggled(self, _state: int) -> None:
         """Mirror the record-only toggle into the acquisition settings widget."""
 
@@ -1688,6 +1677,7 @@ class SignalsTab(QWidget):
         with QSignalBlocker(widget.record_only_checkbox):
             widget.record_only_checkbox.setChecked(self.record_only_check.isChecked())
         self._rebuild_gui_acquisition_config()
+        self._refresh_mode_hint()
 
     def current_acquisition_settings(self) -> AcquisitionSettings:
         """Return the current sampling / refresh settings.
@@ -1970,39 +1960,40 @@ class SignalsTab(QWidget):
             return ""
         return remote_dir.as_posix()
 
+    def _recording_requested(self) -> bool:
+        recorder = getattr(self, "_recorder_tab", None)
+        if recorder is None:
+            return False
+        getter = getattr(recorder, "recording_requested", None)
+        if callable(getter):
+            try:
+                return bool(getter())
+            except Exception:
+                logger.exception("RecorderTab.recording_requested() raised.")
+        return False
+
     def _refresh_mode_hint(self) -> None:
         label = getattr(self, "_mode_hint_label", None)
         if label is None:
             return
         dest = self._remote_destination_text()
         session = " ".join(self.session_name().split())
-        if self.recording_check.isChecked():
+        record_only = self.record_only_check.isChecked()
+        recording_requested = self._recording_requested()
+        if record_only or recording_requested:
             hint = "Recording enabled. "
             if dest:
-                hint += f"Data is written to {dest} on the Pi."
-            else:
-                hint += "Data is written to the configured Pi logs directory."
+                hint += f"Data is written to {dest} on the Pi. "
+            elif recording_requested:
+                hint += "Data is written to the configured Pi logs directory. "
         else:
             hint = "Streaming only (samples are not stored on the Pi). "
             if dest:
-                hint += f"Enable recording to write into {dest}."
+                hint += f"Enable recording to write into {dest}. "
+        hint += "Recording is controlled from the Recording / stream controls tab."
         if session:
             hint += f" Session name: {session}."
         label.setText(hint.strip())
-        self._update_recording_indicator()
-
-    def _update_recording_indicator(self) -> None:
-        wants_recording = self.recording_check.isChecked()
-        style = ""
-        if wants_recording and self._stream_active:
-            style = (
-                "QPushButton {"
-                "background-color: #b3202c;"
-                "color: white;"
-                "font-weight: bold;"
-                "}"
-            )
-        self.start_button.setStyleSheet(style)
 
     def _extract_sample_timestamp_ns(self, sample: MpuSample) -> Optional[int]:
         if sample.t_s is not None:

@@ -105,6 +105,7 @@ class RecorderTab(QWidget):
             "mpu6050": RateController(window_size=500, default_hz=0.0),
         }
         self._recording_mode: bool = False
+        self._recording_preference: bool = False
         self._stop_requested: bool = False
         self._ingest_batch_size = 50
         self._ingest_max_latency_ms = 100
@@ -418,6 +419,12 @@ class RecorderTab(QWidget):
         _, cfg = details
         return cfg.data_dir
 
+    def recording_requested(self) -> bool:
+        checkbox = getattr(self, "recording_checkbox", None)
+        if isinstance(checkbox, QCheckBox):
+            return checkbox.isChecked()
+        return bool(self._recording_preference)
+
     def last_session_name(self) -> str:
         """Return the last session label requested by the user."""
         return self._last_session_name
@@ -661,6 +668,7 @@ class RecorderTab(QWidget):
 
         session_name = (session_name or "").strip() or None
 
+        self._recording_preference = bool(recording_enabled)
         record_only = bool(gui_config.record_only)
         self._recording_mode = bool(recording_enabled or record_only)
         self._current_sensor_selection = gui_config.sensor_selection
