@@ -96,10 +96,12 @@ class MainWindow(QMainWindow):
             self.settings_tab.acquisitionConfigChanged.connect(
                 self.fft_tab.update_acquisition_config
             )
+        self.signals_tab.sync_logs_requested.connect(
+            self.offline_tab.sync_logs_from_pi
+        )
 
         self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
         self._tabs.addTab(self.fft_tab, self.tr("Spectrum"))
-        self._tabs.addTab(self.recordings_tab, self.tr("Recordings"))
         self._tabs.addTab(self.settings_tab, self.tr("Settings"))
         self._tabs.addTab(self.logs_tab, self.tr("App Logs"))
 
