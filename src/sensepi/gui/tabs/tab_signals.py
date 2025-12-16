@@ -1378,6 +1378,7 @@ class SignalsTab(QWidget):
             show_device_rate=False,
             show_mode=False,
         )
+        self._acquisition_widget.hide()
         record_only_checkbox = getattr(self._acquisition_widget, "record_only_checkbox", None)
         if record_only_checkbox is not None:
             record_only_checkbox.stateChanged.connect(self._on_record_only_toggled)
@@ -1486,10 +1487,6 @@ class SignalsTab(QWidget):
         )
         top_row.addWidget(self.refresh_profile_combo)
 
-        # Hide Refresh preset dropdown (Low/High/Raw fidelity)
-        self._refresh_profile_label.hide()
-        self.refresh_profile_combo.hide()
-
         self.record_only_check = QCheckBox(
             "Record only (no live streaming)", top_row_group
         )
@@ -1526,7 +1523,6 @@ class SignalsTab(QWidget):
         self.start_button.clicked.connect(self._on_start_clicked)
         self.stop_button.clicked.connect(self._on_stop_clicked)
         self.record_only_check.stateChanged.connect(self._on_record_only_toggled)
-        self._session_name_edit.textChanged.connect(self._refresh_mode_hint)
         self.sync_logs_button.clicked.connect(self._on_sync_logs_clicked)
 
         top_row.addWidget(self.record_only_check)
@@ -1544,24 +1540,9 @@ class SignalsTab(QWidget):
         group_layout.addLayout(sensor_layout)
         group_layout.addLayout(top_row)
 
-        # Short explanatory text under the buttons
-        self._mode_hint_label = QLabel("", top_row_group)
-        self._mode_hint_label.setWordWrap(True)
-        self._mode_hint_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self._mode_hint_label.setSizePolicy(
-            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
-        )
-
-        hint_row = QHBoxLayout()
-        hint_row.setContentsMargins(0, 0, 0, 0)
-        hint_row.addWidget(self._mode_hint_label)
-        hint_row.addStretch()
-        group_layout.addLayout(hint_row)
-
         top_row_group.setLayout(group_layout)
 
         # No calibration controls in this tab anymore.
-        self._refresh_mode_hint()
 
         recording_section = CollapsibleSection("Recording / stream controls", self)
         recording_layout = QVBoxLayout()
