@@ -393,8 +393,15 @@ class RecorderController(QObject):
         rc = self._rate_controllers["mpu6050"]
         first = batch[0]
         if isinstance(first, MpuSample):
-            rc.tick(first.timestamp_ns or 0)
-            stream_rate_hz = rc.rate_hz()
+            def _to_seconds(s: MpuSample) -> float:
+                # Prefer explicit seconds field if present; otherwise convert ns -> s.
+                if getattr(s, "t_s", None) is not None:
+                    return float(s.t_s)  # type: ignore[arg-type]
+                return float(s.timestamp_ns) * 1e-9
+
+            # Feed ALL sample times so estimated_hz reflects samples/sec, not batches/sec.
+            rc.feed_times(_to_seconds(s) for s in batch if isinstance(s, MpuSample))
+            stream_rate_hz = float(rc.estimate().hz_effective)
             self.stream_rate_updated.emit("mpu6050", stream_rate_hz)
             if self._data_buffer is not None:
                 try:
