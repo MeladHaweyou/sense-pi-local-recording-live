@@ -10,7 +10,6 @@ import numpy as np
 from PySide6.QtCore import QTimer, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
@@ -38,7 +37,7 @@ from ...tools.debug import debug_enabled
 from . import LayoutSignature, SampleKey
 
 if TYPE_CHECKING:  # pragma: no cover - circular import guard
-    from .tab_recorder import RecorderTab
+    from ..recorder_controller import RecorderController
     from .tab_signals import SignalsTab
 
 DEFAULT_FFT_WINDOW_S = 2.0
@@ -60,7 +59,7 @@ class FftTab(QWidget):
 
     Responsibilities:
     - Pull sliding windows of samples from the shared
-      :class:`StreamingDataBuffer` (owned by :class:`RecorderTab`).
+      :class:`StreamingDataBuffer` (owned by :class:`RecorderController`).
     - Render frequency-domain plots that complement :class:`SignalsTab`'s time
       series, using matching sensor/channel layouts.
     - Track stream rate updates and refresh interval hints emitted by the
@@ -69,7 +68,7 @@ class FftTab(QWidget):
 
     def __init__(
         self,
-        recorder_tab: RecorderTab,
+        recorder_tab: RecorderController,
         signals_tab: "SignalsTab | None" = None,
         parent: Optional[QWidget] = None,
         app_config: AppConfig | None = None,
@@ -114,28 +113,6 @@ class FftTab(QWidget):
         controls_group = QGroupBox("FFT settings")
         form = QFormLayout(controls_group)
 
-        # View selection
-        top_row = QHBoxLayout()
-        self.view_mode_combo = QComboBox()
-        self.view_mode_combo.addItem(
-            "AX / AY / GZ (9 charts)", userData="default3"
-        )
-        self.view_mode_combo.addItem(
-            "All axes (18 charts)", userData="all6"
-        )
-        self.view_mode_combo.addItem(
-            "Overlay (one chart)", userData="overlay"
-        )
-
-        idx = self.view_mode_combo.findData("overlay")
-        if idx >= 0:
-            self.view_mode_combo.setCurrentIndex(idx)
-
-        top_row.addWidget(QLabel("View:"))
-        top_row.addWidget(self.view_mode_combo)
-        top_row.addStretch()
-        form.addRow(top_row)
-
         # FFT window length (seconds)
         self.window_spin = QDoubleSpinBox()
         self.window_spin.setRange(MIN_FFT_WINDOW_S, MAX_FFT_WINDOW_S)
@@ -146,6 +123,7 @@ class FftTab(QWidget):
 
         # Detrend / lowpass options
         self.detrend_check = QCheckBox("Detrend")
+        self.detrend_check.setChecked(True)
         self.lowpass_check = QCheckBox("Low-pass filter")
 
         self.lowpass_cutoff = QDoubleSpinBox()
@@ -205,7 +183,6 @@ class FftTab(QWidget):
                 )
 
         # Wiring
-        self.view_mode_combo.currentIndexChanged.connect(self._on_controls_changed)
         self.window_spin.valueChanged.connect(self._on_controls_changed)
         self.window_spin.valueChanged.connect(self._update_fft_timer_interval)
         self.detrend_check.toggled.connect(self._on_controls_changed)
@@ -617,15 +594,11 @@ class FftTab(QWidget):
         ):
             return
 
-        view_mode = self.view_mode_combo.currentData()
         selection = self._sensor_selection
         if selection is not None and selection.active_channels:
             channels = list(selection.active_channels)
         else:
-            if view_mode == "default3":
-                channels = ["ax", "ay", "gz"]
-            else:
-                channels = ["ax", "ay", "az", "gx", "gy", "gz"]
+            channels = ["ax", "ay", "gz"]
 
         if not channels:
             logger.warning(
@@ -758,12 +731,7 @@ class FftTab(QWidget):
         if not sensor_list or not channel_list:
             return False
 
-        view_mode = self.view_mode_combo.currentData()
-        signature: tuple
-        if view_mode == "overlay":
-            signature = ("overlay", tuple(sensor_list), tuple(channel_list))
-        else:
-            signature = ("grid", tuple(sensor_list), tuple(channel_list))
+        signature: tuple = ("grid", tuple(sensor_list), tuple(channel_list))
         should_log_limits = (
             (trimmed_channels or trimmed_sensors)
             and signature != self._current_layout
@@ -794,45 +762,29 @@ class FftTab(QWidget):
         self._figure.clear()
         self._ensure_fft_frequency_axis()
 
-        if view_mode == "overlay":
-            ax = self._figure.add_subplot(111)
-            for sensor_id in sensor_list:
-                for ch in channel_list:
-                    zero_line = np.zeros_like(self._fft_freqs)
-                    label = self._format_overlay_label(sensor_id, ch)
-                    (line,) = ax.plot(self._fft_freqs, zero_line, lw=0.9, label=label)
-                    key = self._make_key(sensor_id, ch)
-                    self._fft_axes[key] = ax
-                    self._fft_lines[key] = line
-            ax.set_xlabel("Frequency [Hz]")
-            ax.set_ylabel("Magnitude")
-            ax.grid(True)
-            self._apply_frequency_limits(ax)
-            ax.legend(loc="upper right", fontsize="small")
-        else:
-            nrows = len(sensor_list)
-            ncols = len(channel_list)
-            subplot_index = 1
-            for row_idx, sensor_id in enumerate(sensor_list):
-                for col_idx, ch in enumerate(channel_list):
-                    ax = self._figure.add_subplot(nrows, ncols, subplot_index)
-                    subplot_index += 1
-                    zero_line = np.zeros_like(self._fft_freqs)
-                    line, = ax.plot(self._fft_freqs, zero_line, lw=0.9)
-                    key = self._make_key(sensor_id, ch)
-                    self._fft_axes[key] = ax
-                    self._fft_lines[key] = line
-                    if row_idx == nrows - 1:
-                        ax.set_xlabel("Frequency [Hz]")
-                    if col_idx == 0:
-                        ax.set_ylabel("Magnitude")
-                    units = self._channel_units(ch)
-                    title = f"S{sensor_id} {ch.upper()}"
-                    if units:
-                        title = f"{title} [{units}]"
-                    ax.set_title(title)
-                    ax.grid(True)
-                    self._apply_frequency_limits(ax)
+        nrows = len(sensor_list)
+        ncols = len(channel_list)
+        subplot_index = 1
+        for row_idx, sensor_id in enumerate(sensor_list):
+            for col_idx, ch in enumerate(channel_list):
+                ax = self._figure.add_subplot(nrows, ncols, subplot_index)
+                subplot_index += 1
+                zero_line = np.zeros_like(self._fft_freqs)
+                line, = ax.plot(self._fft_freqs, zero_line, lw=0.9)
+                key = self._make_key(sensor_id, ch)
+                self._fft_axes[key] = ax
+                self._fft_lines[key] = line
+                if row_idx == nrows - 1:
+                    ax.set_xlabel("Frequency [Hz]")
+                if col_idx == 0:
+                    ax.set_ylabel("Magnitude")
+                units = self._channel_units(ch)
+                title = f"S{sensor_id} {ch.upper()}"
+                if units:
+                    title = f"{title} [{units}]"
+                ax.set_title(title)
+                ax.grid(True)
+                self._apply_frequency_limits(ax)
 
         self._figure.tight_layout()
         self._canvas.draw_idle()

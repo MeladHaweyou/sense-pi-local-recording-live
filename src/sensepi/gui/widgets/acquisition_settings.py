@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
 
 from PySide6.QtCore import Qt, Signal, QSignalBlocker
 from PySide6.QtWidgets import (
-    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
@@ -22,9 +20,6 @@ from sensepi.config.sampling import (
 )
 
 from ..config.acquisition_state import GuiAcquisitionConfig, SensorSelectionConfig
-
-
-SignalsMode = Literal["fixed", "adaptive"]
 
 
 DEFAULT_DEVICE_RATE_HZ = 200.0
@@ -51,10 +46,9 @@ class AcquisitionSettings:
     # populated in __post_init__.
     gui_sampling: GuiSamplingDisplay | None = None
 
-    signals_mode: SignalsMode = "fixed"  # "fixed" or "adaptive"
     signals_refresh_ms: int = DEFAULT_SIGNALS_REFRESH_MS
     fft_refresh_ms: int = DEFAULT_FFT_REFRESH_MS
-    #: When True, we record to disk but do not stream live data to the GUI.
+    #: Record-only is managed outside this widget (Live Signals tab).
     record_only: bool = False
 
     def __post_init__(self) -> None:
@@ -83,7 +77,6 @@ class AcquisitionSettings:
         """Convenience helper for serialization/testing."""
         return {
             "sampling": self.sampling.to_mapping()["sampling"],
-            "signals_mode": str(self.signals_mode),
             "signals_refresh_ms": int(self.signals_refresh_ms),
             "fft_refresh_ms": int(self.fft_refresh_ms),
             "record_only": bool(self.record_only),
@@ -94,11 +87,9 @@ class AcquisitionSettings:
 class AcquisitionSettingsWidget(QWidget):
     """Small form that lets the user tune sampling/stream and refresh rates."""
 
-    signalsModeChanged = Signal(str)  # still emits the normalized mode key
     signalsRefreshChanged = Signal(int)
     fftRefreshChanged = Signal(int)
     samplingChanged = Signal(SamplingConfig)  # more specific than object
-    recordOnlyChanged = Signal(bool)
     settingsChanged = Signal(AcquisitionSettings)
 
     def __init__(
@@ -107,8 +98,6 @@ class AcquisitionSettingsWidget(QWidget):
         *,
         show_device_rate: bool = True,
         show_mode: bool = True,
-        show_record_only: bool = True,
-        show_signals_mode: bool = True,
     ) -> None:
         super().__init__(parent)
 
@@ -146,15 +135,8 @@ class AcquisitionSettingsWidget(QWidget):
         self._stream_rate_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         form.addRow("GUI stream [Hz]:", self._stream_rate_label)
 
-        # Signals refresh mode + interval
+        # Signals refresh interval
         mode_row = QHBoxLayout()
-        self.signals_mode_combo = QComboBox(self)
-        self.signals_mode_combo.addItem("Fixed interval", "fixed")
-        self.signals_mode_combo.addItem("Adaptive (follow stream rate)", "adaptive")
-        self.signals_mode_combo.setVisible(show_signals_mode)
-        if show_signals_mode:
-            mode_row.addWidget(self.signals_mode_combo)
-
         self.signals_refresh_spin = QSpinBox(self)
         self.signals_refresh_spin.setRange(10, 1000)
         self.signals_refresh_spin.setSingleStep(5)
@@ -178,24 +160,12 @@ class AcquisitionSettingsWidget(QWidget):
             self._on_fft_refresh_value_changed
         )
 
-        # Record-only mode: record to disk but do not stream live data to the GUI.
-        self.record_only_checkbox = QCheckBox(
-            self.tr("Record only (no live streaming)"), self
-        )
-        self.record_only_checkbox.setChecked(False)
-        self.record_only_checkbox.toggled.connect(self._on_record_only_toggled)
-        if show_record_only:
-            form.addRow(self.record_only_checkbox)
-
         # Wiring
         self.device_rate_spin.valueChanged.connect(self._on_sampling_control_changed)
         self.mode_combo.currentIndexChanged.connect(self._on_sampling_control_changed)
-        self.signals_mode_combo.currentIndexChanged.connect(self._on_mode_changed)
-        if show_signals_mode:
-            form.addRow("Signals mode:", self.signals_mode_combo)
 
         self._update_sampling_labels()
-        self._on_mode_changed()
+        self._on_sampling_control_changed()
 
     # ------------------------------------------------------------------ helpers
     def current_sampling_config(self) -> SamplingConfig:
@@ -214,14 +184,12 @@ class AcquisitionSettingsWidget(QWidget):
         if self.mode_combo.isVisible():
             sampling.mode_key = str(self.mode_combo.currentData())
         self._sampling_config = sampling
-        mode = self.signals_mode_combo.currentData() or "fixed"
 
         settings = AcquisitionSettings(
             sampling=sampling,
-            signals_mode=str(mode),
             signals_refresh_ms=int(self.signals_refresh_spin.value()),
             fft_refresh_ms=int(self.fft_refresh_spin.value()),
-            record_only=bool(self.record_only_checkbox.isChecked()),
+            record_only=False,
         )
         return settings
 
@@ -233,30 +201,8 @@ class AcquisitionSettingsWidget(QWidget):
     def set_settings(self, settings: AcquisitionSettings) -> None:
         """Load settings into the widget."""
         self.set_sampling_config(settings.sampling)
-        mode = (
-            settings.signals_mode
-            if settings.signals_mode in {"fixed", "adaptive"}
-            else "fixed"
-        )
-        idx = self.signals_mode_combo.findData(mode)
-        if idx >= 0:
-            self.signals_mode_combo.setCurrentIndex(idx)
         self.signals_refresh_spin.setValue(int(settings.signals_refresh_ms))
         self.fft_refresh_spin.setValue(int(settings.fft_refresh_ms))
-
-        with QSignalBlocker(self.record_only_checkbox):
-            self.record_only_checkbox.setChecked(bool(settings.record_only))
-        self._on_mode_changed()
-
-    def _on_record_only_toggled(self, checked: bool) -> None:
-        """
-        Update the record_only flag on settings change.
-
-        This should trigger settingsChanged so other parts of the GUI
-        can react (e.g. disable live plotting when enabled).
-        """
-
-        self.recordOnlyChanged.emit(bool(checked))
         self._emit_settings_changed()
 
     def set_sampling_config(self, sampling: SamplingConfig) -> None:
@@ -305,14 +251,6 @@ class AcquisitionSettingsWidget(QWidget):
         display = GuiSamplingDisplay.from_sampling(self._sampling_config)
         self._record_rate_label.setText(f"{display.record_rate_hz:.1f} Hz")
         self._stream_rate_label.setText(f"{display.stream_rate_hz:.1f} Hz")
-
-    def _on_mode_changed(self) -> None:
-        mode = self.signals_mode_combo.currentData()
-        is_fixed = mode == "fixed"
-        self.signals_refresh_spin.setEnabled(is_fixed)
-        normalized = str(mode or "fixed")
-        self.signalsModeChanged.emit(normalized)
-        self._emit_settings_changed()
 
     # Convenience helper for later phases
     def current_stream_rate_hz(self) -> float:

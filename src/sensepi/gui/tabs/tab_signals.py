@@ -54,12 +54,11 @@ from ...core.timeseries_buffer import (
 from ...data import BufferConfig, StreamingDataBuffer
 from ...baseline import BaselineState, collect_baseline_samples
 from ...sensors.mpu6050 import MpuSample
-from ...perf_system import get_process_cpu_percent
 from ...tools.debug import debug_enabled
 from . import LayoutSignature, SampleKey
 
 if TYPE_CHECKING:
-    from .tab_recorder import RecorderTab
+    from ..recorder_controller import RecorderController
 
 DEFAULT_REFRESH_MODE = "fixed"
 DEFAULT_REFRESH_INTERVAL_MS = 50  # 20 Hz default for live traces
@@ -1295,14 +1294,14 @@ class SignalsTab(QWidget):
 
     def __init__(
         self,
-        recorder_tab: "RecorderTab | None" = None,
+        recorder_tab: "RecorderController | None" = None,
         parent: Optional[QWidget] = None,
         plot_widget: SignalPlotWidgetBase | None = None,
         app_config: AppConfig | None = None,
     ) -> None:
         super().__init__(parent)
 
-        self._recorder_tab: RecorderTab | None = recorder_tab
+        self._recorder_tab: RecorderController | None = recorder_tab
         self._app_config: AppConfig = app_config or AppConfig()
         plot_perf = getattr(self._app_config, "plot_performance", None)
         if not isinstance(plot_perf, PlotPerformanceConfig):
@@ -1364,9 +1363,6 @@ class SignalsTab(QWidget):
                 self.set_data_buffer(recorder_tab.data_buffer())
             except AttributeError:
                 self._data_buffer = None
-            host_combo = getattr(recorder_tab, "host_combo", None)
-            if host_combo is not None:
-                host_combo.currentIndexChanged.connect(self._refresh_mode_hint)
         self._target_refresh_hz: Optional[float] = None
         self._last_refresh_timestamp: float | None = None
         self._smoothed_refresh_hz: float | None = None
@@ -1381,28 +1377,15 @@ class SignalsTab(QWidget):
             self,
             show_device_rate=False,
             show_mode=False,
-            # Hide the inner record-only checkbox so the top-level control is the
-            # single visible toggle on this tab.
-            show_record_only=False,
-            show_signals_mode=False,
         )
         self._acquisition_widget.samplingChanged.connect(
             self._on_acquisition_widget_changed
-        )
-        self._acquisition_widget.signalsModeChanged.connect(
-            self._on_acquisition_mode_changed
         )
         self._acquisition_widget.signalsRefreshChanged.connect(
             self._on_acquisition_refresh_changed
         )
         self._acquisition_widget.fftRefreshChanged.connect(
             self._emit_fft_refresh_interval_changed
-        )
-        self._acquisition_widget.recordOnlyChanged.connect(
-            self._on_acquisition_widget_changed
-        )
-        self._acquisition_widget.signalsModeChanged.connect(
-            self._on_acquisition_widget_changed
         )
         self._acquisition_widget.signalsRefreshChanged.connect(
             self._on_acquisition_widget_changed
@@ -1436,23 +1419,6 @@ class SignalsTab(QWidget):
 
         self._rebuild_gui_acquisition_config()
         self._plot.set_display_slack_ns(DEFAULT_DISPLAY_SLACK_NS)
-        # NOTE: This block implements the existing perf HUD. It will be revisited
-        # in the new GUI refactor. Avoid changing behavior here until then.
-        self._perf_hud_label = QLabel(self._plot)
-        self._perf_hud_label.setText("")
-        self._perf_hud_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self._perf_hud_label.setMargin(6)
-        self._perf_hud_label.setStyleSheet(
-            "QLabel {"
-            "background-color: rgba(0, 0, 0, 150);"
-            "color: white;"
-            "font-family: monospace;"
-            "font-size: 9pt;"
-            "}"
-        )
-        self._perf_hud_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        self._perf_hud_label.move(8, 8)
-        self._perf_hud_label.setVisible(False)
 
         self._stream_active = False
         self._awaiting_first_sample = False
@@ -1495,17 +1461,6 @@ class SignalsTab(QWidget):
         sensor_layout.addWidget(self.sensor_label)
         sensor_layout.addStretch()
 
-        # View preset selector (9 vs 18 charts)
-        top_row.addWidget(QLabel("View:", top_row_group))
-        self.view_mode_combo = QComboBox(top_row_group)
-        self.view_mode_combo.addItem(
-            "AX / AY / GZ (9 charts)", userData="default3"
-        )
-        self.view_mode_combo.addItem(
-            "All axes (18 charts)", userData="all6"
-        )
-        top_row.addWidget(self.view_mode_combo)
-
         self._refresh_profile_custom_index: int | None = None
         self._active_refresh_profile_label: str | None = None
         self._refresh_profile_label = QLabel("Refresh:", top_row_group)
@@ -1527,11 +1482,6 @@ class SignalsTab(QWidget):
             self._on_refresh_profile_changed
         )
         top_row.addWidget(self.refresh_profile_combo)
-
-        self.view_mode_combo.currentIndexChanged.connect(
-            self._on_view_mode_changed
-        )
-        self.view_mode_combo.setEnabled(False)
 
         self.record_only_check = QCheckBox(
             "Record only (no live streaming)", top_row_group
@@ -1616,7 +1566,6 @@ class SignalsTab(QWidget):
 
         # Plot widget -----------------------------------------------------------
         layout.addWidget(self._plot, stretch=1)
-        self._perf_hud_label.raise_()
 
         # Status label ----------------------------------------------------------
         self._status_label = QLabel("", self)
@@ -1642,10 +1591,6 @@ class SignalsTab(QWidget):
         self._timer.timeout.connect(self._on_redraw_timer)
         self._apply_refresh_settings()
         self._update_refresh_profile_enabled()
-        self._perf_hud_timer = QTimer(self)
-        self._perf_hud_timer.setInterval(1000)
-        self._perf_hud_timer.timeout.connect(self._update_perf_hud)
-        self._perf_hud_timer.start()
 
     # --------------------------------------------------------------- slots
     @Slot()
@@ -1686,13 +1631,6 @@ class SignalsTab(QWidget):
     @Slot(int)
     def _on_record_only_toggled(self, _state: int) -> None:
         """Keep acquisition settings in sync with the top-level record-only checkbox."""
-
-        widget = self._acquisition_widget
-        if widget is None:
-            return
-
-        with QSignalBlocker(widget.record_only_checkbox):
-            widget.record_only_checkbox.setChecked(self.record_only_check.isChecked())
 
         self._rebuild_gui_acquisition_config()
         self._refresh_mode_hint()
@@ -1756,10 +1694,6 @@ class SignalsTab(QWidget):
         self._active_channels = list(active_channels)
 
         if active_sensors and active_channels:
-            charts = len(active_sensors) * len(active_channels)
-            # This already decides between 9 and 18 charts internally.
-            self.set_view_mode_by_channels(charts)
-
             # Also propagate the channel layout directly to the plot widget.
             self._plot.set_channel_layout(active_channels)
             # Show all configured channels by default.
@@ -1793,10 +1727,6 @@ class SignalsTab(QWidget):
             self._sampling_rate_hz = None
         with QSignalBlocker(self.record_only_check):
             self.record_only_check.setChecked(bool(cfg.record_only))
-        with QSignalBlocker(self._acquisition_widget.record_only_checkbox):
-            self._acquisition_widget.record_only_checkbox.setChecked(
-                bool(cfg.record_only)
-            )
         if self._sampling_rate_hz:
             self._plot.set_nominal_sample_rate(self._sampling_rate_hz)
         self._apply_refresh_settings()
@@ -1817,12 +1747,6 @@ class SignalsTab(QWidget):
         return self._current_gui_acquisition_config
 
     def _on_acquisition_widget_changed(self, *_args) -> None:
-        widget = self._acquisition_widget
-        if widget is not None and hasattr(self, "record_only_check"):
-            with QSignalBlocker(self.record_only_check):
-                self.record_only_check.setChecked(
-                    bool(widget.record_only_checkbox.isChecked())
-                )
         self._rebuild_gui_acquisition_config()
 
     def set_record_only_mode(self, enabled: bool) -> None:
@@ -1863,7 +1787,7 @@ class SignalsTab(QWidget):
         cfg = GuiAcquisitionConfig(
             sampling=acq.sampling,
             stream_rate_hz=acq.stream_rate_hz,
-            record_only=acq.record_only,
+            record_only=bool(self.record_only_check.isChecked()),
             sensor_selection=sel,
         )
         self._current_gui_acquisition_config = cfg
@@ -1950,10 +1874,8 @@ class SignalsTab(QWidget):
         return snap
 
     def set_perf_hud_visible(self, visible: bool) -> None:
-        """Show or hide the lightweight performance HUD overlay."""
-        self._perf_hud_label.setVisible(visible)
-        if visible:
-            self._update_perf_hud()
+        """Legacy no-op (perf HUD overlay removed)."""
+        _ = visible
 
     # --------------------------------------------------------------- helpers
     def _set_status_text(self, text: str, *, source: str) -> None:
@@ -2139,8 +2061,7 @@ class SignalsTab(QWidget):
 
     @Slot()
     def _on_view_mode_changed(self) -> None:
-        """Called when the view preset combo changes."""
-        self._refresh_mode_hint()
+        return
 
     @Slot()
     def _on_channel_toggles_changed(self) -> None:
@@ -2814,32 +2735,6 @@ class SignalsTab(QWidget):
                 self._refresh_timer_state()
         self._update_perf_summary()
 
-    def _update_perf_hud(self) -> None:
-        cpu_percent = get_process_cpu_percent()
-        if not self._perf_hud_label.isVisible():
-            return
-
-        snap = self.get_perf_snapshot() if ENABLE_PLOT_PERF_METRICS else {}
-        fps = float(snap.get("fps", 0.0) or 0.0)
-        target_fps = float(snap.get("target_fps", 0.0) or 0.0)
-        avg_frame_ms = float(snap.get("avg_frame_ms", 0.0) or 0.0)
-        avg_latency_ms = float(snap.get("avg_latency_ms", 0.0) or 0.0)
-        max_latency_ms = float(snap.get("max_latency_ms", 0.0) or 0.0)
-        approx_dropped = snap.get("approx_dropped_fps")
-        if approx_dropped is None:
-            approx_dropped = snap.get("approx_dropped_frames_per_sec", 0.0)
-        approx_dropped = float(approx_dropped or 0.0)
-        timer_hz = float(snap.get("timer_hz", 0.0) or 0.0)
-
-        text = (
-            f"CPU: {cpu_percent:5.1f}%\n"
-            f"FPS: {fps:5.1f} / target {target_fps:4.1f}  (timer: {timer_hz:4.1f} Hz)\n"
-            f"Frame: {avg_frame_ms:5.1f} ms\n"
-            f"Latency: avg {avg_latency_ms:5.1f} ms, max {max_latency_ms:5.1f} ms\n"
-            f"Dropped: ~{approx_dropped:4.1f} fps"
-        )
-        self._perf_hud_label.setText(text)
-
     # --------------------------------------------------------------- synthetic data helpers
     def start_synthetic_stream(
         self,
@@ -2934,15 +2829,10 @@ class SignalsTab(QWidget):
         self._refresh_mode_hint()
 
     def set_view_mode_by_channels(self, charts: int) -> None:
-        preset = "default3" if charts <= 9 else "all6"
-        self.set_view_mode_preset(preset)
+        return
 
     def set_view_mode_preset(self, preset: str) -> None:
-        idx = self.view_mode_combo.findData(preset)
-        if idx < 0:
-            return
-        with QSignalBlocker(self.view_mode_combo):
-            self.view_mode_combo.setCurrentIndex(idx)
+        _ = preset
 
     @Slot()
     def on_stream_stopped(self) -> None:
@@ -2974,39 +2864,3 @@ class SignalsTab(QWidget):
         else:
             self._set_manual_status("Base correction disabled.")
 
-    def attach_recorder_controls(self, recorder_tab: "RecorderTab") -> None:
-        """
-        Embed the RecorderTab's connection/settings widgets at the top of this tab
-        so users can manage the Pi directly from here.
-
-        The RecorderTab itself can stay hidden; we just reuse its widgets.
-        """
-        # Local import to avoid circular dependency
-        from .tab_recorder import RecorderTab as _RecorderTab  # type: ignore
-
-        if not isinstance(recorder_tab, _RecorderTab):
-            return
-
-        host_group = getattr(recorder_tab, "host_group", None)
-        if host_group is None:
-            return
-
-        parent_layout = recorder_tab.layout()
-        if parent_layout is not None:
-            parent_layout.removeWidget(host_group)
-
-        host_group.setParent(self)
-
-        layout = self.layout()
-        if layout is not None:
-            host_group.setTitle("")
-            host_section = CollapsibleSection("Raspberry Pi host", self)
-            host_layout = QVBoxLayout()
-            host_layout.setContentsMargins(0, 0, 0, 0)
-            host_layout.addWidget(host_group)
-            host_section.setContentLayout(host_layout)
-            layout.insertWidget(0, host_section)
-            self._host_section = host_section
-
-            # Intentionally do NOT embed the RecorderTab MPU6050 settings here.
-            # Sensor count and channels are configured only from the Settings tab.
