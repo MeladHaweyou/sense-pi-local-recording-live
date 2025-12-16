@@ -1378,6 +1378,9 @@ class SignalsTab(QWidget):
             show_device_rate=False,
             show_mode=False,
         )
+        record_only_checkbox = getattr(self._acquisition_widget, "record_only_checkbox", None)
+        if record_only_checkbox is not None:
+            record_only_checkbox.stateChanged.connect(self._on_record_only_toggled)
         self._acquisition_widget.samplingChanged.connect(
             self._on_acquisition_widget_changed
         )
@@ -1629,9 +1632,41 @@ class SignalsTab(QWidget):
         self.sync_logs_requested.emit()
 
     @Slot(int)
-    def _on_record_only_toggled(self, _state: int) -> None:
-        """Keep acquisition settings in sync with the top-level record-only checkbox."""
+    def _get_record_only_checked(self) -> bool:
+        """Return the record-only checkbox state, preferring the acquisition widget."""
 
+        widget = getattr(self, "_acquisition_widget", None)
+        cb = getattr(widget, "record_only_checkbox", None) if widget is not None else None
+        if cb is None:
+            cb = getattr(self, "record_only_check", None)
+        try:
+            return bool(cb.isChecked()) if cb is not None else False
+        except Exception:
+            return False
+
+    def _sync_record_only_checkboxes(self, checked: bool) -> None:
+        """Keep any duplicate record-only checkboxes in sync without emitting signals."""
+
+        checked = bool(checked)
+        widgets: list[QCheckBox] = []
+        widget = getattr(self, "_acquisition_widget", None)
+        cb = getattr(widget, "record_only_checkbox", None) if widget is not None else None
+        if isinstance(cb, QCheckBox):
+            widgets.append(cb)
+        tab_cb = getattr(self, "record_only_check", None)
+        if isinstance(tab_cb, QCheckBox) and tab_cb not in widgets:
+            widgets.append(tab_cb)
+
+        for checkbox in widgets:
+            with QSignalBlocker(checkbox):
+                checkbox.setChecked(checked)
+
+    def _on_record_only_toggled(self, _state: int) -> None:
+        """Keep acquisition settings in sync with record-only controls."""
+
+        enabled = self._get_record_only_checked()
+        self._sync_record_only_checkboxes(enabled)
+        self.set_record_only_mode(enabled)
         self._rebuild_gui_acquisition_config()
         self._refresh_mode_hint()
 
@@ -1725,8 +1760,7 @@ class SignalsTab(QWidget):
             self._sampling_rate_hz = float(cfg.sampling.device_rate_hz)
         except (TypeError, ValueError):
             self._sampling_rate_hz = None
-        with QSignalBlocker(self.record_only_check):
-            self.record_only_check.setChecked(bool(cfg.record_only))
+        self._sync_record_only_checkboxes(bool(cfg.record_only))
         if self._sampling_rate_hz:
             self._plot.set_nominal_sample_rate(self._sampling_rate_hz)
         self._apply_refresh_settings()
@@ -1787,7 +1821,7 @@ class SignalsTab(QWidget):
         cfg = GuiAcquisitionConfig(
             sampling=acq.sampling,
             stream_rate_hz=acq.stream_rate_hz,
-            record_only=bool(self.record_only_check.isChecked()),
+            record_only=self._get_record_only_checked(),
             sensor_selection=sel,
         )
         self._current_gui_acquisition_config = cfg
@@ -1927,7 +1961,7 @@ class SignalsTab(QWidget):
             return
         dest = self._remote_destination_text()
         session = " ".join(self.session_name().split())
-        record_only = self.record_only_check.isChecked()
+        record_only = self._get_record_only_checked()
         recording_requested = self._recording_requested()
         if record_only or recording_requested:
             hint = "Recording enabled. "
