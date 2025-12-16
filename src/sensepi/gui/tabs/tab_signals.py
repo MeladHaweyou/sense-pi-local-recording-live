@@ -1486,6 +1486,10 @@ class SignalsTab(QWidget):
         )
         top_row.addWidget(self.refresh_profile_combo)
 
+        # Hide Refresh preset dropdown (Low/High/Raw fidelity)
+        self._refresh_profile_label.hide()
+        self.refresh_profile_combo.hide()
+
         self.record_only_check = QCheckBox(
             "Record only (no live streaming)", top_row_group
         )
