@@ -15,10 +15,9 @@ from .config.acquisition_state import (
     GuiAcquisitionConfig,
     SensorSelectionConfig,
 )
+from .recorder_controller import RecorderController
 from .tabs.tab_fft import FftTab
 from .tabs.tab_logs import LogsTab
-from .tabs.tab_recorder import RecorderTab
-from .tabs.tab_recordings import RecordingsTab
 from .tabs.tab_settings import SettingsTab
 from .tabs.tab_signals import SignalsTab
 
@@ -56,20 +55,17 @@ class MainWindow(QMainWindow):
         """Create and register all main workflow tabs."""
         app_paths = AppPaths()
 
-        self.recorder_tab = RecorderTab()
+        self.recorder_tab = RecorderController()
         self.settings_tab = SettingsTab()
         self.signals_tab = SignalsTab(
             recorder_tab=self.recorder_tab, parent=self, app_config=self._app_config
         )
-        self.signals_tab.attach_recorder_controls(self.recorder_tab)
         self.fft_tab = FftTab(
             recorder_tab=self.recorder_tab,
             signals_tab=self.signals_tab,
             parent=self,
             app_config=self._app_config,
         )
-        self.recordings_tab = RecordingsTab(app_paths, self.recorder_tab)
-        self.offline_tab = self.recordings_tab.offline_tab
         self.logs_tab = LogsTab(app_paths)
 
         self.signals_tab.start_stream_requested.connect(
@@ -85,7 +81,7 @@ class MainWindow(QMainWindow):
             self._on_sensor_selection_changed
         )
         self.settings_tab.sensorsUpdated.connect(self._on_sensors_updated)
-        # Keep RecorderTab in sync with the canonical selection.
+        # Keep the recorder controller in sync with the canonical selection.
         self.settings_tab.sensorSelectionChanged.connect(
             self.recorder_tab.apply_sensor_selection
         )
@@ -101,9 +97,6 @@ class MainWindow(QMainWindow):
             self.settings_tab.acquisitionConfigChanged.connect(
                 self.fft_tab.update_acquisition_config
             )
-        self.signals_tab.sync_logs_requested.connect(
-            self.offline_tab.sync_logs_from_pi
-        )
 
         self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
         self._tabs.addTab(self.fft_tab, self.tr("Spectrum"))
@@ -134,9 +127,14 @@ class MainWindow(QMainWindow):
             gui_cfg = GuiAcquisitionConfig(
                 sampling=acquisition_settings.sampling,
                 stream_rate_hz=stream_rate_hz,
-                record_only=bool(getattr(acquisition_settings, "record_only", False)),
+                record_only=False,
                 sensor_selection=sensor_selection,
             )
+
+        gui_cfg.record_only = bool(
+            getattr(self.signals_tab, "record_only_check", None)
+            and self.signals_tab.record_only_check.isChecked()
+        )
 
         gui_cfg.calibration = self._current_calibration_offsets
         self._current_gui_acquisition_config = gui_cfg
