@@ -542,8 +542,6 @@ def build_pi_config_for_host(host_cfg: HostConfig, app_cfg: AppConfig) -> PiLogg
         # Single-rate pipeline: record/stream decimation is always 1
         "record_decimate": 1,
         "stream_every": 1,
-        "record_rate_hz": float(pi_cfg.record_rate_hz),
-        "stream_rate_hz": float(pi_cfg.stream_rate_hz),
         "channels": str(mpu_defaults.get("channels", "default")),
         "dlpf": int(mpu_defaults.get("dlpf", 3)),
         "include_temperature": bool(mpu_defaults.get("include_temperature", False)),

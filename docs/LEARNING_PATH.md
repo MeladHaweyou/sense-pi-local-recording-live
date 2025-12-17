@@ -109,10 +109,10 @@ Each milestone includes:
 2. `src/sensepi/config/sampling.py` – the `SamplingConfig`/`RecordingMode` helpers that compute decimation (`stream_decimate`) and `stream_rate_hz`.
 
 **Task:**
-- Locate the `RECORDING_MODES` dictionary in `sampling.py`. For the `"high_fidelity"` mode, change `target_stream_hz` from `25.0` to match the device rate (e.g. `200.0`). This effectively changes the default “stream every Nth sample” ratio from 8 down to 1.
-- Open the GUI, visit the **Live Signals** tab, and inspect the “GUI stream [Hz]” label in the Sampling box.
+- Locate the `RECORDING_MODES` dictionary in `sampling.py` to see the available labels; device_rate_hz is the single source of truth for sampling.
+- Open the GUI, visit the **Live Signals** tab, and inspect the Sampling box.
 
-**Observe:** The label should show a much higher stream rate (equal to the device rate), confirming that the decimation setting – and thus the “stream every Nth sample” value – was updated.
+**Observe:** The stream rate matches the device sampling rate because the pipeline is single-rate (no decimation).
 
 ### Recommended streaming rates
 

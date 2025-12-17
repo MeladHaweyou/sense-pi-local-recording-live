@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from PySide6.QtCore import Qt, Signal, QSignalBlocker
+from PySide6.QtCore import Signal, QSignalBlocker
 from PySide6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
-    QLabel,
     QSpinBox,
     QWidget,
 )
@@ -116,7 +115,7 @@ class AcquisitionSettingsWidget(QWidget):
         self.device_rate_spin.setSingleStep(1.0)
         self.device_rate_spin.setValue(float(self._sampling_config.device_rate_hz))
         if show_device_rate:
-            form.addRow("Device rate [Hz]:", self.device_rate_spin)
+            form.addRow("Sampling rate [Hz]:", self.device_rate_spin)
 
         self.mode_combo = QComboBox(self)
         for key, mode in RECORDING_MODES.items():
@@ -126,14 +125,6 @@ class AcquisitionSettingsWidget(QWidget):
             self.mode_combo.setCurrentIndex(idx)
         if show_mode:
             form.addRow("Mode:", self.mode_combo)
-
-        self._record_rate_label = QLabel("—", self)
-        self._record_rate_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        form.addRow("Recording rate [Hz]:", self._record_rate_label)
-
-        self._stream_rate_label = QLabel("—", self)
-        self._stream_rate_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        form.addRow("GUI stream [Hz]:", self._stream_rate_label)
 
         # Signals refresh interval
         mode_row = QHBoxLayout()
@@ -163,8 +154,6 @@ class AcquisitionSettingsWidget(QWidget):
         # Wiring
         self.device_rate_spin.valueChanged.connect(self._on_sampling_control_changed)
         self.mode_combo.currentIndexChanged.connect(self._on_sampling_control_changed)
-
-        self._update_sampling_labels()
         self._on_sampling_control_changed()
 
     # ------------------------------------------------------------------ helpers
@@ -223,7 +212,6 @@ class AcquisitionSettingsWidget(QWidget):
         if self.mode_combo.isVisible():
             with QSignalBlocker(self.mode_combo):
                 self.mode_combo.setCurrentIndex(idx)
-        self._update_sampling_labels()
 
     def _build_sampling_config(self) -> SamplingConfig:
         try:
@@ -243,14 +231,8 @@ class AcquisitionSettingsWidget(QWidget):
     def _on_sampling_control_changed(self, *_args) -> None:
         sampling = self._build_sampling_config()
         self._sampling_config = sampling
-        self._update_sampling_labels()
         self.samplingChanged.emit(sampling)
         self._emit_settings_changed()
-
-    def _update_sampling_labels(self) -> None:
-        display = GuiSamplingDisplay.from_sampling(self._sampling_config)
-        self._record_rate_label.setText(f"{display.record_rate_hz:.1f} Hz")
-        self._stream_rate_label.setText(f"{display.stream_rate_hz:.1f} Hz")
 
     # Convenience helper for later phases
     def current_stream_rate_hz(self) -> float:
