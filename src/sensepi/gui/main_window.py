@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import QThread, Slot
+from PySide6.QtCore import QObject, QThread, Signal, Slot
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QTabWidget, QVBoxLayout, QWidget
 
 from ..config.app_config import AppConfig, HostInventory
 from ..config.sampling import SamplingConfig
-from ..remote.log_sync_worker import LogSyncWorker
+from ..remote.log_sync import SyncReport, sync_logs_from_pi
 from .config.acquisition_state import (
     CalibrationOffsets,
     GuiAcquisitionConfig,
@@ -20,6 +20,25 @@ from .recorder_controller import RecorderController
 from .tabs.tab_fft import FftTab
 from .tabs.tab_settings import SettingsTab
 from .tabs.tab_signals import SignalsTab
+
+
+class _LogSyncTask(QObject):
+    finished = Signal(object)
+    error = Signal(str)
+
+    def __init__(self, host_cfg, session_name: str | None) -> None:
+        super().__init__()
+        self._host_cfg = host_cfg
+        self._session_name = session_name
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            report = sync_logs_from_pi(self._host_cfg, session_name=self._session_name)
+        except Exception as exc:  # pragma: no cover - GUI surface
+            self.error.emit(str(exc))
+        else:
+            self.finished.emit(report)
 
 
 class MainWindow(QMainWindow):
@@ -38,8 +57,11 @@ class MainWindow(QMainWindow):
         self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
         self._current_calibration_offsets: CalibrationOffsets | None = None
         self._current_host: dict | None = None
+        self._log_sync_thread: QThread | None = None
+        self._log_sync_worker: _LogSyncTask | None = None
 
         self._build_tabs()
+        self._wire_signals()
 
         if isinstance(self._app_config.sampling_config, SamplingConfig):
             self._on_sampling_changed(self._app_config.sampling_config)
@@ -66,6 +88,19 @@ class MainWindow(QMainWindow):
             parent=self,
             app_config=self._app_config,
         )
+
+        self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
+        self._tabs.addTab(self.fft_tab, self.tr("Spectrum"))
+        self._tabs.addTab(self.settings_tab, self.tr("Settings"))
+
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.addWidget(self._tabs)
+
+        self.setCentralWidget(container)
+
+    def _wire_signals(self) -> None:
+        """Connect signals across tabs and seed initial state."""
 
         self.signals_tab.start_stream_requested.connect(
             self._on_start_stream_requested
@@ -100,17 +135,9 @@ class MainWindow(QMainWindow):
         try:
             self._on_sensor_selection_changed(self.settings_tab.current_sensor_selection())
         except Exception:
-            self._logger.exception("Failed to seed initial sensor selection from SettingsTab")
-
-        self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
-        self._tabs.addTab(self.fft_tab, self.tr("Spectrum"))
-        self._tabs.addTab(self.settings_tab, self.tr("Settings"))
-
-        container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.addWidget(self._tabs)
-
-        self.setCentralWidget(container)
+            self._logger.exception(
+                "Failed to seed initial sensor selection from SettingsTab"
+            )
 
     @Slot(str)
     def _on_start_stream_requested(self, session_name: str) -> None:
@@ -197,31 +224,31 @@ class MainWindow(QMainWindow):
     def _on_sync_logs_requested(self) -> None:
         host_cfg_raw = self.settings_tab.current_host_config()
         if host_cfg_raw is None:
-            QMessageBox.information(self, "No host", "Select a host in the Settings tab first.")
+            QMessageBox.warning(
+                self, "No host selected", "Select a host in the Settings tab first."
+            )
             return
 
         self._current_host = host_cfg_raw
-        session_name = self.signals_tab.session_name()
+        session_name = self.signals_tab.current_session_name()
 
-        worker = LogSyncWorker(
-            host_inventory=self._host_inventory,
-            host_dict=host_cfg_raw,
-            session_name=session_name,
-        )
+        host_cfg = self._host_inventory.to_host_config(host_cfg_raw)
+        worker = _LogSyncTask(host_cfg, session_name)
         thread = QThread(self)
         worker.moveToThread(thread)
 
-        worker.progress.connect(lambda msg: self.statusBar().showMessage(msg, 5000))
         worker.finished.connect(self._on_log_sync_finished)
         worker.error.connect(self._on_log_sync_error)
-
         thread.started.connect(worker.run)
         worker.finished.connect(thread.quit)
         worker.error.connect(thread.quit)
-
         worker.finished.connect(worker.deleteLater)
         worker.error.connect(worker.deleteLater)
         thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._clear_log_sync_worker)
+
+        self._log_sync_thread = thread
+        self._log_sync_worker = worker
 
         try:
             self.signals_tab.sync_logs_button.setEnabled(False)
@@ -230,8 +257,8 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Starting log sync …", 3000)
         thread.start()
 
-    @Slot(str, int)
-    def _on_log_sync_finished(self, local_dir: str, files_downloaded: int) -> None:
+    @Slot(object)
+    def _on_log_sync_finished(self, report: SyncReport) -> None:
         try:
             self.signals_tab.sync_logs_button.setEnabled(True)
         except Exception:
@@ -239,8 +266,11 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Log sync complete.", 5000)
         QMessageBox.information(
             self,
-            "Sync complete",
-            f"Downloaded {files_downloaded} file(s) to:\n{local_dir}",
+            "Log sync complete",
+            f"Remote: {report.remote_root}\n"
+            f"Local: {report.local_root}\n"
+            f"Downloaded: {len(report.downloaded)}\n"
+            f"Skipped: {report.skipped}",
         )
 
     @Slot(str)
@@ -251,6 +281,10 @@ class MainWindow(QMainWindow):
             pass
         self.statusBar().showMessage("Log sync failed.", 5000)
         QMessageBox.critical(self, "Sync failed", message)
+
+    def _clear_log_sync_worker(self) -> None:
+        self._log_sync_thread = None
+        self._log_sync_worker = None
 
     @Slot(SensorSelectionConfig)
     def _on_sensor_selection_changed(self, cfg: SensorSelectionConfig) -> None:

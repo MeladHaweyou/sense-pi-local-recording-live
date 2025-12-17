@@ -1673,6 +1673,11 @@ class SignalsTab(QWidget):
             return ""
         return self._session_name_edit.text().strip()
 
+    def current_session_name(self) -> str:
+        """Alias for :meth:`session_name` to mirror other tab APIs."""
+
+        return self.session_name()
+
     def calibrate_from_buffer(self, window_s: float | None = None) -> None:
         self._plot.calibrate_from_buffer(window_s=window_s)
 
