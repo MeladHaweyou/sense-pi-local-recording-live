@@ -1,54 +1,49 @@
 pis:
-  - name: Pi06
-    host: 192.168.0.6
-    user: verwalter
-    password: '66442200'
-    base_path: /home/verwalter/sensor
-    data_dir: /home/verwalter/logs
-    pi_config_path: /home/verwalter/sensor/pi_config.yaml
-    port: 22
-
-  - name: Pi05
-    host: 192.168.0.105
-    user: verwalter
-    password: '66442200'
-    base_path: /home/verwalter/sensor
-    data_dir: /home/verwalter/logs
-    pi_config_path: /home/verwalter/sensor/pi_config.yaml
-    port: 22
-
-  - name: Pi12
-    host: 192.168.0.112
-    user: verwalter
-    password: '66442200'
-    base_path: /home/verwalter/sensor
-    data_dir: /home/verwalter/logs
-    pi_config_path: /home/verwalter/sensor/pi_config.yaml
-    port: 22
-
-  - name: Pi04
-    host: 192.168.0.104
-    user: verwalter
-    password: '66442200'
-    base_path: /home/verwalter/sensor
-    data_dir: /home/verwalter/logs
-    pi_config_path: /home/verwalter/sensor/pi_config.yaml
-    port: 22
-
-  - name: Pi11
-    host: 192.168.0.111
-    user: verwalter
-    password: '66442200'
-    base_path: /home/verwalter/sensor
-    data_dir: /home/verwalter/logs
-    pi_config_path: /home/verwalter/sensor/pi_config.yaml
-    port: 22
-
-  - name: Pi07
-    host: 192.168.0.107
-    user: verwalter
-    password: '66442200'
-    base_path: /home/verwalter/sensor
-    data_dir: /home/verwalter/logs
-    pi_config_path: /home/verwalter/sensor/pi_config.yaml
-    port: 22
+- name: Pi06
+  host: 192.168.0.6
+  user: verwalter
+  password: '66442200'
+  base_path: /home/verwalter/sensor
+  data_dir: /home/verwalter/logs
+  pi_config_path: /home/verwalter/sensor/pi_config.yaml
+  port: 22
+- name: Pi05
+  host: 192.168.0.105
+  user: verwalter
+  password: '66442200'
+  base_path: /home/verwalter/sensor
+  data_dir: /home/verwalter/logs
+  pi_config_path: /home/verwalter/sensor/pi_config.yaml
+  port: 22
+- name: Pi12
+  host: 192.168.0.112
+  user: verwalter
+  password: '66442200'
+  base_path: /home/verwalter/sensor
+  data_dir: /home/verwalter/logs
+  pi_config_path: /home/verwalter/sensor/pi_config.yaml
+  port: 22
+- name: Pi04
+  host: 192.168.0.104
+  user: verwalter
+  password: '66442200'
+  base_path: /home/verwalter/sensor
+  data_dir: /home/verwalter/logs
+  pi_config_path: /home/verwalter/sensor/pi_config.yaml
+  port: 22
+- name: Pi11
+  host: 192.168.0.111
+  user: verwalter
+  password: '66442200'
+  base_path: /home/verwalter/sensor
+  data_dir: /home/verwalter/logs
+  pi_config_path: /home/verwalter/sensor/pi_config.yaml
+  port: 22
+- name: Pi07
+  host: 192.168.0.107
+  user: verwalter
+  password: '66442200'
+  base_path: /home/verwalter/sensor
+  data_dir: /home/verwalter/logs
+  pi_config_path: /home/verwalter/sensor/pi_config.yaml
+  port: 22

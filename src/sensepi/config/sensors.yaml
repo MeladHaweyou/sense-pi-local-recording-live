@@ -3,6 +3,6 @@ sampling:
   mode: high_fidelity
 sensors:
   mpu6050:
-    channels: both
+    channels: default
     dlpf: 3
     include_temperature: false
