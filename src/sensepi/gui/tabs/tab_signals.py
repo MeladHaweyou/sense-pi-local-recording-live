@@ -71,6 +71,7 @@ REFRESH_PRESETS: list[tuple[str, int]] = [
     ("Balanced", DEFAULT_REFRESH_INTERVAL_MS),
     ("High fidelity", 20),
 ]
+REFRESH_FOLLOW_DEVICE = "__device_rate__"  # QComboBox itemData sentinel
 STREAM_STALL_THRESHOLD_S = 2.0
 DEFAULT_DISPLAY_SLACK_NS = int(0.05 * NS_PER_SECOND)
 MANUAL_STATUS_HOLD_S = 1.5
@@ -1477,6 +1478,7 @@ class SignalsTab(QWidget):
             hz = int(round(1000.0 / interval)) if interval > 0 else 0
             label = f"{name} ({hz} Hz / {int(interval)} ms)"
             self.refresh_profile_combo.addItem(label, int(interval))
+        self.refresh_profile_combo.addItem("Device sampling rate", REFRESH_FOLLOW_DEVICE)
         self._refresh_profile_custom_index = self.refresh_profile_combo.count()
         self.refresh_profile_combo.addItem(
             self._format_custom_refresh_profile_label(self.refresh_interval_ms),
@@ -1514,6 +1516,8 @@ class SignalsTab(QWidget):
         self._plot_refresh_label.setToolTip(
             "Approximate refresh/FPS rate achieved by the GUI plot."
         )
+        self._stream_rate_label.setVisible(False)
+        self._plot_refresh_label.setVisible(False)
 
         self.sync_logs_button = QPushButton("Sync logs from Pi", top_row_group)
         self.sync_logs_button.setToolTip(
@@ -1530,8 +1534,6 @@ class SignalsTab(QWidget):
         top_row.addWidget(self._session_name_edit)
         top_row.addWidget(self.start_button)
         top_row.addWidget(self.stop_button)
-        top_row.addWidget(self._stream_rate_label)
-        top_row.addWidget(self._plot_refresh_label)
         top_row.addWidget(self.sync_logs_button)
         top_row.addStretch()
 
@@ -2064,6 +2066,9 @@ class SignalsTab(QWidget):
         if combo is None or index < 0:
             return
         interval_data = combo.itemData(index)
+        if interval_data == REFRESH_FOLLOW_DEVICE:
+            self.set_refresh_mode("follow_sampling_rate")
+            return
         if interval_data is None:
             # Custom entry - editing happens via the acquisition widget spin box.
             return
@@ -2495,6 +2500,12 @@ class SignalsTab(QWidget):
         combo = getattr(self, "refresh_profile_combo", None)
         if combo is None:
             return
+        if self.refresh_mode == "follow_sampling_rate":
+            idx = combo.findData(REFRESH_FOLLOW_DEVICE)
+            with QSignalBlocker(combo):
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
+            return
         idx = combo.findData(int(interval_ms))
         with QSignalBlocker(combo):
             if idx >= 0:
@@ -2529,9 +2540,9 @@ class SignalsTab(QWidget):
     def _update_refresh_profile_enabled(self) -> None:
         combo = getattr(self, "refresh_profile_combo", None)
         label = getattr(self, "_refresh_profile_label", None)
-        enabled = self.refresh_mode == "fixed"
+        enabled = self.refresh_mode in ("fixed", "follow_sampling_rate")
         tooltip = (
-            "Preset refresh rates are available only when using a fixed interval."
+            "Preset refresh rates are available only when using a fixed interval or device sampling rate mode."
             if not enabled
             else "Preset GUI refresh rates for the time-domain plots."
         )
@@ -2545,7 +2556,7 @@ class SignalsTab(QWidget):
 
     def _refresh_profile_descriptor(self) -> str:
         if self.refresh_mode == "follow_sampling_rate":
-            return "Follow stream rate"
+            return "Device sampling rate"
         if self._active_refresh_profile_label:
             return self._active_refresh_profile_label
         return REFRESH_PROFILE_CUSTOM_LABEL
