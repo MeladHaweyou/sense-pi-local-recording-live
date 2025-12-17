@@ -8,7 +8,7 @@ from PySide6.QtCore import Slot
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
 
-from ..config.app_config import AppConfig, AppPaths, HostInventory
+from ..config.app_config import AppConfig, HostInventory
 from ..config.sampling import SamplingConfig
 from .config.acquisition_state import (
     CalibrationOffsets,
@@ -17,7 +17,6 @@ from .config.acquisition_state import (
 )
 from .recorder_controller import RecorderController
 from .tabs.tab_fft import FftTab
-from .tabs.tab_logs import LogsTab
 from .tabs.tab_settings import SettingsTab
 from .tabs.tab_signals import SignalsTab
 
@@ -53,8 +52,6 @@ class MainWindow(QMainWindow):
 
     def _build_tabs(self) -> None:
         """Create and register all main workflow tabs."""
-        app_paths = AppPaths()
-
         self.recorder_tab = RecorderController()
         self.settings_tab = SettingsTab()
         self.signals_tab = SignalsTab(
@@ -66,7 +63,6 @@ class MainWindow(QMainWindow):
             parent=self,
             app_config=self._app_config,
         )
-        self.logs_tab = LogsTab(app_paths)
 
         self.signals_tab.start_stream_requested.connect(
             self._on_start_stream_requested
@@ -97,11 +93,14 @@ class MainWindow(QMainWindow):
             self.settings_tab.acquisitionConfigChanged.connect(
                 self.fft_tab.update_acquisition_config
             )
+        try:
+            self._on_sensor_selection_changed(self.settings_tab.current_sensor_selection())
+        except Exception:
+            self._logger.exception("Failed to seed initial sensor selection from SettingsTab")
 
         self._tabs.addTab(self.signals_tab, self.tr("Live Signals"))
         self._tabs.addTab(self.fft_tab, self.tr("Spectrum"))
         self._tabs.addTab(self.settings_tab, self.tr("Settings"))
-        self._tabs.addTab(self.logs_tab, self.tr("App Logs"))
 
         container = QWidget()
         layout = QVBoxLayout(container)
@@ -158,8 +157,9 @@ class MainWindow(QMainWindow):
         self.fft_tab.update_sensor_selection(gui_cfg.sensor_selection)
         self.fft_tab.update_acquisition_config(gui_cfg)
 
-        self.signals_tab.set_sampling_rate_hz(gui_cfg.stream_rate_hz)
-        self.fft_tab.set_sampling_rate_hz(gui_cfg.stream_rate_hz)
+        device_rate = float(gui_cfg.sampling.device_rate_hz)
+        self.signals_tab.set_sampling_rate_hz(device_rate)
+        self.fft_tab.set_sampling_rate_hz(device_rate)
 
         self.fft_tab.set_refresh_interval_ms(acquisition_settings.fft_refresh_ms)
 

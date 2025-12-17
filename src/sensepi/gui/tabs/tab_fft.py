@@ -86,7 +86,8 @@ class FftTab(QWidget):
             plot_perf = PlotPerformanceConfig()
         self._plot_perf_config: PlotPerformanceConfig = plot_perf
         self._max_subplots = self._plot_perf_config.normalized_max_subplots()
-        self._stream_rate_hz: float = 0.0
+        self._device_rate_hz: float = 0.0
+        self._measured_rate_hz: float = 0.0
         self._refresh_interval_ms: int = self._clamp_fft_interval(
             self._plot_perf_config.fft_refresh_interval_ms()
         )
@@ -203,9 +204,11 @@ class FftTab(QWidget):
         """
 
         self._gui_acq_config = config
-        if config.stream_rate_hz and config.stream_rate_hz > 0.0:
-            self._stream_rate_hz = float(config.stream_rate_hz)
-            self._ensure_fft_frequency_axis(self._stream_rate_hz)
+        try:
+            self._device_rate_hz = float(config.sampling.device_rate_hz)
+        except Exception:
+            self._device_rate_hz = 0.0
+        self._ensure_fft_frequency_axis(self._device_rate_hz)
         if config.record_only:
             if self._timer.isActive():
                 self._timer.stop()
@@ -337,9 +340,8 @@ class FftTab(QWidget):
         """Receive stream-rate updates so FFT windows know how much data to expect."""
         if sensor_type != "mpu6050":
             return
-        self._stream_rate_hz = float(hz) if hz > 0.0 else 0.0
-        logger.info("FftTab: update_stream_rate %.2f Hz", self._stream_rate_hz)
-        self._ensure_fft_frequency_axis(self._stream_rate_hz)
+        self._measured_rate_hz = float(hz) if hz > 0.0 else 0.0
+        logger.info("FftTab: update_stream_rate %.2f Hz", self._measured_rate_hz)
         self._request_full_refresh()
 
     def set_sampling_rate_hz(self, hz: float) -> None:
@@ -350,7 +352,7 @@ class FftTab(QWidget):
         the GUI (GuiAcquisitionConfig) before the RecorderTab has measured
         and reported a real rate.
 
-        Internally it just routes through update_stream_rate().
+        The device sampling rate is authoritative for the FFT axis.
         """
         try:
             value = float(hz)
@@ -358,8 +360,12 @@ class FftTab(QWidget):
             # Ignore invalid values; keep existing rate
             return
 
-        # Reuse the existing logic that already updates labels, timers, etc.
-        self.update_stream_rate("mpu6050", value)
+        if value <= 0.0:
+            return
+
+        self._device_rate_hz = value
+        self._ensure_fft_frequency_axis(self._device_rate_hz)
+        self._request_full_refresh()
 
     @Slot()
     def on_stream_started(self) -> None:
@@ -409,13 +415,14 @@ class FftTab(QWidget):
         For debugging we are a bit more permissive: ~25% of the expected
         samples, but at least 4.
         """
-        if self._stream_rate_hz > 0.0:
-            expected = self._stream_rate_hz * window_s
+        expected_rate = self._measured_rate_hz or self._device_rate_hz
+        if expected_rate > 0.0:
+            expected = expected_rate * window_s
             min_samples = max(4, int(expected * 0.25))
             logger.debug(
-                "FftTab: min_samples_required window_s=%.3f stream_rate=%.2f -> %d",
+                "FftTab: min_samples_required window_s=%.3f expected_rate=%.2f -> %d",
                 window_s,
-                self._stream_rate_hz,
+                expected_rate,
                 min_samples,
             )
             return min_samples
@@ -475,7 +482,8 @@ class FftTab(QWidget):
             return None
         sample_rate_hz = (len(times_arr) - 1) / dt if dt > 0 else 1.0
         if sample_rate_hz <= 0.0:
-            sample_rate_hz = self._stream_rate_hz if self._stream_rate_hz > 0.0 else 1.0
+            fallback_rate = self._measured_rate_hz or self._device_rate_hz
+            sample_rate_hz = fallback_rate if fallback_rate > 0.0 else 1.0
         return times_arr, values_arr, sample_rate_hz
 
     def _preprocess_signal(
@@ -500,7 +508,7 @@ class FftTab(QWidget):
     def _ensure_fft_frequency_axis(self, sample_rate_hz: float | None = None) -> None:
         """Ensure the cached frequency axis matches the latest sampling rate."""
         if sample_rate_hz is None or sample_rate_hz <= 0.0:
-            sample_rate_hz = self._stream_rate_hz
+            sample_rate_hz = self._device_rate_hz
         sample_rate_hz = float(sample_rate_hz) if sample_rate_hz and sample_rate_hz > 0 else 1.0
         if np.isclose(sample_rate_hz, self._fft_sample_rate_hz, rtol=1e-3):
             return
@@ -651,7 +659,9 @@ class FftTab(QWidget):
                 _times_arr, values_arr, sample_rate_hz = prepared
                 signal = self._preprocess_signal(values_arr, sample_rate_hz)
 
-                axis_sample_rate = self._stream_rate_hz if self._stream_rate_hz > 0.0 else sample_rate_hz
+                axis_sample_rate = (
+                    self._device_rate_hz if self._device_rate_hz > 0.0 else sample_rate_hz
+                )
                 self._ensure_fft_frequency_axis(axis_sample_rate)
                 magnitude = self._compute_fft_magnitude(signal)
                 if magnitude.size == 0:
@@ -670,7 +680,7 @@ class FftTab(QWidget):
                 sensor_ids,
                 channels,
                 min_samples,
-                self._stream_rate_hz,
+                self._measured_rate_hz or self._device_rate_hz,
             )
             self._status_label.setText("Waiting for data...")
             self._last_rendered_latest_ts = latest_ts

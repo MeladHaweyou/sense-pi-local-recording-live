@@ -118,6 +118,7 @@ class SettingsTab(QWidget):
         self._sensors: Dict[str, Any] = {}
 
         self._current_host_index: Optional[int] = None
+        self._hosts_dirty: bool = False
 
         # Last sampling config loaded from sensors.yaml (used to preserve rate)
         self._sampling_config: SamplingConfig | None = None
@@ -188,13 +189,15 @@ class SettingsTab(QWidget):
         host_form_col.addLayout(form)
 
         self.btn_save_hosts = QPushButton("Save hosts.yaml", hosts_group)
-        self.btn_sync_pi = QPushButton("Sync config to Pi", hosts_group)
 
         buttons_row = QHBoxLayout()
         buttons_row.addStretch()
-        buttons_row.addWidget(self.btn_sync_pi)
         buttons_row.addWidget(self.btn_save_hosts)
         host_form_col.addLayout(buttons_row)
+        self._hosts_dirty_label = QLabel("Unsaved changes", hosts_group)
+        self._hosts_dirty_label.setStyleSheet("color: red; font-size: 11px;")
+        self._hosts_dirty_label.setVisible(False)
+        host_form_col.addWidget(self._hosts_dirty_label, alignment=Qt.AlignRight)
 
         hosts_layout.addLayout(host_form_col, 2)
         root.addWidget(hosts_group)
@@ -258,13 +261,38 @@ class SettingsTab(QWidget):
 
         sensors_layout.addWidget(sampling_group)
         sensors_layout.addWidget(mpu_group)
+        self.btn_sync_pi = QPushButton("Sync Pi defaults (pi_config.yaml)", sensors_group)
+        self.btn_sync_pi.setToolTip("Uploads generated pi_config.yaml to the selected Pi host")
+        sync_note = QLabel(
+            "Sync writes pi_config.yaml on the selected Pi (output_dir, sampling rate, "
+            "channels, DLPF). Only needed if you run the Pi scripts manually or want Pi "
+            "defaults updated.",
+            sensors_group,
+        )
+        sync_note.setWordWrap(True)
+        sensors_layout.addWidget(sync_note)
 
         self.btn_save_sensors = QPushButton("Save sensors.yaml", sensors_group)
-        sensors_layout.addWidget(self.btn_save_sensors, alignment=Qt.AlignRight)
+        buttons_sync_row = QHBoxLayout()
+        buttons_sync_row.addStretch()
+        buttons_sync_row.addWidget(self.btn_sync_pi)
+        buttons_sync_row.addWidget(self.btn_save_sensors)
+        sensors_layout.addLayout(buttons_sync_row)
 
         root.addWidget(sensors_group)
 
         # ----- signal wiring ------------------------------------------
+        for edit in (
+            self.edit_host_name,
+            self.edit_host_address,
+            self.edit_host_user,
+            self.edit_password,
+            self.edit_base_path,
+            self.edit_data_dir,
+            self.edit_pi_config,
+        ):
+            edit.textEdited.connect(lambda _text=None: self._set_hosts_dirty(True))
+        self.edit_host_port.valueChanged.connect(lambda _value=None: self._set_hosts_dirty(True))
         self.host_list.currentRowChanged.connect(self._on_host_row_changed)
         self.btn_add_host.clicked.connect(self._on_add_host)
         self.btn_remove_host.clicked.connect(self._on_remove_host)
@@ -294,6 +322,7 @@ class SettingsTab(QWidget):
         self._set_host_fields_enabled(False)
         self._on_sensor_ui_changed()
         self._update_mpu_dlpf_info()
+        self._update_save_hosts_ui()
 
     # ------------------------------------------------------------------
     # Host helpers
@@ -315,6 +344,21 @@ class SettingsTab(QWidget):
         for w in widgets:
             w.setEnabled(enabled)
 
+    def _update_save_hosts_ui(self) -> None:
+        base_text = "Save hosts.yaml"
+        if getattr(self, "_hosts_dirty", False):
+            self.btn_save_hosts.setText(f"{base_text} *")
+            if hasattr(self, "_hosts_dirty_label"):
+                self._hosts_dirty_label.setVisible(True)
+        else:
+            self.btn_save_hosts.setText(base_text)
+            if hasattr(self, "_hosts_dirty_label"):
+                self._hosts_dirty_label.setVisible(False)
+
+    def _set_hosts_dirty(self, dirty: bool) -> None:
+        self._hosts_dirty = bool(dirty)
+        self._update_save_hosts_ui()
+
     def _clear_host_fields(self) -> None:
         self.edit_host_name.clear()
         self.edit_host_address.clear()
@@ -323,7 +367,8 @@ class SettingsTab(QWidget):
         self.edit_base_path.clear()
         self.edit_data_dir.clear()
         self.edit_pi_config.clear()
-        self.edit_host_port.setValue(22)
+        with QSignalBlocker(self.edit_host_port):
+            self.edit_host_port.setValue(22)
 
     def _load_from_disk(self) -> None:
         # --- Hosts -----------------------------------------------------
@@ -335,6 +380,7 @@ class SettingsTab(QWidget):
 
         self._hosts = list(data.get("pis", [])) if isinstance(data, dict) else []
         self._refresh_host_list()
+        self._set_hosts_dirty(False)
 
         # --- Sensors ---------------------------------------------------
         try:
@@ -383,13 +429,15 @@ class SettingsTab(QWidget):
         self.edit_base_path.setText(str(host.get("base_path", host.get("scripts_dir", ""))))
         self.edit_data_dir.setText(str(host.get("data_dir", "")))
         self.edit_pi_config.setText(str(host.get("pi_config_path", "")))
-        self.edit_host_port.setValue(int(host.get("port", 22)))
+        with QSignalBlocker(self.edit_host_port):
+            self.edit_host_port.setValue(int(host.get("port", 22)))
 
     def _update_model_from_host_fields(self, index: int) -> None:
         if index < 0 or index >= len(self._hosts):
             return
 
-        original = dict(self._hosts[index])  # keep unknown keys
+        previous = dict(self._hosts[index])  # keep unknown keys
+        original = dict(self._hosts[index])
         name = self.edit_host_name.text().strip()
         host = self.edit_host_address.text().strip()
         user = self.edit_host_user.text().strip()
@@ -438,12 +486,15 @@ class SettingsTab(QWidget):
         # store port even if default
         original["port"] = port
 
+        changed = original != previous
         self._hosts[index] = original
 
         item = self.host_list.item(index)
         if item is not None:
             label = original.get("name") or original.get("host") or "<unnamed>"
             item.setText(label)
+        if changed:
+            self._set_hosts_dirty(True)
 
     @Slot()
     def _on_add_host(self) -> None:
@@ -463,6 +514,7 @@ class SettingsTab(QWidget):
         self._hosts.append(new)
         self._refresh_host_list()
         self.host_list.setCurrentRow(len(self._hosts) - 1)
+        self._set_hosts_dirty(True)
 
     @Slot()
     def _on_remove_host(self) -> None:
@@ -471,6 +523,7 @@ class SettingsTab(QWidget):
             return
         del self._hosts[row]
         self._refresh_host_list()
+        self._set_hosts_dirty(True)
 
     @Slot()
     def _on_browse_base(self) -> None:
@@ -481,6 +534,7 @@ class SettingsTab(QWidget):
         )
         if path:
             self.edit_base_path.setText(path)
+            self._set_hosts_dirty(True)
 
     @Slot()
     def _on_save_hosts_clicked(self) -> None:
@@ -505,6 +559,7 @@ class SettingsTab(QWidget):
 
         QMessageBox.information(self, "Saved", "Host configuration saved to hosts.yaml.")
         self.hostsUpdated.emit([dict(h) for h in self._hosts])
+        self._set_hosts_dirty(False)
 
     @Slot()
     def _on_sync_to_pi(self) -> None:
