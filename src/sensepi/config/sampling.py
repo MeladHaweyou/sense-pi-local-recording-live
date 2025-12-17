@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping
 
 
 @dataclass(frozen=True)
@@ -11,28 +11,20 @@ class RecordingMode:
 
     key: str
     label: str
-    target_record_hz: Optional[float]  # kept for backwards compatibility
-    target_stream_hz: Optional[float]  # kept for backwards compatibility
 
 
 RECORDING_MODES: Dict[str, RecordingMode] = {
     "low_fidelity": RecordingMode(
         key="low_fidelity",
         label="Low fidelity (single-rate)",
-        target_record_hz=None,
-        target_stream_hz=None,
     ),
     "high_fidelity": RecordingMode(
         key="high_fidelity",
         label="High fidelity (single-rate)",
-        target_record_hz=None,
-        target_stream_hz=None,
     ),
     "raw": RecordingMode(
         key="raw",
         label="Raw (device rate)",
-        target_record_hz=None,
-        target_stream_hz=None,
     ),
 }
 
@@ -109,9 +101,6 @@ class SamplingConfig:
             sampling:
               device_rate_hz: 200
               mode: high_fidelity
-        
-        Also understands legacy configs where ``sample_rate_hz`` lived under
-        ``sensors.mpu6050``.
         """
         # Guard against None / non-mapping inputs early
         payload: Mapping[str, Any] = mapping or {}
@@ -126,13 +115,6 @@ class SamplingConfig:
         if isinstance(sampling_block, Mapping):
             device_rate = sampling_block.get("device_rate_hz", device_rate)
             mode_value = sampling_block.get("mode", mode_value)
-
-        # Legacy fallback: old sensors.yaml stored sample_rate_hz under sensors.mpu6050.
-        sensors = payload.get("sensors") if isinstance(payload, Mapping) else None
-        if isinstance(sensors, Mapping) and not isinstance(sampling_block, Mapping):
-            mpu_cfg = sensors.get("mpu6050")
-            if isinstance(mpu_cfg, Mapping):
-                device_rate = mpu_cfg.get("sample_rate_hz", device_rate)
 
         # Coerce rate to float with a safe fallback
         try:

@@ -25,10 +25,10 @@ class SamplingSingleRateTest(unittest.TestCase):
         pi_cfg = PiLoggerConfig.from_sampling(sampling)
         data = pi_cfg.to_pi_config_dict()
         self.assertEqual(data["device_rate_hz"], sampling.device_rate_hz)
-        self.assertEqual(data["record_rate_hz"], sampling.device_rate_hz)
-        self.assertEqual(data["stream_rate_hz"], sampling.device_rate_hz)
         self.assertEqual(data["record_decimate"], 1)
         self.assertEqual(data["stream_decimate"], 1)
+        self.assertNotIn("record_rate_hz", data)
+        self.assertNotIn("stream_rate_hz", data)
 
     def test_sampling_config_prefers_top_level_block(self):
         payload = {
@@ -41,6 +41,11 @@ class SamplingSingleRateTest(unittest.TestCase):
 
     def test_sampling_config_defaults_to_200hz(self):
         cfg = SamplingConfig.from_mapping(None)
+        self.assertEqual(cfg.device_rate_hz, 200.0)
+
+    def test_sampling_config_ignores_legacy_sensor_sample_rate(self):
+        payload = {"sensors": {"mpu6050": {"sample_rate_hz": 512}}}
+        cfg = SamplingConfig.from_mapping(payload)
         self.assertEqual(cfg.device_rate_hz, 200.0)
 
 

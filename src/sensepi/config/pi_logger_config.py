@@ -52,8 +52,6 @@ class PiLoggerConfig:
             "device_rate_hz": rate,
             "record_decimate": 1,
             "stream_decimate": 1,
-            "record_rate_hz": rate,
-            "stream_rate_hz": rate,
         }
         extra_sections = self.sections or {}
         for key, value in extra_sections.items():
