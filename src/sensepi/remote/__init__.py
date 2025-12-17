@@ -7,5 +7,6 @@ the desktop application.
 
 from .ssh_client import Host, SSHClient, SSHConfig
 from .pi_recorder import PiRecorder
+from .log_sync_worker import LogSyncWorker
 
-__all__ = ["Host", "SSHClient", "SSHConfig", "PiRecorder"]
+__all__ = ["Host", "SSHClient", "SSHConfig", "PiRecorder", "LogSyncWorker"]

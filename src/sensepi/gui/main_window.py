@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import QThread, Slot
 from PySide6.QtGui import QCloseEvent
-from PySide6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QMainWindow, QMessageBox, QTabWidget, QVBoxLayout, QWidget
 
 from ..config.app_config import AppConfig, HostInventory
 from ..config.sampling import SamplingConfig
+from ..remote.log_sync_worker import LogSyncWorker
 from .config.acquisition_state import (
     CalibrationOffsets,
     GuiAcquisitionConfig,
@@ -29,12 +30,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("SensePi Recorder")
 
         self._app_config = app_config or AppConfig()
+        self._host_inventory = HostInventory()
         self._tabs = QTabWidget()
         self._logger = logging.getLogger(__name__)
 
         self._current_sensor_selection = SensorSelectionConfig()
         self._current_gui_acquisition_config: GuiAcquisitionConfig | None = None
         self._current_calibration_offsets: CalibrationOffsets | None = None
+        self._current_host: dict | None = None
 
         self._build_tabs()
 
@@ -68,6 +71,7 @@ class MainWindow(QMainWindow):
             self._on_start_stream_requested
         )
         self.signals_tab.stop_stream_requested.connect(self._on_stop_stream_requested)
+        self.signals_tab.sync_logs_requested.connect(self._on_sync_logs_requested)
         self.recorder_tab.stream_started.connect(self.signals_tab.on_stream_started)
         self.recorder_tab.stream_stopped.connect(self.signals_tab.on_stream_stopped)
         self.recorder_tab.stream_started.connect(self.fft_tab.on_stream_started)
@@ -146,7 +150,8 @@ class MainWindow(QMainWindow):
             self.recorder_tab.report_error("No Raspberry Pi host selected.")
             return
 
-        host_cfg = HostInventory().to_host_config(host_cfg_raw)
+        self._current_host = host_cfg_raw
+        host_cfg = self._host_inventory.to_host_config(host_cfg_raw)
 
         self.recorder_tab.apply_sensor_selection(gui_cfg.sensor_selection)
         self.recorder_tab.apply_gui_acquisition_config(gui_cfg)
@@ -187,6 +192,65 @@ class MainWindow(QMainWindow):
             self._log_recording_calibration("stopping")
         # Ensure the ingest worker thread has fully stopped before allowing a new Start.
         self.recorder_tab.stop_live_stream(wait=True)
+
+    @Slot()
+    def _on_sync_logs_requested(self) -> None:
+        host_cfg_raw = self.settings_tab.current_host_config()
+        if host_cfg_raw is None:
+            QMessageBox.information(self, "No host", "Select a host in the Settings tab first.")
+            return
+
+        self._current_host = host_cfg_raw
+        session_name = self.signals_tab.session_name()
+
+        worker = LogSyncWorker(
+            host_inventory=self._host_inventory,
+            host_dict=host_cfg_raw,
+            session_name=session_name,
+        )
+        thread = QThread(self)
+        worker.moveToThread(thread)
+
+        worker.progress.connect(lambda msg: self.statusBar().showMessage(msg, 5000))
+        worker.finished.connect(self._on_log_sync_finished)
+        worker.error.connect(self._on_log_sync_error)
+
+        thread.started.connect(worker.run)
+        worker.finished.connect(thread.quit)
+        worker.error.connect(thread.quit)
+
+        worker.finished.connect(worker.deleteLater)
+        worker.error.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+
+        try:
+            self.signals_tab.sync_logs_button.setEnabled(False)
+        except Exception:
+            pass
+        self.statusBar().showMessage("Starting log sync …", 3000)
+        thread.start()
+
+    @Slot(str, int)
+    def _on_log_sync_finished(self, local_dir: str, files_downloaded: int) -> None:
+        try:
+            self.signals_tab.sync_logs_button.setEnabled(True)
+        except Exception:
+            pass
+        self.statusBar().showMessage("Log sync complete.", 5000)
+        QMessageBox.information(
+            self,
+            "Sync complete",
+            f"Downloaded {files_downloaded} file(s) to:\n{local_dir}",
+        )
+
+    @Slot(str)
+    def _on_log_sync_error(self, message: str) -> None:
+        try:
+            self.signals_tab.sync_logs_button.setEnabled(True)
+        except Exception:
+            pass
+        self.statusBar().showMessage("Log sync failed.", 5000)
+        QMessageBox.critical(self, "Sync failed", message)
 
     @Slot(SensorSelectionConfig)
     def _on_sensor_selection_changed(self, cfg: SensorSelectionConfig) -> None:
