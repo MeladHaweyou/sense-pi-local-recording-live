@@ -4,11 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sensepi"
-version = "0.1.0"
-description = "PySide6 desktop app and Raspberry Pi helpers for SensePi data logging"
-authors = [
-  {name = "SensePi", email = "maintainers@example.com"}
-]
+version = "x.x.x"
+description = "SensePi MPU"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
